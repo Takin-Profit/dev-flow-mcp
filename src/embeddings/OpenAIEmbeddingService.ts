@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { EmbeddingService, type EmbeddingModelInfo } from './EmbeddingService.js';
-import { logger } from '../utils/logger.js';
+import { EmbeddingService, type EmbeddingModelInfo } from './EmbeddingService.ts';
+import { logger } from '../utils/logger.ts';
 
 /**
  * Configuration for OpenAI embedding service

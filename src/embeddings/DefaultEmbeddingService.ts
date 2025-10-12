@@ -1,6 +1,6 @@
-import { logger } from '../utils/logger.js';
-import { EmbeddingService, type EmbeddingModelInfo } from './EmbeddingService.js';
-import type { EmbeddingServiceConfig } from './EmbeddingServiceFactory.js';
+import { logger } from '../utils/logger.ts';
+import { EmbeddingService, type EmbeddingModelInfo } from './EmbeddingService.ts';
+import type { EmbeddingServiceConfig } from './EmbeddingServiceFactory.ts';
 
 /**
  * Default embedding service implementation that generates random vectors.

@@ -7,9 +7,9 @@
  * operations for the Memento MCP project.
  */
 
-import { Neo4jConnectionManager } from '../storage/neo4j/Neo4jConnectionManager.js';
-import { Neo4jSchemaManager } from '../storage/neo4j/Neo4jSchemaManager.js';
-import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from '../storage/neo4j/Neo4jConfig.js';
+import { Neo4jConnectionManager } from '../storage/neo4j/Neo4jConnectionManager.ts';
+import { Neo4jSchemaManager } from '../storage/neo4j/Neo4jSchemaManager.ts';
+import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from '../storage/neo4j/Neo4jConfig.ts';
 
 // Factory types for dependency injection in testing
 export type ConnectionManagerFactory = (config: Neo4jConfig) => Neo4jConnectionManager;

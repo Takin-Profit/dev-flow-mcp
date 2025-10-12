@@ -1,4 +1,4 @@
-import * as toolHandlers from './toolHandlers/index.js';
+import * as toolHandlers from './toolHandlers/index.ts';
 
 /**
  * Handles the CallTool request.

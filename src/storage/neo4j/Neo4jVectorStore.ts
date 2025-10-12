@@ -1,7 +1,7 @@
-import type { VectorStore, VectorSearchResult } from '../../types/vector-store.js';
-import type { Neo4jConnectionManager } from './Neo4jConnectionManager.js';
-import { Neo4jSchemaManager } from './Neo4jSchemaManager.js';
-import { logger } from '../../utils/logger.js';
+import type { VectorStore, VectorSearchResult } from '../../types/vector-store.ts';
+import type { Neo4jConnectionManager } from './Neo4jConnectionManager.ts';
+import { Neo4jSchemaManager } from './Neo4jSchemaManager.ts';
+import { logger } from '../../utils/logger.ts';
 import neo4j from 'neo4j-driver';
 
 export interface Neo4jVectorStoreOptions {

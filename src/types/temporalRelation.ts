@@ -1,7 +1,7 @@
 /**
  * Interface for relations with temporal metadata
  */
-import { RelationValidator, type Relation } from './relation.js';
+import { RelationValidator, type Relation } from './relation.ts';
 
 /**
  * Represents a relationship with temporal awareness capabilities

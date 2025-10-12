@@ -1,8 +1,8 @@
-import type { StorageProvider, SearchOptions } from './StorageProvider.js';
+import type { StorageProvider, SearchOptions } from './StorageProvider.ts';
 import * as fs from 'fs';
-import type { KnowledgeGraph, Relation } from '../KnowledgeGraphManager.js';
+import type { KnowledgeGraph, Relation } from '../KnowledgeGraphManager.ts';
 import path from 'path';
-import type { VectorStoreFactoryOptions } from './VectorStoreFactory.js';
+import type { VectorStoreFactoryOptions } from './VectorStoreFactory.ts';
 
 interface FileStorageProviderOptions {
   memoryFilePath?: string;

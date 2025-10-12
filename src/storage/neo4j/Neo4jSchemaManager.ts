@@ -1,6 +1,6 @@
-import type { Neo4jConnectionManager } from './Neo4jConnectionManager.js';
-import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.js';
-import { logger } from '../../utils/logger.js';
+import type { Neo4jConnectionManager } from './Neo4jConnectionManager.ts';
+import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.ts';
+import { logger } from '../../utils/logger.ts';
 
 /**
  * Manages Neo4j schema operations like creating constraints and indexes

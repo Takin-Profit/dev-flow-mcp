@@ -1,8 +1,8 @@
-import type { VectorStore } from '../types/vector-store.js';
-import { Neo4jVectorStore } from './neo4j/Neo4jVectorStore.js';
-import { Neo4jConnectionManager } from './neo4j/Neo4jConnectionManager.js';
-import type { Neo4jConfig } from './neo4j/Neo4jConfig.js';
-import { logger } from '../utils/logger.js';
+import type { VectorStore } from '../types/vector-store.ts';
+import { Neo4jVectorStore } from './neo4j/Neo4jVectorStore.ts';
+import { Neo4jConnectionManager } from './neo4j/Neo4jConnectionManager.ts';
+import type { Neo4jConfig } from './neo4j/Neo4jConfig.ts';
+import { logger } from '../utils/logger.ts';
 
 export type VectorStoreType = 'neo4j';
 

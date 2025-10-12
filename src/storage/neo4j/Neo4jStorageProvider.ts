@@ -1,16 +1,16 @@
-import type { StorageProvider, SearchOptions } from '../StorageProvider.js';
-import type { KnowledgeGraph, Entity } from '../../KnowledgeGraphManager.js';
-import type { Relation } from '../../types/relation.js';
-import type { EntityEmbedding, SemanticSearchOptions } from '../../types/entity-embedding.js';
+import type { StorageProvider, SearchOptions } from '../StorageProvider.ts';
+import type { KnowledgeGraph, Entity } from '../../KnowledgeGraphManager.ts';
+import type { Relation } from '../../types/relation.ts';
+import type { EntityEmbedding, SemanticSearchOptions } from '../../types/entity-embedding.ts';
 import { v4 as uuidv4 } from 'uuid';
-import { Neo4jConnectionManager } from './Neo4jConnectionManager.js';
-import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.js';
-import { Neo4jSchemaManager } from './Neo4jSchemaManager.js';
-import { logger } from '../../utils/logger.js';
+import { Neo4jConnectionManager } from './Neo4jConnectionManager.ts';
+import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.ts';
+import { Neo4jSchemaManager } from './Neo4jSchemaManager.ts';
+import { logger } from '../../utils/logger.ts';
 import neo4j from 'neo4j-driver';
-import { Neo4jVectorStore } from './Neo4jVectorStore.js';
-import { EmbeddingServiceFactory } from '../../embeddings/EmbeddingServiceFactory.js';
-import type { EmbeddingService } from '../../embeddings/EmbeddingService.js';
+import { Neo4jVectorStore } from './Neo4jVectorStore.ts';
+import { EmbeddingServiceFactory } from '../../embeddings/EmbeddingServiceFactory.ts';
+import type { EmbeddingService } from '../../embeddings/EmbeddingService.ts';
 
 /**
  * Configuration options for Neo4j storage provider

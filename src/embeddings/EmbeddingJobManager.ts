@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { LRUCache } from 'lru-cache';
-import type { StorageProvider } from '../storage/StorageProvider.js';
-import type { EmbeddingService } from './EmbeddingService.js';
-import type { Entity } from '../KnowledgeGraphManager.js';
-import type { EntityEmbedding } from '../types/entity-embedding.js';
+import type { StorageProvider } from '../storage/StorageProvider.ts';
+import type { EmbeddingService } from './EmbeddingService.ts';
+import type { Entity } from '../KnowledgeGraphManager.ts';
+import type { EntityEmbedding } from '../types/entity-embedding.ts';
 import crypto from 'crypto';
 
 /**

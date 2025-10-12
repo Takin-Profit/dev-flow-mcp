@@ -1,5 +1,5 @@
 import neo4j, { type Driver, type Session, type QueryResult } from 'neo4j-driver';
-import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.js';
+import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.ts';
 
 /**
  * Options for configuring a Neo4j connection

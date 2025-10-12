@@ -1,39 +1,41 @@
 {
-  "name": "@gannonh/memento-mcp",
-  "version": "0.3.9",
-  "description": "Memento MCP: Knowledge graph memory system for LLMs",
+  "name": "devflow-mcp",
+  "version": "1.0.0",
+  "description": "DevFlow MCP (DFM) Server: Knowledge graph memory layer for software development workflows.",
   "license": "MIT",
   "author": "Gannon Hall",
-  "homepage": "https://github.com/gannonh/memento-mcp",
-  "bugs": "https://github.com/gannonh/memento-mcp/issues",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "imports": {
+    "#*": "./src/*"
+  },
   "bin": {
-    "memento-mcp": "dist/index.js"
+    "dfm-server": "dist/index.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gannonh/memento-mcp.git"
+    "url": "https://github.com/your-repo/devflow-mcp.git"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsc && shx chmod +x dist/*.js",
-    "prepare": "npm run build",
+    "prepare": "pnpm build",
     "dev": "tsc --watch",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:verbose": "clear && vitest run --reporter verbose",
-    "test:integration": "TEST_INTEGRATION=true npm test",
-    "lint": "eslint 'src/**/*.ts'",
-    "lint:fix": "eslint 'src/**/*.ts' --fix",
-    "format": "prettier --write \"**/*.{ts,json,md}\"",
-    "fix": "npm run lint:fix && npm run format",
+    "test": "node --experimental-transform-types --disable-warning=ExperimentalWarning --test",
+    "test:watch": "node --experimental-transform-types --disable-warning=ExperimentalWarning --test --watch",
+    "test:coverage": "cross-env NODE_V8_COVERAGE=./coverage node --experimental-transform-types --disable-warning=ExperimentalWarning --test --experimental-test-coverage",
+    "test:verbose": "clear && node --experimental-transform-types --disable-warning=ExperimentalWarning --test --reporter verbose",
+    "test:integration": "cross-env TEST_INTEGRATION=true pnpm test",
+    "check": "ultracite check",
+    "lint": "ultracite check",
+    "lint:fix": "ultracite fix",
+    "fix": "pnpm lint:fix",
     "neo4j:init": "tsx src/cli/neo4j-setup.ts init",
-    "neo4j:test": "tsx src/cli/neo4j-setup.ts test"
+    "neo4j:test": "tsx src/cli/neo4j-setup.ts test",
+    "doctor": "ultracite doctor"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.11.0",
@@ -42,27 +44,21 @@
     "lru-cache": "^11.1.0",
     "neo4j-driver": "^5.28.1",
     "openai": "^4.90.0",
-    "ts-node": "^10.9.2",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.2.5",
     "@types/lru-cache": "^7.10.10",
     "@types/node": "^22",
     "@types/uuid": "^10.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.28.0",
-    "@typescript-eslint/parser": "^8.28.0",
-    "@vitest/coverage-v8": "^3.1.1",
-    "eslint": "^9.23.0",
-    "eslint-config-prettier": "^10.1.1",
-    "eslint-plugin-prettier": "^5.4.0",
+    "cross-env": "^10.1.0",
     "glob": "^11.0.1",
-    "prettier": "^3.5.3",
+    "lefthook": "^1.13.6",
     "rimraf": "^6.0.1",
     "shx": "^0.4.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.32.0",
-    "vitest": "^3.1.1",
+    "ultracite": "^5.6.2",
     "zod": "^3.24.2"
   },
   "overrides": {

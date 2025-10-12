@@ -1,6 +1,6 @@
-import type { KnowledgeGraph } from '../KnowledgeGraphManager.js';
-import type { Relation } from '../types/relation.js';
-import type { EntityEmbedding, SemanticSearchOptions } from '../types/entity-embedding.js';
+import type { KnowledgeGraph } from '../KnowledgeGraphManager.ts';
+import type { Relation } from '../types/relation.ts';
+import type { EntityEmbedding, SemanticSearchOptions } from '../types/entity-embedding.ts';
 
 /**
  * Options for searching nodes in the knowledge graph

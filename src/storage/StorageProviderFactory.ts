@@ -1,8 +1,8 @@
-import type { StorageProvider } from './StorageProvider.js';
-import { FileStorageProvider } from './FileStorageProvider.js';
-import type { VectorStoreFactoryOptions } from './VectorStoreFactory.js';
-import { Neo4jStorageProvider } from './neo4j/Neo4jStorageProvider.js';
-import type { Neo4jConfig } from './neo4j/Neo4jConfig.js';
+import type { StorageProvider } from './StorageProvider.ts';
+import { FileStorageProvider } from './FileStorageProvider.ts';
+import type { VectorStoreFactoryOptions } from './VectorStoreFactory.ts';
+import { Neo4jStorageProvider } from './neo4j/Neo4jStorageProvider.ts';
+import type { Neo4jConfig } from './neo4j/Neo4jConfig.ts';
 
 export interface StorageProviderConfig {
   type: 'file' | 'neo4j';

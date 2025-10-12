@@ -1,8 +1,8 @@
 /**
  * Exports all tool handlers
  */
-export { handleReadGraph } from './readGraph.js';
-export { handleCreateEntities } from './createEntities.js';
-export { handleCreateRelations } from './createRelations.js';
-export { handleAddObservations } from './addObservations.js';
-export { handleDeleteEntities } from './deleteEntities.js';
+export { handleReadGraph } from './readGraph.ts';
+export { handleCreateEntities } from './createEntities.ts';
+export { handleCreateRelations } from './createRelations.ts';
+export { handleAddObservations } from './addObservations.ts';
+export { handleDeleteEntities } from './deleteEntities.ts';

@@ -1,7 +1,7 @@
 // Note: This file connects Claude's tool calls to the appropriate internal function
 // Each tool function is separate and should have the same name signature as the tools Claude uses
 
-import type { KnowledgeGraphManager } from './KnowledgeGraphManager.js';
+import type { KnowledgeGraphManager } from './knowledge-graph-manager.ts';
 
 export async function handleToolCall(
   manager: KnowledgeGraphManager,

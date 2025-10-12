@@ -1,6 +1,6 @@
-import { StorageProviderFactory } from '../storage/StorageProviderFactory.js';
-import type { VectorStoreFactoryOptions } from '../storage/VectorStoreFactory.js';
-import { logger } from '../utils/logger.js';
+import { StorageProviderFactory } from '../storage/StorageProviderFactory.ts';
+import type { VectorStoreFactoryOptions } from '../storage/VectorStoreFactory.ts';
+import { logger } from '../utils/logger.ts';
 
 /**
  * Determines the storage type based on the environment variable

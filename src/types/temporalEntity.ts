@@ -1,7 +1,7 @@
 /**
  * Interface for entities with temporal metadata
  */
-import type { Entity } from '../KnowledgeGraphManager.js';
+import type { Entity } from '../KnowledgeGraphManager.ts';
 
 /**
  * Represents an entity with temporal awareness capabilities
