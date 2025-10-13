@@ -2,41 +2,67 @@
  * Cache system for search results to improve performance for repeated queries
  */
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Default cache size: 100MB in bytes */
+const DEFAULT_MAX_CACHE_SIZE = 100 * 1024 * 1024
+
+/** Default TTL: 5 minutes in milliseconds */
+const DEFAULT_TTL_MS = 5 * 60 * 1000
+
+/** Size of a Float64 number in bytes */
+const FLOAT64_BYTES = 8
+
+/** Size of a UTF-16 character in bytes */
+const UTF16_CHAR_BYTES = 2
+
+/** Overhead for objects in bytes */
+const OBJECT_OVERHEAD_BYTES = 100
+
+/** Default object size estimate in bytes */
+const DEFAULT_OBJECT_SIZE_BYTES = 1024
+
+// ============================================================================
+// Types
+// ============================================================================
+
 /**
  * Cache entry with TTL
  */
-interface CacheEntry<T> {
-  // The cached data
+type CacheEntry<T> = {
+  /** The cached data */
   data: T
 
-  // Expiration timestamp
+  /** Expiration timestamp */
   expiration: number
 
-  // When the entry was created
+  /** When the entry was created */
   created: number
 
-  // Size of the entry in bytes (approximate)
+  /** Size of the entry in bytes (approximate) */
   size: number
 }
 
 /**
  * Cache configuration
  */
-export interface SearchCacheConfig {
-  // Maximum cache size in bytes
+export type SearchCacheConfig = {
+  /** Maximum cache size in bytes */
   maxSize?: number
 
-  // Default TTL in milliseconds
+  /** Default TTL in milliseconds */
   defaultTtl?: number
 
-  // Enable cache statistics
+  /** Enable cache statistics */
   enableStats?: boolean
 }
 
 /**
  * Cache statistics
  */
-export interface CacheStats {
+export type CacheStats = {
   // Total number of cache hits
   hits: number
 
@@ -60,17 +86,17 @@ export interface CacheStats {
 
   // Average lookup time (ms)
   averageLookupTime: number
-}
+};
 
 /**
  * A memory-efficient cache for search results
  */
 export class SearchResultCache<T> {
-  private cache: Map<string, CacheEntry<T>> = new Map()
-  private maxSize: number
+  private readonly cache: Map<string, CacheEntry<T>> = new Map()
+  private readonly maxSize: number
   private currentSize = 0
-  private defaultTtl: number
-  private enableStats: boolean
+  private readonly defaultTtl: number
+  private readonly enableStats: boolean
 
   // Statistics
   private hits = 0
@@ -84,13 +110,8 @@ export class SearchResultCache<T> {
    * @param config Configuration options
    */
   constructor(config?: SearchCacheConfig) {
-    // Default to 100MB max size
-    this.maxSize = config?.maxSize || 100 * 1024 * 1024
-
-    // Default to 5 minute TTL
-    this.defaultTtl = config?.defaultTtl || 5 * 60 * 1000
-
-    // Enable stats by default
+    this.maxSize = config?.maxSize ?? DEFAULT_MAX_CACHE_SIZE
+    this.defaultTtl = config?.defaultTtl ?? DEFAULT_TTL_MS
     this.enableStats = config?.enableStats !== false
   }
 
@@ -99,35 +120,39 @@ export class SearchResultCache<T> {
    * @param obj The object to measure
    * @returns Approximate size in bytes
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private estimateSize(obj: any): number {
+  private estimateSize(obj: unknown): number {
     if (obj === null || obj === undefined) {
       return 0
     }
 
     // For arrays of numbers (vectors), use more precise calculation
     if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === "number") {
-      return obj.length * 8 // 8 bytes per number (Float64)
+      return obj.length * FLOAT64_BYTES
     }
 
-    // For strings, use character count * 2 (for UTF-16)
+    // For strings, use character count * UTF-16 byte size
     if (typeof obj === "string") {
-      return obj.length * 2
+      return obj.length * UTF16_CHAR_BYTES
     }
 
     // For simple objects with a 'data' property containing a string
-    if (obj && typeof obj === "object" && typeof obj.data === "string") {
-      return obj.data.length * 2 + 100 // String length + overhead
+    if (obj && typeof obj === "object") {
+      const candidate = obj as Record<string, unknown>
+      if (typeof candidate.data === "string") {
+        return candidate.data.length * UTF16_CHAR_BYTES + OBJECT_OVERHEAD_BYTES
+      }
     }
 
     // Use JSON stringification as an approximation for complex objects
-    // Add a small overhead to account for object structure
+    // Add overhead to account for object structure
     try {
       const json = JSON.stringify(obj)
-      return json ? json.length * 2 + 100 : 100 // UTF-16 characters + overhead
+      return json
+        ? json.length * UTF16_CHAR_BYTES + OBJECT_OVERHEAD_BYTES
+        : OBJECT_OVERHEAD_BYTES
     } catch {
       // If stringification fails, use a reasonable default
-      return 1024 // 1KB default
+      return DEFAULT_OBJECT_SIZE_BYTES
     }
   }
 
