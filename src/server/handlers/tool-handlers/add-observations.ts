@@ -1,29 +1,33 @@
+import type { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
+import type { Logger } from "#types"
+
 /**
  * Handles the add_observations tool request
  * @param args The arguments for the tool request
  * @param knowledgeGraphManager The KnowledgeGraphManager instance
+ * @param logger Logger instance for structured logging
  * @returns A response object with the result content
  */
 
 export async function handleAddObservations(
   args: Record<string, unknown>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  knowledgeGraphManager: any
+  knowledgeGraphManager: KnowledgeGraphManager,
+  logger: Logger
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
     // Enhanced logging for debugging
-    process.stderr.write(
-      `[DEBUG] addObservations handler called at ${new Date().toISOString()}\n`
-    )
-    process.stderr.write(
-      `[DEBUG] FULL ARGS: ${JSON.stringify(args, null, 2)}\n`
-    )
-    process.stderr.write(`[DEBUG] ARGS KEYS: ${Object.keys(args).join(", ")}\n`)
-    process.stderr.write(
-      `[DEBUG] ARGS TYPES: ${Object.keys(args)
-        .map((k) => `${k}: ${typeof args[k]}`)
-        .join(", ")}\n`
-    )
+    logger.debug("addObservations handler called", {
+      timestamp: new Date().toISOString(),
+      args,
+      argsKeys: Object.keys(args),
+      argsTypes: Object.keys(args).reduce(
+        (acc, k) => {
+          acc[k] = typeof args[k]
+          return acc
+        },
+        {} as Record<string, string>
+      ),
+    })
 
     // Validate the observations array
     if (!(args.observations && Array.isArray(args.observations))) {
@@ -36,9 +40,9 @@ export async function handleAddObservations(
 
     // Force add strength to args if it doesn't exist
     if (args.strength === undefined) {
-      process.stderr.write(
-        `[DEBUG] Adding default strength value: ${defaultStrength}\n`
-      )
+      logger.debug("Adding default strength value", {
+        defaultStrength,
+      })
       args.strength = defaultStrength
     }
 
@@ -59,9 +63,10 @@ export async function handleAddObservations(
       const obsStrength =
         obs.strength !== undefined ? obs.strength : args.strength
 
-      process.stderr.write(
-        `[DEBUG] Processing observation for ${obs.entityName}, using strength: ${obsStrength}\n`
-      )
+      logger.debug("Processing observation", {
+        entityName: obs.entityName,
+        strength: obsStrength,
+      })
 
       // Set defaults for each observation
       return {
@@ -77,20 +82,18 @@ export async function handleAddObservations(
     })
 
     // Call knowledgeGraphManager
-    process.stderr.write(
-      `[DEBUG] Calling knowledgeGraphManager.addObservations with ${processedObservations.length} observations\n`
-    )
-    process.stderr.write(
-      `[DEBUG] PROCESSED: ${JSON.stringify(processedObservations, null, 2)}\n`
-    )
+    logger.debug("Calling knowledgeGraphManager.addObservations", {
+      observationsCount: processedObservations.length,
+      processedObservations,
+    })
 
     const result = await knowledgeGraphManager.addObservations(
       processedObservations
     )
 
-    process.stderr.write(
-      `[DEBUG] addObservations result: ${JSON.stringify(result, null, 2)}\n`
-    )
+    logger.debug("addObservations result", {
+      result,
+    })
 
     return {
       content: [
@@ -113,13 +116,12 @@ export async function handleAddObservations(
       ],
     }
   } catch (error) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const err = error as any
+    const err = error as Error
     // Enhanced error logging for debugging
-    process.stderr.write(`[ERROR] addObservations error: ${err.message}\n`)
-    process.stderr.write(
-      `[ERROR] Stack trace: ${err.stack || "No stack trace available"}\n`
-    )
+    logger.error("addObservations error", {
+      error: err.message,
+      stack: err.stack || "No stack trace available",
+    })
 
     return {
       content: [
