@@ -1,7 +1,7 @@
 /**
  * Metadata for relations providing additional context and information
  */
-export interface RelationMetadata {
+export type RelationMetadata = {
   /**
    * Array of relation IDs that this relation was inferred from
    */
@@ -21,14 +21,14 @@ export interface RelationMetadata {
    * Timestamp when the relation was last updated
    */
   updatedAt: number
-}
+};
 
 import { RelationType } from "#types/arktype.ts"
 
 /**
  * Represents a relationship between two entities in the knowledge graph
  */
-export interface Relation {
+export type Relation = {
   /**
    * The source entity name (where the relation starts)
    */
@@ -61,7 +61,7 @@ export interface Relation {
    * Optional metadata providing additional context about the relation
    */
   metadata?: RelationMetadata
-}
+};
 
 // Add static methods to the Relation interface for JavaScript tests
 // This allows tests to access validation methods directly from the interface

@@ -315,7 +315,7 @@ export type SearchResponse = {
 export type { Relation } from "./relation.ts"
 
 // Temporal types (legacy - consider removing if not used)
-export type { TemporalEntity as LegacyTemporalEntity } from "./temporal-entity.ts"
+export type { default as LegacyTemporalEntity } from "./temporal-entity.ts"
 export type { TemporalRelation } from "./temporal-relation.ts"
 
 // Vector store types
