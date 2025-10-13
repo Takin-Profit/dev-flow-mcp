@@ -11,7 +11,9 @@
     "#*": "./src/*"
   },
   "bin": {
-    "dfm-server": "dist/index.js"
+    "dfm": "dist/cli/index.js",
+    "dfm-server": "dist/index.js",
+    "__dfm_bash_complete": "dist/cli/bash-complete.js"
   },
   "repository": {
     "type": "git",
@@ -32,18 +34,26 @@
     "lint": "ultracite check",
     "lint:fix": "ultracite fix",
     "fix": "pnpm lint:fix",
-    "neo4j:init": "tsx src/cli/neo4j-setup.ts init",
-    "neo4j:test": "tsx src/cli/neo4j-setup.ts test",
-    "doctor": "ultracite doctor"
+    "doctor": "ultracite doctor",
+    "neo4j:test": "tsx src/cli/index.ts neo4j test",
+    "neo4j:init": "tsx src/cli/index.ts neo4j init"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.11.0",
+    "@stricli/auto-complete": "^1.2.0",
+    "@stricli/core": "^1.2.0",
+    "arkenv": "^0.7.3",
+    "arktype": "^2.1.22",
     "axios": "^1.8.4",
+    "consola": "^3.4.2",
     "dotenv": "^16.4.7",
     "lru-cache": "^11.1.0",
     "neo4j-driver": "^5.28.1",
     "openai": "^4.90.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0",
+    "xdg-app-paths": "^8.3.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.5",
@@ -56,6 +66,7 @@
     "lefthook": "^1.13.6",
     "rimraf": "^6.0.1",
     "shx": "^0.4.0",
+    "tsdown": "^0.15.6",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "ultracite": "^5.6.2",
