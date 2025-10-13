@@ -11,7 +11,7 @@ type FileStorageProviderOptions = {
   memoryFilePath?: string
   filePath?: string // Alias for memoryFilePath for consistency with other providers
   vectorStoreOptions?: VectorStoreFactoryOptions
-};
+}
 
 /**
  * A storage provider that uses the file system to store the knowledge graph
@@ -20,9 +20,12 @@ type FileStorageProviderOptions = {
  */
 export class FileStorageProvider implements StorageProvider {
   private _fs: typeof fs
-  private filePath: string
+  private readonly filePath: string
   private graph: KnowledgeGraph = { entities: [], relations: [] }
-  private vectorStoreOptions?: VectorStoreFactoryOptions
+  private readonly _vectorStoreOptions?: VectorStoreFactoryOptions | undefined
+  get vectorStoreOptions(): VectorStoreFactoryOptions | undefined {
+    return this._vectorStoreOptions
+  }
 
   /**
    * Create a new FileStorageProvider
@@ -39,7 +42,7 @@ export class FileStorageProvider implements StorageProvider {
     this._fs = fs
 
     // Store vector store options for initialization
-    this.vectorStoreOptions = options?.vectorStoreOptions
+    this._vectorStoreOptions = options?.vectorStoreOptions
 
     // Default to test-output directory during tests
     if (options?.memoryFilePath || options?.filePath) {
@@ -85,7 +88,8 @@ export class FileStorageProvider implements StorageProvider {
         // File doesn't exist, return empty graph
         return { entities: [], relations: [] }
       }
-      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorMessage =
+        error instanceof Error ? error.message : String(error)
       throw new Error(
         `Error loading graph from ${this.filePath}: ${errorMessage}`
       )

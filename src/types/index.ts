@@ -4,6 +4,7 @@
  * Consolidates core type definitions for the application.
  * Enables clean imports: `import type { Logger, Entity, Relation } from "#types"`
  */
+/** biome-ignore-all lint/suspicious/noEmptyBlockStatements: empty blocks for logger */
 
 import { type } from "arktype"
 
@@ -312,12 +313,12 @@ export type SearchResponse = {
 // ============================================================================
 
 // Relation types
-export type { Relation } from "./relation.ts"
+export type { Relation } from "./relation"
+export { RelationValidator } from "./relation"
 
-// Temporal types (legacy - consider removing if not used)
-export type { default as LegacyTemporalEntity } from "./temporal-entity.ts"
-export type { TemporalRelation } from "./temporal-relation.ts"
+// Temporal types - entities and relations with versioning
+export type { default as TemporalEntity, TemporalRelation } from "./temporal"
+export { TemporalEntity, TemporalEntityValidator, TemporalRelation, TemporalRelationValidator } from "./temporal"
 
-// Vector store types
-export type { VectorIndex } from "./vector-index.ts"
-export type { VectorStore } from "./vector-store.ts"
+// Vector search and storage types
+export type { VectorIndex, VectorStore, VectorSearchResult } from "./vector"
