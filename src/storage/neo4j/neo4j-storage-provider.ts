@@ -1,4 +1,6 @@
 /** biome-ignore-all lint/complexity/useLiteralKeys: accessing private properties for diagnostics */
+// TODO: refactor this entire module - reduce complexity.
+/** biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: will refactor in the future */
 import { type } from "arktype"
 import neo4j from "neo4j-driver"
 import { v4 as uuidv4 } from "uuid"
@@ -16,7 +18,12 @@ import type {
   SearchOptions,
   StorageProvider,
 } from "#storage/storage-provider.ts"
-import type { EntityEmbedding, Logger, SemanticSearchOptions } from "#types"
+import type {
+  EntityEmbedding,
+  Logger,
+  SemanticSearchOptions,
+  TemporalEntityType,
+} from "#types"
 import { createNoOpLogger, RelationType } from "#types"
 import type { Relation } from "#types/relation.ts"
 
@@ -193,7 +200,8 @@ export class Neo4jStorageProvider implements StorageProvider {
     // Configure decay settings
     this.decayConfig = {
       enabled: options?.decayConfig?.enabled ?? true,
-      halfLifeDays: options?.decayConfig?.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS,
+      halfLifeDays:
+        options?.decayConfig?.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS,
       minConfidence:
         options?.decayConfig?.minConfidence ?? DEFAULT_MIN_CONFIDENCE,
     }
@@ -744,14 +752,14 @@ export class Neo4jStorageProvider implements StorageProvider {
    * Create new entities in the knowledge graph
    * @param entities Array of entities to create
    */
-  async createEntities(entities: any[]): Promise<any[]> {
+  async createEntities(entities: Entity[]): Promise<TemporalEntityType[]> {
     try {
       if (!entities || entities.length === 0) {
         return []
       }
 
       const session = this.connectionManager.getSession()
-      const createdEntities: any[] = []
+      const createdEntities: TemporalEntityType[] = []
 
       try {
         // Begin transaction
@@ -773,7 +781,7 @@ export class Neo4jStorageProvider implements StorageProvider {
             )
 
             // Generate embedding if embedding service is available
-            let embedding = null
+            let embedding: number[] | null = null
             if (this.embeddingService) {
               try {
                 // Prepare text for embedding
@@ -1471,7 +1479,7 @@ export class Neo4jStorageProvider implements StorageProvider {
    * Get an entity by name
    * @param entityName Name of the entity to retrieve
    */
-  async getEntity(entityName: string): Promise<any | null> {
+  async getEntity(entityName: string): Promise<TemporalEntityType | null> {
     try {
       // Query for entity by name
       const query = `
@@ -1513,12 +1521,12 @@ export class Neo4jStorageProvider implements StorageProvider {
    * Get a specific relation by its source, target, and type
    * @param from Source entity name
    * @param to Target entity name
-   * @param type Relation type
+   * @param relationType Relation type
    */
   async getRelation(
     from: string,
     to: string,
-    type: string
+    relationType: string
   ): Promise<Relation | null> {
     try {
       // Query for relation
@@ -1533,7 +1541,7 @@ export class Neo4jStorageProvider implements StorageProvider {
       const result = await this.connectionManager.executeQuery(query, {
         fromName: from,
         toName: to,
-        relationType: type,
+        relationType,
       })
 
       // Return null if no relation found
@@ -1691,7 +1699,7 @@ export class Neo4jStorageProvider implements StorageProvider {
    * Get the history of all versions of an entity
    * @param entityName The name of the entity to retrieve history for
    */
-  async getEntityHistory(entityName: string): Promise<any[]> {
+  async getEntityHistory(entityName: string): Promise<TemporalEntityType[]> {
     try {
       // Query for entity history
       const query = `
@@ -1734,7 +1742,7 @@ export class Neo4jStorageProvider implements StorageProvider {
     from: string,
     to: string,
     relationType: string
-  ): Promise<any[]> {
+  ): Promise<Relation[]> {
     try {
       // Query for relation history
       const query = `
@@ -2070,7 +2078,10 @@ export class Neo4jStorageProvider implements StorageProvider {
    * @param queryVector The vector to compare against
    * @param limit Maximum number of results to return
    */
-  async findSimilarEntities(queryVector: number[], limit = 10): Promise<any[]> {
+  async findSimilarEntities(
+    queryVector: number[],
+    limit = 10
+  ): Promise<Array<TemporalEntityType & { similarity: number }>> {
     try {
       // Direct vector search implementation using the approach proven to work in our test script
       this.logger.debug(
@@ -2106,22 +2117,25 @@ export class Neo4jStorageProvider implements StorageProvider {
           // Convert to entity objects
           const entityPromises = result.records.map(async (record) => {
             const entityName = record.get("name")
-            const score = record.get("score")
+            const similarity = record.get("score")
             const entity = await this.getEntity(entityName)
             if (entity) {
               return {
                 ...entity,
-                score,
+                similarity,
               }
             }
             return null
           })
 
-          const entities = (await Promise.all(entityPromises)).filter(Boolean)
+          const entities = (await Promise.all(entityPromises)).filter(
+            (e): e is TemporalEntityType & { similarity: number } =>
+              e !== null && typeof e.similarity === "number"
+          )
 
           // Return only valid entities
           return entities
-            .filter((entity) => entity && entity.validTo === null)
+            .filter((entity) => entity.validTo === null)
             .slice(0, limit)
         }
 
@@ -2147,7 +2161,13 @@ export class Neo4jStorageProvider implements StorageProvider {
   ): Promise<KnowledgeGraphWithDiagnostics> {
     try {
       // Create diagnostics object for debugging
-      const diagnostics: Record<string, any> = {
+      const diagnostics: {
+        query: string
+        startTime: number
+        stepsTaken: Record<string, unknown>[]
+        endTime?: number
+        [key: string]: unknown
+      } = {
         query,
         startTime: Date.now(),
         stepsTaken: [],
@@ -2177,7 +2197,6 @@ export class Neo4jStorageProvider implements StorageProvider {
       })
 
       // Ensure vector store is initialized
-      // biome-ignore lint/complexity/useLiteralKeys: private
       if (!this.vectorStore["initialized"]) {
         this.logger.info(
           "Neo4jStorageProvider: Vector store not initialized, initializing now"
@@ -2338,7 +2357,7 @@ export class Neo4jStorageProvider implements StorageProvider {
               })
 
               const entities = (await Promise.all(entityPromises)).filter(
-                Boolean
+                (e): e is TemporalEntityType => e !== null
               )
 
               diagnostics.stepsTaken.push({
@@ -2433,7 +2452,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
         // Filter by min similarity and entity types
         const filteredResults = results
-          .filter((result) => result.score >= minSimilarity)
+          .filter((result) => result.similarity >= minSimilarity)
           .filter((result) => {
             if (!options.entityTypes || options.entityTypes.length === 0) {
               return true
@@ -2572,10 +2591,21 @@ export class Neo4jStorageProvider implements StorageProvider {
 
       // Check if we can access the diagnostic method
       if (
-        typeof (this.vectorStore as any).diagnosticGetEntityEmbeddings ===
-        "function"
+        typeof (
+          this.vectorStore as unknown as {
+            diagnosticGetEntityEmbeddings?: () => Promise<
+              Record<string, unknown>
+            >
+          }
+        ).diagnosticGetEntityEmbeddings === "function"
       ) {
-        return await (this.vectorStore as any).diagnosticGetEntityEmbeddings()
+        return await (
+          this.vectorStore as unknown as {
+            diagnosticGetEntityEmbeddings: () => Promise<
+              Record<string, unknown>
+            >
+          }
+        ).diagnosticGetEntityEmbeddings()
       }
       return {
         error: "Diagnostic method not available",
