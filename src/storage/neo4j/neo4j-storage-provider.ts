@@ -14,17 +14,18 @@ import type {
   SearchOptions,
   StorageProvider,
 } from "#storage/storage-provider.ts"
+import type { Logger } from "#types"
+import { createNoOpLogger } from "#types"
 import type {
   EntityEmbedding,
   SemanticSearchOptions,
 } from "#types/entity-embedding.ts"
 import type { Relation } from "#types/relation.ts"
-import { logger } from "#utils/logger.ts"
 
 /**
  * Configuration options for Neo4j storage provider
  */
-export interface Neo4jStorageProviderOptions {
+export type Neo4jStorageProviderOptions = {
   /**
    * Neo4j connection configuration
    */
@@ -54,12 +55,17 @@ export interface Neo4jStorageProviderOptions {
      */
     minConfidence?: number
   }
+
+  /**
+   * Logger instance for dependency injection
+   */
+  logger?: Logger
 }
 
 /**
- * Extended Entity interface with additional properties needed for Neo4j
+ * Extended Entity type with additional properties needed for Neo4j
  */
-interface ExtendedEntity extends Entity {
+type ExtendedEntity = Entity & {
   id?: string
   version?: number
   createdAt?: number
@@ -70,10 +76,10 @@ interface ExtendedEntity extends Entity {
 }
 
 /**
- * Extended Relation interface with additional properties needed for Neo4j
+ * Extended Relation type with additional properties needed for Neo4j
  * Note: This doesn't extend Relation to avoid type conflicts with strength/confidence
  */
-interface ExtendedRelation {
+type ExtendedRelation = {
   id?: string
   from: string
   to: string
@@ -89,19 +95,19 @@ interface ExtendedRelation {
   metadata?: Record<string, unknown> | null
 }
 
-// These interfaces are used for documentation purposes to understand the Neo4j data model
+// These types are used for documentation purposes to understand the Neo4j data model
 
 /**
  * Extended SemanticSearchOptions with additional properties needed for Neo4j
  */
-interface Neo4jSemanticSearchOptions extends SemanticSearchOptions {
+type Neo4jSemanticSearchOptions = SemanticSearchOptions & {
   queryVector?: number[]
 }
 
 /**
  * Knowledge graph with optional diagnostics
  */
-interface KnowledgeGraphWithDiagnostics extends KnowledgeGraph {
+type KnowledgeGraphWithDiagnostics = KnowledgeGraph & {
   diagnostics?: Record<string, unknown>
 }
 
@@ -119,12 +125,16 @@ export class Neo4jStorageProvider implements StorageProvider {
   }
   private vectorStore: Neo4jVectorStore
   private embeddingService: EmbeddingService | null = null
+  private readonly logger: Logger
 
   /**
    * Create a new Neo4jStorageProvider
    * @param options Configuration options
    */
   constructor(options?: Neo4jStorageProviderOptions) {
+    // Set up logger first
+    this.logger = options?.logger ?? createNoOpLogger()
+
     // Set up configuration
     this.config = {
       ...DEFAULT_NEO4J_CONFIG,
@@ -138,31 +148,39 @@ export class Neo4jStorageProvider implements StorageProvider {
       minConfidence: options?.decayConfig?.minConfidence ?? 0.1,
     }
 
+    this.logger.debug("Neo4jStorageProvider initialized", {
+      decayEnabled: this.decayConfig.enabled,
+      vectorIndexName: this.config.vectorIndexName,
+    })
+
     // Set up connection manager
     this.connectionManager =
       options?.connectionManager || new Neo4jConnectionManager(this.config)
 
-    // Set up schema manager
-    this.schemaManager = new Neo4jSchemaManager(
-      this.connectionManager,
-      this.config,
-      false
-    )
+    // Set up schema manager with logger injection
+    this.schemaManager = new Neo4jSchemaManager(this.connectionManager, {
+      config: this.config,
+      debug: false,
+      logger: this.logger,
+    })
 
-    // Set up vector store
+    // Set up vector store with logger injection
     this.vectorStore = new Neo4jVectorStore({
       connectionManager: this.connectionManager,
       indexName: this.config.vectorIndexName,
       dimensions: 1536,
       similarityFunction: "cosine",
       entityNodeLabel: "Entity",
+      logger: this.logger,
     })
 
-    logger.debug("Neo4jStorageProvider: Initializing embedding service")
+    this.logger.debug("Neo4jStorageProvider: Initializing embedding service")
     try {
-      // Set up embedding service
-      this.embeddingService = EmbeddingServiceFactory.createFromEnvironment()
-      logger.debug(
+      // Set up embedding service with logger injection
+      this.embeddingService = EmbeddingServiceFactory.createFromEnvironment(
+        this.logger
+      )
+      this.logger.debug(
         "Neo4jStorageProvider: Embedding service initialized successfully",
         {
           provider: this.embeddingService.getProviderInfo().provider,
@@ -171,7 +189,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         }
       )
     } catch (error) {
-      logger.error(
+      this.logger.error(
         "Neo4jStorageProvider: Failed to initialize embedding service",
         error
       )
@@ -179,7 +197,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
     // Initialize the schema and vector store
     this.initializeSchema().catch((err) => {
-      logger.error("Failed to initialize Neo4j schema", err)
+      this.logger.error("Failed to initialize Neo4j schema", err)
     })
   }
 
@@ -196,18 +214,21 @@ export class Neo4jStorageProvider implements StorageProvider {
   private async initializeSchema(): Promise<void> {
     try {
       await this.schemaManager.initializeSchema(false)
-      logger.info("Neo4j schema initialized successfully")
+      this.logger.info("Neo4j schema initialized successfully")
 
       // Initialize vector store after schema is ready
       try {
         await this.vectorStore.initialize()
-        logger.info("Neo4j vector store initialized successfully")
+        this.logger.info("Neo4j vector store initialized successfully")
       } catch (vectorError) {
-        logger.error("Failed to initialize Neo4j vector store", vectorError)
+        this.logger.error(
+          "Failed to initialize Neo4j vector store",
+          vectorError
+        )
         // Continue even if vector store initialization fails
       }
     } catch (schemaError) {
-      logger.error("Failed to initialize Neo4j schema", schemaError)
+      this.logger.error("Failed to initialize Neo4j schema", schemaError)
       throw schemaError
     }
   }
@@ -218,9 +239,9 @@ export class Neo4jStorageProvider implements StorageProvider {
   async close(): Promise<void> {
     try {
       await this.connectionManager.close()
-      logger.debug("Neo4j connections closed")
+      this.logger.debug("Neo4j connections closed")
     } catch (error) {
-      logger.error("Error closing Neo4j connections", error)
+      this.logger.error("Error closing Neo4j connections", error)
     }
   }
 
@@ -285,7 +306,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         const parsedMetadata = JSON.parse(rel.metadata as string)
         Object.assign(metadata, parsedMetadata)
       } catch {
-        logger.warn(
+        this.logger.warn(
           `Failed to parse metadata for relation from ${fromNode} to ${toNode}`
         )
       }
@@ -367,7 +388,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         timeTaken,
       }
     } catch (error) {
-      logger.error("Error loading graph from Neo4j", error)
+      this.logger.error("Error loading graph from Neo4j", error)
       throw error
     }
   }
@@ -471,7 +492,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
           // Commit transaction
           await txc.commit()
-          logger.info(
+          this.logger.info(
             `Saved graph with ${graph.entities.length} entities and ${graph.relations.length} relations to Neo4j`
           )
         } catch (error) {
@@ -484,7 +505,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error saving graph to Neo4j", error)
+      this.logger.error("Error saving graph to Neo4j", error)
       throw error
     }
   }
@@ -585,7 +606,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         timeTaken,
       }
     } catch (error) {
-      logger.error("Error searching nodes in Neo4j", error)
+      this.logger.error("Error searching nodes in Neo4j", error)
       throw error
     }
   }
@@ -656,7 +677,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         timeTaken,
       }
     } catch (error) {
-      logger.error("Error opening nodes in Neo4j", error)
+      this.logger.error("Error opening nodes in Neo4j", error)
       throw error
     }
   }
@@ -687,7 +708,7 @@ export class Neo4jStorageProvider implements StorageProvider {
             const entityId = uuidv4()
 
             // Add debug log for embedding generation attempts
-            logger.debug(
+            this.logger.debug(
               `Neo4jStorageProvider: Processing embeddings for entity "${entity.name}"`,
               {
                 entityType: entity.entityType,
@@ -706,16 +727,18 @@ export class Neo4jStorageProvider implements StorageProvider {
 
                 // Generate embedding using the instance's embedding service
                 embedding = await this.embeddingService.generateEmbedding(text)
-                logger.info(`Generated embedding for entity: ${entity.name}`)
+                this.logger.info(
+                  `Generated embedding for entity: ${entity.name}`
+                )
               } catch (error) {
-                logger.error(
+                this.logger.error(
                   `Failed to generate embedding for entity: ${entity.name}`,
                   error
                 )
                 // Continue without embedding if generation fails
               }
             } else {
-              logger.warn(
+              this.logger.warn(
                 `Neo4jStorageProvider: Skipping embedding for entity "${entity.name}" - No embedding service available`
               )
             }
@@ -758,10 +781,16 @@ export class Neo4jStorageProvider implements StorageProvider {
 
             // Get created entity from result
             if (result.records.length > 0) {
-              const node = result.records[0].get("e").properties
-              const createdEntity = this.nodeToEntity(node)
-              createdEntities.push(createdEntity)
-              logger.info(`Created entity with embedding: ${entity.name}`)
+              // Type guard for array access
+              const firstRecord = result.records[0]
+              if (firstRecord) {
+                const node = firstRecord.get("e").properties
+                const createdEntity = this.nodeToEntity(node)
+                createdEntities.push(createdEntity)
+                this.logger.info(
+                  `Created entity with embedding: ${entity.name}`
+                )
+              }
             }
           }
 
@@ -779,7 +808,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error creating entities in Neo4j", error)
+      this.logger.error("Error creating entities in Neo4j", error)
       throw error
     }
   }
@@ -821,7 +850,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
             // If either entity doesn't exist, skip this relation
             if (checkResult.records.length === 0) {
-              logger.warn(
+              this.logger.warn(
                 `Skipping relation creation: One or both entities not found (${relation.from} -> ${relation.to})`
               )
               continue
@@ -872,18 +901,21 @@ export class Neo4jStorageProvider implements StorageProvider {
 
             // Get created relation from result
             if (result.records.length > 0) {
+              // Type guard for array access
               const record = result.records[0]
-              const rel = record.get("r").properties
-              const fromNode = record.get("from").properties
-              const toNode = record.get("to").properties
+              if (record) {
+                const rel = record.get("r").properties
+                const fromNode = record.get("from").properties
+                const toNode = record.get("to").properties
 
-              const createdRelation = this.relationshipToRelation(
-                rel,
-                fromNode.name,
-                toNode.name
-              )
+                const createdRelation = this.relationshipToRelation(
+                  rel,
+                  fromNode.name,
+                  toNode.name
+                )
 
-              createdRelations.push(createdRelation)
+                createdRelations.push(createdRelation)
+              }
             }
           }
 
@@ -901,7 +933,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error creating relations in Neo4j", error)
+      this.logger.error("Error creating relations in Neo4j", error)
       throw error
     }
   }
@@ -949,17 +981,24 @@ export class Neo4jStorageProvider implements StorageProvider {
             const getResult = await txc.run(getQuery, { name: obs.entityName })
 
             if (getResult.records.length === 0) {
-              logger.warn(`Entity not found: ${obs.entityName}`)
+              this.logger.warn(`Entity not found: ${obs.entityName}`)
+              continue
+            }
+
+            // Type guard for array access
+            const firstRecord = getResult.records[0]
+            if (!firstRecord) {
+              this.logger.warn(`No record found for entity: ${obs.entityName}`)
               continue
             }
 
             // Get entity properties
-            const currentNode = getResult.records[0].get("e").properties
+            const currentNode = firstRecord.get("e").properties
             const currentObservations = JSON.parse(
               currentNode.observations || "[]"
             )
-            const outgoingRels = getResult.records[0].get("outgoing")
-            const incomingRels = getResult.records[0].get("incoming")
+            const outgoingRels = firstRecord.get("outgoing")
+            const incomingRels = firstRecord.get("incoming")
 
             // Step 2: Create a new version of the entity with updated observations
             const now = Date.now()
@@ -1140,7 +1179,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error adding observations in Neo4j", error)
+      this.logger.error("Error adding observations in Neo4j", error)
       throw error
     }
   }
@@ -1183,7 +1222,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error deleting entities in Neo4j", error)
+      this.logger.error("Error deleting entities in Neo4j", error)
       throw error
     }
   }
@@ -1227,12 +1266,21 @@ export class Neo4jStorageProvider implements StorageProvider {
             })
 
             if (getResult.records.length === 0) {
-              logger.warn(`Entity not found: ${deletion.entityName}`)
+              this.logger.warn(`Entity not found: ${deletion.entityName}`)
+              continue
+            }
+
+            // Type guard for array access
+            const firstRecord = getResult.records[0]
+            if (!firstRecord) {
+              this.logger.warn(
+                `No record found for entity: ${deletion.entityName}`
+              )
               continue
             }
 
             // Get entity properties
-            const currentNode = getResult.records[0].get("e").properties
+            const currentNode = firstRecord.get("e").properties
             const currentObservations = JSON.parse(
               currentNode.observations || "[]"
             )
@@ -1301,7 +1349,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error deleting observations in Neo4j", error)
+      this.logger.error("Error deleting observations in Neo4j", error)
       throw error
     }
   }
@@ -1350,7 +1398,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error deleting relations in Neo4j", error)
+      this.logger.error("Error deleting relations in Neo4j", error)
       throw error
     }
   }
@@ -1379,11 +1427,21 @@ export class Neo4jStorageProvider implements StorageProvider {
         return null
       }
 
+      // Type guard for array access
+      const firstRecord = result.records[0]
+      if (!firstRecord) {
+        this.logger.warn(`No record found for entity: ${entityName}`)
+        return null
+      }
+
       // Convert node to entity
-      const node = result.records[0].get("e").properties
+      const node = firstRecord.get("e").properties
       return this.nodeToEntity(node)
     } catch (error) {
-      logger.error(`Error retrieving entity ${entityName} from Neo4j`, error)
+      this.logger.error(
+        `Error retrieving entity ${entityName} from Neo4j`,
+        error
+      )
       throw error
     }
   }
@@ -1420,15 +1478,25 @@ export class Neo4jStorageProvider implements StorageProvider {
         return null
       }
 
-      // Convert relationship to relation
+      // Type guard for array access
       const record = result.records[0]
+      if (!record) {
+        this.logger.warn("No record found after checking length", {
+          from,
+          to,
+          type,
+        })
+        return null
+      }
+
+      // Convert relationship to relation
       const rel = record.get("r").properties
       const fromNode = record.get("from").properties
       const toNode = record.get("to").properties
 
       return this.relationshipToRelation(rel, fromNode.name, toNode.name)
     } catch (error) {
-      logger.error("Error retrieving relation from Neo4j", error)
+      this.logger.error("Error retrieving relation from Neo4j", error)
       throw error
     }
   }
@@ -1466,8 +1534,16 @@ export class Neo4jStorageProvider implements StorageProvider {
             )
           }
 
+          // Type guard for array access
+          const firstRecord = getResult.records[0]
+          if (!firstRecord) {
+            throw new Error(
+              `No record found for relation: ${relation.from} -> ${relation.to} (${relation.relationType})`
+            )
+          }
+
           // Get relation properties
-          const currentRel = getResult.records[0].get("r").properties
+          const currentRel = firstRecord.get("r").properties
 
           // Step 2: Update the relation with temporal versioning
           const now = Date.now()
@@ -1543,7 +1619,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error updating relation in Neo4j", error)
+      this.logger.error("Error updating relation in Neo4j", error)
       throw error
     }
   }
@@ -1578,7 +1654,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return this.nodeToEntity(node)
       })
     } catch (error) {
-      logger.error(
+      this.logger.error(
         `Error retrieving history for entity ${entityName} from Neo4j`,
         error
       )
@@ -1628,7 +1704,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return this.relationshipToRelation(rel, fromNode.name, toNode.name)
       })
     } catch (error) {
-      logger.error("Error retrieving relation history from Neo4j", error)
+      this.logger.error("Error retrieving relation history from Neo4j", error)
       throw error
     }
   }
@@ -1696,7 +1772,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         timeTaken,
       }
     } catch (error) {
-      logger.error(
+      this.logger.error(
         `Error retrieving graph state at timestamp ${timestamp} from Neo4j`,
         error
       )
@@ -1798,7 +1874,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         },
       }
     } catch (error) {
-      logger.error("Error getting decayed graph from Neo4j", error)
+      this.logger.error("Error getting decayed graph from Neo4j", error)
       throw error
     }
   }
@@ -1853,7 +1929,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error(
+      this.logger.error(
         `Error updating embedding for entity ${entityName} in Neo4j`,
         error
       )
@@ -1873,7 +1949,7 @@ export class Neo4jStorageProvider implements StorageProvider {
       // Verify that the entity exists
       const entity = await this.getEntity(entityName)
       if (!entity) {
-        logger.debug(
+        this.logger.debug(
           `Entity not found when retrieving embedding: ${entityName}`
         )
         return null
@@ -1891,15 +1967,19 @@ export class Neo4jStorageProvider implements StorageProvider {
 
         const result = await session.run(query, { name: entityName })
 
-        if (
-          result.records.length === 0 ||
-          !result.records[0].get("embedding")
-        ) {
-          logger.debug(`No embedding found for entity: ${entityName}`)
+        if (result.records.length === 0) {
+          this.logger.debug(`No embedding found for entity: ${entityName}`)
           return null
         }
 
-        const embeddingVector = result.records[0].get("embedding")
+        // Type guard for array access
+        const firstRecord = result.records[0]
+        if (!(firstRecord && firstRecord.get("embedding"))) {
+          this.logger.debug(`No embedding found for entity: ${entityName}`)
+          return null
+        }
+
+        const embeddingVector = firstRecord.get("embedding")
 
         // Return the embedding in the expected format
         return {
@@ -1911,7 +1991,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         await session.close()
       }
     } catch (error) {
-      logger.error(
+      this.logger.error(
         `Error retrieving embedding for entity ${entityName} from Neo4j`,
         error
       )
@@ -1928,7 +2008,7 @@ export class Neo4jStorageProvider implements StorageProvider {
   async findSimilarEntities(queryVector: number[], limit = 10): Promise<any[]> {
     try {
       // Direct vector search implementation using the approach proven to work in our test script
-      logger.debug(
+      this.logger.debug(
         `Neo4jStorageProvider: Using direct vector search with ${limit} limit`
       )
 
@@ -1953,7 +2033,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         )
 
         const foundResults = result.records.length
-        logger.debug(
+        this.logger.debug(
           `Neo4jStorageProvider: Direct vector search found ${foundResults} results`
         )
 
@@ -1980,13 +2060,13 @@ export class Neo4jStorageProvider implements StorageProvider {
             .slice(0, limit)
         }
 
-        logger.debug("Neo4jStorageProvider: No results from vector search")
+        this.logger.debug("Neo4jStorageProvider: No results from vector search")
         return []
       } finally {
         await session.close()
       }
     } catch (error) {
-      logger.error("Error finding similar entities in Neo4j", error)
+      this.logger.error("Error finding similar entities in Neo4j", error)
       return []
     }
   }
@@ -2024,7 +2104,7 @@ export class Neo4jStorageProvider implements StorageProvider {
       })
 
       // Enhanced logging for semantic search
-      logger.debug("Neo4jStorageProvider: Starting semantic search", {
+      this.logger.debug("Neo4jStorageProvider: Starting semantic search", {
         query,
         hybridSearch: options.hybridSearch,
         hasQueryVector: !!options.queryVector,
@@ -2034,7 +2114,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
       // Ensure vector store is initialized
       if (!this.vectorStore["initialized"]) {
-        logger.info(
+        this.logger.info(
           "Neo4jStorageProvider: Vector store not initialized, initializing now"
         )
         diagnostics.stepsTaken.push({
@@ -2045,7 +2125,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
         try {
           await this.vectorStore.initialize()
-          logger.info(
+          this.logger.info(
             "Neo4jStorageProvider: Vector store initialized successfully for semantic search"
           )
           diagnostics.stepsTaken.push({
@@ -2054,7 +2134,7 @@ export class Neo4jStorageProvider implements StorageProvider {
             status: "success",
           })
         } catch (initError) {
-          logger.error(
+          this.logger.error(
             "Neo4jStorageProvider: Failed to initialize vector store for semantic search",
             initError
           )
@@ -2081,7 +2161,7 @@ export class Neo4jStorageProvider implements StorageProvider {
           dimensions: this.embeddingService.getProviderInfo().dimensions,
         })
       } else {
-        logger.warn(
+        this.logger.warn(
           "Neo4jStorageProvider: No embedding service available for semantic search"
         )
         diagnostics.stepsTaken.push({
@@ -2094,7 +2174,7 @@ export class Neo4jStorageProvider implements StorageProvider {
       // Generate query vector if not provided and embedding service is available
       if (!options.queryVector && this.embeddingService) {
         try {
-          logger.debug(
+          this.logger.debug(
             "Neo4jStorageProvider: Generating query vector for semantic search"
           )
           diagnostics.stepsTaken.push({
@@ -2114,7 +2194,7 @@ export class Neo4jStorageProvider implements StorageProvider {
             sampleValues: options.queryVector.slice(0, 3),
           })
 
-          logger.debug(
+          this.logger.debug(
             "Neo4jStorageProvider: Query vector generated successfully",
             {
               vectorLength: options.queryVector.length,
@@ -2131,7 +2211,7 @@ export class Neo4jStorageProvider implements StorageProvider {
                 : String(embedError),
           })
 
-          logger.error(
+          this.logger.error(
             "Neo4jStorageProvider: Failed to generate query vector for semantic search",
             embedError
           )
@@ -2181,7 +2261,7 @@ export class Neo4jStorageProvider implements StorageProvider {
             )
 
             const foundResults = vectorResult.records.length
-            logger.debug(
+            this.logger.debug(
               `Neo4jStorageProvider: Direct vector search found ${foundResults} results`
             )
 
@@ -2264,7 +2344,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
             return result
           } catch (error) {
-            logger.error(
+            this.logger.error(
               `Neo4jStorageProvider: Direct vector search error: ${error instanceof Error ? error.message : String(error)}`
             )
             diagnostics.stepsTaken.push({
@@ -2277,7 +2357,7 @@ export class Neo4jStorageProvider implements StorageProvider {
             await session.close()
           }
         } catch (error) {
-          logger.error(
+          this.logger.error(
             `Neo4jStorageProvider: Direct vector search session error: ${error instanceof Error ? error.message : String(error)}`
           )
         }
@@ -2407,7 +2487,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
       return textResults
     } catch (error) {
-      logger.error("Error performing semantic search in Neo4j", error)
+      this.logger.error("Error performing semantic search in Neo4j", error)
       throw error
     }
   }
