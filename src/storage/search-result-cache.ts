@@ -1,6 +1,7 @@
 /**
  * Cache system for search results to improve performance for repeated queries
  */
+/** biome-ignore-all lint/style/noMagicNumbers: overzealous */
 
 // ============================================================================
 // Constants
@@ -29,7 +30,7 @@ const DEFAULT_OBJECT_SIZE_BYTES = 1024
 // ============================================================================
 
 /**
- * Cache entry with TTL
+ * Cache entry with TTL and LRU tracking
  */
 type CacheEntry<T> = {
   /** The cached data */
@@ -40,6 +41,9 @@ type CacheEntry<T> = {
 
   /** When the entry was created */
   created: number
+
+  /** Last time the entry was accessed (for LRU) */
+  lastAccessed: number
 
   /** Size of the entry in bytes (approximate) */
   size: number
@@ -86,7 +90,7 @@ export type CacheStats = {
 
   // Average lookup time (ms)
   averageLookupTime: number
-};
+}
 
 /**
  * A memory-efficient cache for search results
@@ -177,52 +181,40 @@ export class SearchResultCache<T> {
   }
 
   /**
-   * Evict the oldest or least valuable entries to free up space
+   * Evict least recently used entries to free up space
+   * Uses LRU (Least Recently Used) strategy for better cache hit rates
    * @param requiredSpace The amount of space needed
    */
   private evictEntries(requiredSpace: number): void {
-    // If cache is empty, nothing to evict
     if (this.cache.size === 0) {
       return
     }
 
-    // Create an array of entries sorted by "value"
-    // Value is determined by how recently they were created
+    // Sort by last accessed time (LRU - evict least recently used first)
     const entries = Array.from(this.cache.entries()).sort(
-      (a, b) => a[1].created - b[1].created
+      (a, b) => a[1].lastAccessed - b[1].lastAccessed
     )
 
     let freedSpace = 0
-    let evictionCount = 0
 
     // Evict entries until we have enough space
     for (const [key, entry] of entries) {
-      if (freedSpace >= requiredSpace && evictionCount > 0) {
+      if (freedSpace >= requiredSpace) {
         break
       }
 
       this.cache.delete(key)
       freedSpace += entry.size
       this.currentSize -= entry.size
-      evictionCount++
-
-      // Only evict the oldest entry and then check if we have enough space
-      if (evictionCount === 1 && freedSpace >= requiredSpace) {
-        break
-      }
-    }
-
-    // Update statistics
-    if (this.enableStats) {
-      this.evictions += evictionCount
+      this.evictions++
     }
   }
 
   /**
    * Set a cache entry
    * @param query The original query
-   * @param params Optional parameters that affect the results
    * @param data The data to cache
+   * @param params Optional parameters that affect the results
    * @param ttl Optional time-to-live in milliseconds
    */
   set(
@@ -231,39 +223,37 @@ export class SearchResultCache<T> {
     params?: Record<string, unknown>,
     ttl?: number
   ): void {
-    // Clean expired entries
-    this.removeExpired()
-
-    // Generate cache key
     const key = this.generateKey(query, params)
-
-    // Estimate data size
     const size = this.estimateSize(data)
 
-    // If item is too large for the cache, don't cache it
+    // Skip if item is too large for the entire cache
     if (size > this.maxSize) {
       return
     }
 
-    // Calculate expiration time
     const now = Date.now()
-    const expiration = now + (ttl || this.defaultTtl)
+
+    // If updating existing entry, subtract old size first
+    const existingEntry = this.cache.get(key)
+    if (existingEntry) {
+      this.currentSize -= existingEntry.size
+    }
+
+    // Check if we need to make space (after accounting for replaced entry)
+    const requiredSpace = this.currentSize + size - this.maxSize
+    if (requiredSpace > 0) {
+      this.evictEntries(requiredSpace)
+    }
 
     // Create cache entry
-    const entry: CacheEntry<T> = {
+    this.cache.set(key, {
       data,
-      expiration,
+      expiration: now + (ttl ?? this.defaultTtl),
       created: now,
+      lastAccessed: now,
       size,
-    }
+    })
 
-    // Check if we need to make space
-    if (this.currentSize + size > this.maxSize) {
-      this.evictEntries(size)
-    }
-
-    // Add to cache
-    this.cache.set(key, entry)
     this.currentSize += size
   }
 
@@ -275,45 +265,34 @@ export class SearchResultCache<T> {
    */
   get(query: string, params?: Record<string, unknown>): T | undefined {
     const startTime = this.enableStats ? performance.now() : 0
-
-    // Generate cache key
     const key = this.generateKey(query, params)
-
-    // Get entry
     const entry = this.cache.get(key)
 
-    // Track lookup time
+    // Track stats
     if (this.enableStats) {
-      const endTime = performance.now()
-      this.totalLookupTime += endTime - startTime
+      this.totalLookupTime += performance.now() - startTime
       this.totalLookups++
     }
 
-    // If entry doesn't exist, return undefined
+    // Entry doesn't exist
     if (!entry) {
-      if (this.enableStats) {
-        this.misses++
-      }
+      this.misses++
       return
     }
 
-    // Check if expired
-    if (entry.expiration < Date.now()) {
-      // Remove expired entry
+    const now = Date.now()
+
+    // Entry is expired - lazy deletion
+    if (entry.expiration < now) {
       this.cache.delete(key)
       this.currentSize -= entry.size
-
-      if (this.enableStats) {
-        this.misses++
-      }
-
+      this.misses++
       return
     }
 
-    // Valid cache hit
-    if (this.enableStats) {
-      this.hits++
-    }
+    // Valid cache hit - update LRU timestamp
+    entry.lastAccessed = now
+    this.hits++
 
     return entry.data
   }
@@ -383,20 +362,7 @@ export class SearchResultCache<T> {
    * @returns True if the key exists and is not expired
    */
   has(query: string, params?: Record<string, unknown>): boolean {
-    const key = this.generateKey(query, params)
-    const entry = this.cache.get(key)
-
-    if (!entry) {
-      return false
-    }
-
-    if (entry.expiration < Date.now()) {
-      // Remove expired entry
-      this.cache.delete(key)
-      this.currentSize -= entry.size
-      return false
-    }
-
-    return true
+    // Reuse get() logic - it handles expiration and stats
+    return this.get(query, params) !== undefined
   }
 }
