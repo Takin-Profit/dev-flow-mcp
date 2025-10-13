@@ -19,9 +19,33 @@
 import neo4j from "neo4j-driver"
 import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager.ts"
 import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager.ts"
-import type { Logger } from "#types"
+import type { Logger, VectorSearchResult, VectorStore } from "#types"
 import { createNoOpLogger } from "#types"
-import type { VectorSearchResult, VectorStore } from "#types/vector-store.ts"
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Default vector dimensions for OpenAI text-embedding-3-small model
+ */
+const DEFAULT_VECTOR_DIMENSIONS = 1536
+
+/**
+ * Default maximum number of results for vector search
+ */
+const DEFAULT_SEARCH_LIMIT = 5
+
+/**
+ * Random vector generation range for diagnostic queries
+ * Range: [MIN_VALUE, MIN_VALUE + MAX_VALUE]
+ */
+const DIAGNOSTIC_RANDOM_MIN = 0.01
+const DIAGNOSTIC_RANDOM_RANGE = 0.1
+
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * Configuration options for Neo4j vector store
@@ -79,7 +103,7 @@ export class Neo4jVectorStore implements VectorStore {
   constructor(options: Neo4jVectorStoreOptions) {
     this.connectionManager = options.connectionManager
     this.indexName = options.indexName || "entity_embeddings"
-    this.dimensions = options.dimensions || 1536 // OpenAI text-embedding-3-small default
+    this.dimensions = options.dimensions || DEFAULT_VECTOR_DIMENSIONS
     this.similarityFunction = options.similarityFunction || "cosine"
     this.entityNodeLabel = options.entityNodeLabel || "Entity"
     this.logger = options.logger ?? createNoOpLogger()
@@ -128,13 +152,13 @@ export class Neo4jVectorStore implements VectorStore {
           similarityFunction: this.similarityFunction,
         })
 
-        await this.schemaManager.createVectorIndex(
-          this.indexName,
-          this.entityNodeLabel,
-          "embedding",
-          this.dimensions,
-          this.similarityFunction
-        )
+        await this.schemaManager.createVectorIndex({
+          indexName: this.indexName,
+          nodeLabel: this.entityNodeLabel,
+          propertyName: "embedding",
+          dimensions: this.dimensions,
+          similarityFunction: this.similarityFunction,
+        })
 
         this.logger.info("Vector index created successfully", {
           indexName: this.indexName,
@@ -202,7 +226,7 @@ export class Neo4jVectorStore implements VectorStore {
     }
 
     try {
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
       const tx = session.beginTransaction()
 
       try {
@@ -262,7 +286,7 @@ export class Neo4jVectorStore implements VectorStore {
     this.logger.debug("Removing vector for entity", { entityId: id })
 
     try {
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       const query = `
         MATCH (e:${this.entityNodeLabel} {name: $id})
@@ -300,7 +324,7 @@ export class Neo4jVectorStore implements VectorStore {
   ): Promise<VectorSearchResult[]> {
     this.ensureInitialized()
 
-    const limit = options.limit ?? 5
+    const limit = options.limit ?? DEFAULT_SEARCH_LIMIT
     const minSimilarity = options.minSimilarity ?? 0
 
     this.logger.debug("Performing vector search", {
@@ -340,7 +364,7 @@ export class Neo4jVectorStore implements VectorStore {
     })
 
     try {
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Use Neo4j's native vector search procedure
@@ -408,6 +432,7 @@ export class Neo4jVectorStore implements VectorStore {
   private normalizeVector(vector: number[]): number[] {
     // Calculate l2-norm (Euclidean length)
     let sumSquared = 0
+    // biome-ignore lint/style/useForOf: performance
     for (let i = 0; i < vector.length; i++) {
       const value = vector[i]
       if (value !== undefined) {
@@ -419,7 +444,7 @@ export class Neo4jVectorStore implements VectorStore {
 
     // If l2-norm is 0 or invalid, return the original vector
     // (validation will catch this later)
-    if (l2Norm === 0 || !isFinite(l2Norm)) {
+    if (l2Norm === 0 || !Number.isFinite(l2Norm)) {
       this.logger.warn("Vector has zero or invalid l2-norm, cannot normalize")
       return vector
     }
@@ -452,14 +477,14 @@ export class Neo4jVectorStore implements VectorStore {
     let sumSquared = 0
 
     for (const val of vector) {
-      if (!isFinite(val)) {
+      if (!Number.isFinite(val)) {
         return false
       }
       sumSquared += val * val
     }
 
     const l2Norm = Math.sqrt(sumSquared)
-    return isFinite(l2Norm) && l2Norm > 0
+    return Number.isFinite(l2Norm) && l2Norm > 0
   }
 
   /**
@@ -480,8 +505,12 @@ export class Neo4jVectorStore implements VectorStore {
     let sumSquared = 0
 
     for (const val of vector) {
-      if (val < min) min = val
-      if (val > max) max = val
+      if (val < min) {
+        min = val
+      }
+      if (val > max) {
+        max = val
+      }
       sum += val
       sumSquared += val * val
     }
@@ -509,7 +538,7 @@ export class Neo4jVectorStore implements VectorStore {
     this.logger.debug("Using pattern-based fallback search", { limit })
 
     try {
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       const query = `
         MATCH (e:Entity)
@@ -601,7 +630,7 @@ export class Neo4jVectorStore implements VectorStore {
     this.logger.info("Running vector store diagnostics")
 
     try {
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Count entities with embeddings
@@ -667,8 +696,7 @@ export class Neo4jVectorStore implements VectorStore {
             embeddingType = firstTypeRecord.get("embeddingType")
           }
         } catch (error) {
-          embeddingType =
-            "error: " + (error instanceof Error ? error.message : String(error))
+          embeddingType = `error: ${error instanceof Error ? error.message : String(error)}`
         }
 
         // Test vector query
@@ -684,7 +712,8 @@ export class Neo4jVectorStore implements VectorStore {
           const testVector = this.normalizeVector(
             Array.from(
               { length: this.dimensions },
-              () => Math.random() * 0.1 + 0.01
+              () =>
+                Math.random() * DIAGNOSTIC_RANDOM_RANGE + DIAGNOSTIC_RANDOM_MIN
             )
           )
 
