@@ -2,15 +2,15 @@ import type { KnowledgeGraph } from "#knowledge-graph-manager.ts"
 import type {
   Entity,
   EntityEmbedding,
+  Relation,
   SemanticSearchOptions,
   TemporalEntityType,
-  Relation,
 } from "#types"
 
 /**
  * Options for searching nodes in the knowledge graph
  */
-export interface SearchOptions {
+export type SearchOptions = {
   /**
    * Maximum number of results to return
    */
@@ -30,7 +30,7 @@ export interface SearchOptions {
 /**
  * Interface for storage providers that can load and save knowledge graphs
  */
-export interface StorageProvider {
+export type StorageProvider = {
   /**
    * Load a knowledge graph from storage
    * @returns Promise resolving to the loaded knowledge graph
@@ -196,51 +196,61 @@ export interface StorageProvider {
   getEntity(entityName: string): Promise<TemporalEntityType | null>
 }
 
-// Add static methods to the StorageProvider interface for JavaScript tests
-// This allows tests to access validation methods directly from the interface
-export namespace StorageProvider {
-  export function isStorageProvider(obj: unknown): boolean {
-    return StorageProviderValidator.isStorageProvider(obj)
-  }
-}
-
 /**
- * Validator class for StorageProvider interface
- * This exists to ensure there's a concrete export for JavaScript tests
+ * Validator for StorageProvider objects
+ * Uses frozen object pattern for consistency with other validators
  */
-export class StorageProviderValidator {
-  // No implementation - this is just to ensure the symbol exists in the compiled JS
-  // JavaScript tests will use this as a type reference
-  static isStorageProvider(obj: unknown): boolean {
+export const StorageProviderValidator = Object.freeze({
+  /**
+   * Validates if an object conforms to the StorageProvider interface
+   */
+  isStorageProvider(obj: unknown): obj is StorageProvider {
+    // Type guard: ensure obj is an object
+    if (!obj || typeof obj !== "object") {
+      return false
+    }
+
+    const candidate = obj as Record<string, unknown>
+
+    // Check all required methods exist and are functions
     const hasRequiredMethods =
-      obj &&
-      typeof obj.loadGraph === "function" &&
-      typeof obj.saveGraph === "function" &&
-      typeof obj.searchNodes === "function" &&
-      typeof obj.openNodes === "function" &&
-      typeof obj.createEntities === "function" &&
-      typeof obj.createRelations === "function" &&
-      typeof obj.addObservations === "function" &&
-      typeof obj.deleteEntities === "function" &&
-      typeof obj.deleteObservations === "function" &&
-      typeof obj.deleteRelations === "function" &&
-      typeof obj.getEntity === "function"
+      typeof candidate.loadGraph === "function" &&
+      typeof candidate.saveGraph === "function" &&
+      typeof candidate.searchNodes === "function" &&
+      typeof candidate.openNodes === "function" &&
+      typeof candidate.createEntities === "function" &&
+      typeof candidate.createRelations === "function" &&
+      typeof candidate.addObservations === "function" &&
+      typeof candidate.deleteEntities === "function" &&
+      typeof candidate.deleteObservations === "function" &&
+      typeof candidate.deleteRelations === "function" &&
+      typeof candidate.getEntity === "function"
+
+    if (!hasRequiredMethods) {
+      return false
+    }
 
     // Check that any optional methods, if present, are functions
     const optionalMethodsValid =
-      (!obj.getRelation || typeof obj.getRelation === "function") &&
-      (!obj.updateRelation || typeof obj.updateRelation === "function") &&
-      (!obj.getEntityHistory || typeof obj.getEntityHistory === "function") &&
-      (!obj.getRelationHistory ||
-        typeof obj.getRelationHistory === "function") &&
-      (!obj.getGraphAtTime || typeof obj.getGraphAtTime === "function") &&
-      (!obj.getDecayedGraph || typeof obj.getDecayedGraph === "function") &&
-      (!obj.updateEntityEmbedding ||
-        typeof obj.updateEntityEmbedding === "function") &&
-      (!obj.findSimilarEntities ||
-        typeof obj.findSimilarEntities === "function") &&
-      (!obj.semanticSearch || typeof obj.semanticSearch === "function")
+      (candidate.getRelation === undefined ||
+        typeof candidate.getRelation === "function") &&
+      (candidate.updateRelation === undefined ||
+        typeof candidate.updateRelation === "function") &&
+      (candidate.getEntityHistory === undefined ||
+        typeof candidate.getEntityHistory === "function") &&
+      (candidate.getRelationHistory === undefined ||
+        typeof candidate.getRelationHistory === "function") &&
+      (candidate.getGraphAtTime === undefined ||
+        typeof candidate.getGraphAtTime === "function") &&
+      (candidate.getDecayedGraph === undefined ||
+        typeof candidate.getDecayedGraph === "function") &&
+      (candidate.updateEntityEmbedding === undefined ||
+        typeof candidate.updateEntityEmbedding === "function") &&
+      (candidate.findSimilarEntities === undefined ||
+        typeof candidate.findSimilarEntities === "function") &&
+      (candidate.semanticSearch === undefined ||
+        typeof candidate.semanticSearch === "function")
 
-    return hasRequiredMethods && optionalMethodsValid
-  }
-}
+    return optionalMethodsValid
+  },
+})

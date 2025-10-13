@@ -31,7 +31,7 @@ interface CleanableProvider extends StorageProvider {
  */
 export class StorageProviderFactory {
   // Track connected providers
-  private connectedProviders = new Set<StorageProvider>()
+  private readonly connectedProviders = new Set<StorageProvider>()
 
   /**
    * Create a Neo4j storage provider based on configuration
