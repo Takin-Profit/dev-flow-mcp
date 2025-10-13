@@ -493,28 +493,128 @@ Based on Neo4j documentation, we implement:
 **Location:** `src/cli/neo4j.ts:114`
 **Fix:** Updated the call to use an options object.
 
-### Priority 2.5: Logging Cleanup (HIGH PRIORITY)
+### Priority 2.5: ✅ Logging Cleanup (Completed)
 
-**Issue:** Multiple files use `process.stderr.write()` and `process.stdout.write()` instead of the proper logger
+**Issue:** Multiple files used `process.stderr.write()` and `process.stdout.write()` instead of the proper logger
 **Impact:** Inconsistent logging, no structured logging, difficult to debug
 
-**Files to fix:**
-- `src/server/handlers/call-tool-handler.ts` (31 occurrences)
-- `src/server/handlers/tool-handlers/add-observations.ts`
-- `src/cli/bash-complete.ts` (check if appropriate)
+**Commit:** 364802f
 
-**Actions:**
-1. Add logger parameter to `handleCallToolRequest()` function
-2. Pass logger from server setup through to handlers
-3. Replace all `process.stderr.write()` with appropriate logger methods:
-   - `[ERROR]` → `logger.error()`
-   - `[DEBUG]` → `logger.debug()`
-   - `[INFO]` → `logger.info()`
-   - `[WARN]` → `logger.warn()`
-4. Update tool handlers to receive and use logger
-5. For CLI tools (bash-complete.ts), use cli-logger if appropriate
+**Changes Made:**
+- ✅ Added logger parameter to `handleCallToolRequest()` function
+- ✅ Passed logger from server setup through to handlers
+- ✅ Replaced all 31+ `process.stderr.write()` calls in `call-tool-handler.ts` with structured logger methods
+- ✅ Added logger parameter to `handleAddObservations()` function with proper typing
+- ✅ Replaced all `process.stderr.write()` calls in `add-observations.ts` with logger methods
+- ✅ Verified CLI files correctly use `cliLogger` (consola) instead of Winston logger
+- ✅ Confirmed `bash-complete.ts` correctly uses `process.stdout.write()` for completion output
 
-### Priority 3: Type Safety Improvements
+**Results:**
+- All MCP server handlers now use Winston logger (file-based, structured logging)
+- All CLI commands use Consola logger (user-friendly, colorized output)
+- Bash completions correctly write to stdout (required for shell integration)
+- Consistent logging with metadata and proper log levels throughout
+
+**Note:** Some linter issues remain and will be addressed in comprehensive code review phase.
+
+### Priority 3: Comprehensive Code Review & Error Elimination (CURRENT PHASE)
+
+**Goal:** Systematically review every file in the codebase, fix all TypeScript errors, linter issues, and code quality problems. By completion, the codebase should have zero errors and follow all best practices.
+
+**Current Status:** ~155 TypeScript errors, ~39 linter errors
+
+**Approach:**
+1. **File-by-File Review** - Review each file systematically, not randomly
+2. **Simultaneous Fixes** - Fix errors as we review, not in separate passes
+3. **Update CLAUDE.md** - Mark files as reviewed/completed as we finish them
+4. **Multi-Session Work** - This will take multiple sessions; track progress carefully
+
+**Review Categories:**
+- ✅ Type safety (remove `any`, add proper types, fix type errors)
+- ✅ Linter compliance (Biome/Ultracite rules)
+- ✅ Error handling (proper catch clauses with `unknown`)
+- ✅ Code complexity (break down complex functions)
+- ✅ Magic numbers/strings (extract to named constants)
+- ✅ Documentation (JSDoc for public APIs)
+- ✅ Unused code (remove dead code)
+- ✅ Best practices (following Ultracite rules from .claude/CLAUDE.md)
+
+**Files to Review (in order):**
+
+#### Core Entry Points
+- [ ] `src/index.ts` - MCP server entry point
+- [ ] `src/server/index.ts` - Server setup and composition root
+- [ ] `src/server/setup.ts` - MCP server configuration
+
+#### Handlers (MCP Tools)
+- [ ] `src/server/handlers/call-tool-handler.ts` - Main tool dispatcher
+- [ ] `src/server/handlers/tool-handlers/index.ts` - Tool handler exports
+- [ ] `src/server/handlers/tool-handlers/add-observations.ts`
+- [ ] `src/server/handlers/tool-handlers/create-entities.ts`
+- [ ] `src/server/handlers/tool-handlers/create-relations.ts`
+- [ ] `src/server/handlers/tool-handlers/delete-entities.ts`
+- [ ] `src/server/handlers/tool-handlers/read-graph.ts`
+
+#### Core Business Logic
+- [ ] `src/knowledge-graph-manager.ts` - Core orchestrator (1500+ lines)
+- [ ] `src/knowledge-graph-manager.test.ts` - Unit tests
+
+#### Storage Layer
+- [ ] `src/storage/storage-provider.ts` - Storage interface
+- [ ] `src/storage/file-storage-provider.ts` - Legacy file storage
+- [ ] `src/storage/vector-store-factory.ts` - Vector store factory
+- [ ] `src/storage/neo4j/neo4j-config.ts`
+- [ ] `src/storage/neo4j/neo4j-connection-manager.ts`
+- [ ] `src/storage/neo4j/neo4j-schema-manager.ts`
+- [ ] `src/storage/neo4j/neo4j-vector-store.ts` - CRITICAL for semantic search
+- [ ] `src/storage/neo4j/neo4j-storage-provider.ts` - Main storage (2450+ lines)
+
+#### Embedding Services
+- [ ] `src/embeddings/embedding-service.ts` - Base class
+- [ ] `src/embeddings/default-embedding-service.ts` - Mock service
+- [ ] `src/embeddings/openai-embedding-service.ts` - Production service
+- [ ] `src/embeddings/embedding-service-factory.ts`
+- [ ] `src/embeddings/embedding-job-manager.ts`
+
+#### CLI Commands
+- [ ] `src/cli/app.ts` - CLI application definition
+- [ ] `src/cli/index.ts` - CLI entry point
+- [ ] `src/cli/bash-complete.ts` - Shell completion
+- [ ] `src/cli/mcp.ts` - MCP command
+- [ ] `src/cli/neo4j.ts` - Neo4j commands
+
+#### Types & Configuration
+- [ ] `src/types/index.ts` - Type barrel exports
+- [ ] `src/types/logger.ts` - Logger interface
+- [ ] `src/types/entity.ts` - Entity types
+- [ ] `src/types/relation.ts` - Relation types
+- [ ] `src/types/entity-embedding.ts`
+- [ ] `src/types/observation.ts`
+- [ ] `src/types/vector-store.ts`
+- [ ] `src/types/arktype.ts` - Runtime validated types
+- [ ] `src/config.ts` - Configuration and environment
+
+#### Utilities
+- [ ] `src/logger.ts` - Logger implementations (Winston + Consola)
+
+**Review Process for Each File:**
+1. Read the entire file carefully
+2. Identify all issues:
+   - TypeScript errors (from `npx tsc --noEmit`)
+   - Linter errors (from `npx ultracite check`)
+   - Code quality issues (complexity, magic numbers, etc.)
+   - Missing documentation
+   - Unused/dead code
+3. Discuss issues with user
+4. Fix all issues in the file
+5. Run type check and linter to verify
+6. Mark file as ✅ completed in this list
+7. Commit changes for that file
+8. Update CLAUDE.md with completion status
+
+**Note:** We'll work through this systematically. Some files may require multiple review sessions.
+
+### Priority 4: Type Safety Improvements (DEFERRED - will be done in Priority 3)
 
 #### ✅ Union Types with arktype (Completed)
 **Goal:** Replace string literals with validated union types
@@ -824,44 +924,64 @@ pnpm run cli neo4j init
 
 ## Next Steps
 
-### Immediate (Current Session)
-1. Refactor KnowledgeGraphManager with dependency injection
-2. Update server composition root to wire dependencies
-3. Fix #utils/fs.ts import issue
+### ✅ Completed
+1. ✅ Refactored KnowledgeGraphManager with dependency injection
+2. ✅ Updated server composition root to wire dependencies
+3. ✅ Fixed #utils/fs.ts import issue (removed file-based storage)
+4. ✅ Fixed all CLI-related bugs
+5. ✅ Added comprehensive logging throughout (Winston + Consola)
 
-### Short Term (Next 1-2 Sessions)
-1. Fix all CLI-related bugs
-2. Fix call-tool-handler type issues
-3. Add comprehensive logging throughout
-4. Update tests for dependency injection
+### Immediate (Current Phase - Multiple Sessions Expected)
+**Comprehensive Code Review & Error Elimination**
+1. Systematically review all ~50 source files
+2. Fix all TypeScript errors (~155 total)
+3. Fix all linter errors (~39 total)
+4. Improve code quality (complexity, magic numbers, documentation)
+5. Update CLAUDE.md after each file/group is completed
+6. Commit changes incrementally as files are reviewed
 
-### Medium Term (Next 3-5 Sessions)
-1. Improve type safety with union types and arktype
-2. Reduce function complexity in storage provider
-3. Add integration tests
-4. Performance optimization for semantic search
+**Files to review:** See Priority 3 section above for complete list
 
-### Long Term (Future)
+### Short Term (After Code Review Complete)
+1. Complete integration tests for full MCP workflow
+2. Add semantic search end-to-end tests
+3. Performance optimization for large graphs
+4. Benchmark embedding generation and storage
+
+### Medium Term (Next Phase)
 1. Add caching layer for embeddings
 2. Support multiple embedding models
-3. Add graph visualization tools
-4. Support for other vector databases (Qdrant, Pinecone)
-5. Web UI for knowledge graph exploration
+3. Graph analytics and insights tools
+4. Batch operation optimizations
+
+### Long Term (Future)
+1. Graph visualization tools
+2. Support for other vector databases (Qdrant, Pinecone)
+3. Web UI for knowledge graph exploration
+4. Multi-user support and access control
 
 ## Success Criteria
 
-The refactoring is complete when:
+### Phase 1: Dependency Injection (COMPLETE ✅)
+- ✅ All services use dependency injection
+- ✅ No direct logger imports (except composition root)
+- ✅ Vector search works correctly with normalized vectors
+- ✅ Semantic search returns relevant results
+- ✅ CLI commands work without errors
+- ✅ MCP server starts and responds to tools
+- ✅ Knowledge graph persists correctly in Neo4j
+- ✅ Comprehensive logging with Winston (server) and Consola (CLI)
 
-✅ All services use dependency injection
-✅ No direct logger imports (except composition root)
-✅ TypeScript compiles with zero errors
-✅ All tests pass
-✅ Lint passes on all files
-✅ Vector search works correctly with normalized vectors
-✅ Semantic search returns relevant results
-✅ CLI commands work without errors
-✅ MCP server starts and responds to tools
-✅ Knowledge graph persists correctly in Neo4j
+### Phase 2: Comprehensive Code Review (IN PROGRESS 🚧)
+- ⬜ TypeScript compiles with zero errors
+- ⬜ Linter passes on all files
+- ⬜ All tests pass
+- ⬜ No `any` types in codebase
+- ⬜ All public APIs have JSDoc documentation
+- ⬜ Function complexity within acceptable limits
+- ⬜ All magic numbers/strings extracted to named constants
+- ⬜ Proper error handling with `unknown` type
+- ⬜ All files reviewed and marked complete in CLAUDE.md
 
 ## Resources
 
@@ -886,6 +1006,8 @@ For questions or issues:
 
 ---
 
-**Last Updated:** 2025-01-13
-**Current Phase:** Dependency Injection & Refactoring
-**Next Priority:** KnowledgeGraphManager refactoring
+**Last Updated:** 2025-01-13 (Session: Logging Cleanup Complete)
+**Current Phase:** Comprehensive Code Review & Error Elimination (Priority 3)
+**Next Priority:** Begin file-by-file code review starting with core entry points
+**TypeScript Errors:** ~155 total
+**Linter Errors:** ~39 total
