@@ -1,20 +1,17 @@
-import { FileStorageProvider } from "#storage/file-storage-provider.ts"
 import type { Neo4jConfig } from "#storage/neo4j/neo4j-config.ts"
 import { Neo4jStorageProvider } from "#storage/neo4j/neo4j-storage-provider.ts"
 import type { StorageProvider } from "#storage/storage-provider.ts"
-import type { VectorStoreFactoryOptions } from "#storage/vector-store-factory.ts"
 
-export interface StorageProviderConfig {
-  type: "file" | "neo4j"
+export type StorageProviderConfig = {
+  type: "neo4j"
   options?: {
-    memoryFilePath?: string
     enableDecay?: boolean
     decayConfig?: {
       enabled?: boolean
       halfLifeDays?: number
       minConfidence?: number
     }
-    // Neo4j specific options
+    // Neo4j options
     neo4jUri?: string
     neo4jUsername?: string
     neo4jPassword?: string
@@ -23,7 +20,6 @@ export interface StorageProviderConfig {
     neo4jVectorDimensions?: number
     neo4jSimilarityFunction?: "cosine" | "euclidean"
   }
-  vectorStoreOptions?: VectorStoreFactoryOptions
 }
 
 interface CleanableProvider extends StorageProvider {
@@ -38,63 +34,40 @@ export class StorageProviderFactory {
   private connectedProviders = new Set<StorageProvider>()
 
   /**
-   * Create a storage provider based on configuration
+   * Create a Neo4j storage provider based on configuration
    * @param config Configuration for the provider
-   * @returns A storage provider instance
+   * @returns A Neo4j storage provider instance
    */
   createProvider(config: StorageProviderConfig): StorageProvider {
     if (!config) {
       throw new Error("Storage provider configuration is required")
     }
 
-    if (!config.type) {
-      throw new Error("Storage provider type is required")
-    }
-
     if (!config.options) {
       throw new Error("Storage provider options are required")
     }
 
-    let provider: StorageProvider
-
-    switch (config.type.toLowerCase()) {
-      case "file": {
-        if (!config.options.memoryFilePath) {
-          throw new Error("memoryFilePath is required for file provider")
-        }
-        provider = new FileStorageProvider({
-          filePath: config.options.memoryFilePath,
-          vectorStoreOptions: config.vectorStoreOptions,
-        })
-        break
-      }
-      case "neo4j": {
-        // Configure Neo4j provider
-        const neo4jConfig: Partial<Neo4jConfig> = {
-          uri: config.options.neo4jUri,
-          username: config.options.neo4jUsername,
-          password: config.options.neo4jPassword,
-          database: config.options.neo4jDatabase,
-          vectorIndexName: config.options.neo4jVectorIndexName,
-          vectorDimensions: config.options.neo4jVectorDimensions,
-          similarityFunction: config.options.neo4jSimilarityFunction,
-        }
-
-        provider = new Neo4jStorageProvider({
-          config: neo4jConfig,
-          decayConfig: config.options.decayConfig
-            ? {
-                enabled: config.options.decayConfig.enabled ?? true,
-                halfLifeDays: config.options.decayConfig.halfLifeDays,
-                minConfidence: config.options.decayConfig.minConfidence,
-              }
-            : undefined,
-        })
-        break
-      }
-      default:
-        throw new Error(`Unsupported provider type: ${config.type}`)
+    // Configure Neo4j provider
+    const neo4jConfig: Partial<Neo4jConfig> = {
+      uri: config.options.neo4jUri,
+      username: config.options.neo4jUsername,
+      password: config.options.neo4jPassword,
+      database: config.options.neo4jDatabase,
+      vectorIndexName: config.options.neo4jVectorIndexName,
+      vectorDimensions: config.options.neo4jVectorDimensions,
+      similarityFunction: config.options.neo4jSimilarityFunction,
     }
+
+    const provider = new Neo4jStorageProvider({
+      config: neo4jConfig,
+      decayConfig: config.options.decayConfig
+        ? {
+            enabled: config.options.decayConfig.enabled ?? true,
+            halfLifeDays: config.options.decayConfig.halfLifeDays,
+            minConfidence: config.options.decayConfig.minConfidence,
+          }
+        : undefined,
+    })
 
     // Track the provider as connected
     this.connectedProviders.add(provider)

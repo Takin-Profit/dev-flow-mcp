@@ -1,7 +1,7 @@
 /**
  * Configuration options for Neo4j
  */
-export interface Neo4jConfig {
+export type Neo4jConfig = {
   /**
    * The Neo4j server URI (e.g., 'bolt://localhost:7687')
    */
