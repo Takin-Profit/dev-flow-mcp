@@ -7,7 +7,7 @@ export async function handleToolCall(
   manager: KnowledgeGraphManager,
   toolCall: { name: string; args: Record<string, unknown> }
 ): Promise<unknown> {
-  if (!(toolCall && toolCall.name)) {
+  if (!toolCall?.name) {
     return { error: "Invalid tool call" }
   }
 

@@ -3,16 +3,9 @@ pre-commit:
     ls-lint:
       run: mise exec -- ls-lint
 
-  jobs:
-    - run: pnpm dlx ultracite fix
-      glob:
-        - "*.js"
-        - "*.jsx"
-        - "*.ts"
-        - "*.tsx"
-        - "*.json"
-        - "*.jsonc"
-        - "*.css"
+    ultracite:
+      glob: "*.{js,jsx,ts,tsx,json,jsonc,css}"
+      run: pnpm dlx ultracite fix {staged_files}
       stage_fixed: true
 
 commit-msg:
