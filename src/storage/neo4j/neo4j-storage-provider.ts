@@ -14,13 +14,8 @@ import type {
   SearchOptions,
   StorageProvider,
 } from "#storage/storage-provider.ts"
-import type { Logger } from "#types"
-import { createNoOpLogger } from "#types"
-import type {
-  EntityEmbedding,
-  SemanticSearchOptions,
-} from "#types/entity-embedding.ts"
-import { RelationType } from "#types/arktype.ts"
+import type { EntityEmbedding, Logger, SemanticSearchOptions } from "#types"
+import { createNoOpLogger, RelationType } from "#types"
 import type { Relation } from "#types/relation.ts"
 
 /**
@@ -317,7 +312,7 @@ export class Neo4jStorageProvider implements StorageProvider {
     return {
       from: fromNode,
       to: toNode,
-      relationType: rel.relationType as string,
+      relationType: rel.relationType,
       // Convert null to undefined for compatibility with Relation interface
       strength:
         (rel.strength as number | null) === null
