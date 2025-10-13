@@ -5,15 +5,17 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import { handleCallToolRequest } from "#server/handlers/call-tool-handler.ts"
 import { handleListToolsRequest } from "#server/handlers/list-tools-handler.ts"
+import type { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
+import type { Logger } from "#types"
 
 /**
  * Sets up and configures the MCP server with the appropriate request handlers.
  *
  * @param knowledgeGraphManager The KnowledgeGraphManager instance to use for request handling
+ * @param logger Logger instance for structured logging
  * @returns The configured server instance
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function setupServer(knowledgeGraphManager: any): Server {
+export function setupServer(knowledgeGraphManager: KnowledgeGraphManager, logger: Logger): Server {
   // Create server instance
   const server = new Server(
     {
@@ -44,7 +46,7 @@ export function setupServer(knowledgeGraphManager: any): Server {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
-      const result = await handleCallToolRequest(request, knowledgeGraphManager)
+      const result = await handleCallToolRequest(request, knowledgeGraphManager, logger)
       return result
     } catch (error: unknown) {
       throw error

@@ -76,7 +76,7 @@ export default async function startMcpServer(): Promise<void> {
     // Step 4: Setup and Start MCP Server
     // ========================================================================
     logger.debug("Setting up MCP server...")
-    const server = setupServer(knowledgeGraphManager)
+    const server = setupServer(knowledgeGraphManager, logger)
 
     logger.info("Starting MCP server on stdio transport...")
     const transport = new StdioServerTransport()
