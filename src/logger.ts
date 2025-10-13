@@ -2,6 +2,9 @@
  * Application Logging
  * - logger: Winston-based file logging for the MCP server (avoids stdio interference)
  * - cliLogger: Consola-based CLI output for user-facing tools (with colors/emojis)
+ *
+ * This module provides concrete implementations of the Logger interface.
+ * Business logic should depend on the Logger type, not these implementations directly.
  */
 
 import path from "node:path"
@@ -9,6 +12,7 @@ import { consola } from "consola"
 import winston from "winston"
 import DailyRotateFile from "winston-daily-rotate-file"
 import { getLogDir } from "#config.ts"
+import type { Logger } from "#types"
 
 // Get log directory from config (uses XDG paths)
 const LOG_DIR = getLogDir()
@@ -77,10 +81,12 @@ if (ENABLE_CONSOLE_LOGS) {
 }
 
 /**
- * Application logger interface
- * This provides structured logging with file rotation
+ * Winston-based logger implementation
+ * This provides structured logging with file rotation for the MCP server
+ *
+ * Implements the Logger interface for dependency injection
  */
-export const logger = {
+export const logger: Logger = {
   /**
    * Log an error message
    */
@@ -122,18 +128,14 @@ export const logger = {
   debug: (message: string, meta?: Record<string, unknown>) => {
     winstonLogger.debug(message, meta)
   },
-
-  /**
-   * Get the underlying Winston logger instance
-   * Use this if you need access to advanced Winston features
-   */
-  getWinstonInstance: () => winstonLogger,
 }
 
 /**
- * Type definition for the application logger
+ * Get the underlying Winston logger instance
+ * Use this if you need access to advanced Winston features
+ * (not part of the Logger interface, use sparingly)
  */
-export type Logger = typeof logger
+export const getWinstonInstance = (): winston.Logger => winstonLogger
 
 // ============================================================================
 // CLI Logger (Consola)

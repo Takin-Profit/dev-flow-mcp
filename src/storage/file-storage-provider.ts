@@ -1,5 +1,5 @@
-import * as fs from "fs"
-import path from "path"
+import fs, { existsSync, mkdirSync } from "node:fs"
+import path from "node:path"
 import type { KnowledgeGraph, Relation } from "#knowledge-graph-manager.ts"
 import type {
   SearchOptions,
@@ -7,11 +7,11 @@ import type {
 } from "#storage/storage-provider.ts"
 import type { VectorStoreFactoryOptions } from "#storage/vector-store-factory.ts"
 
-interface FileStorageProviderOptions {
+type FileStorageProviderOptions = {
   memoryFilePath?: string
   filePath?: string // Alias for memoryFilePath for consistency with other providers
   vectorStoreOptions?: VectorStoreFactoryOptions
-}
+};
 
 /**
  * A storage provider that uses the file system to store the knowledge graph
@@ -50,8 +50,8 @@ export class FileStorageProvider implements StorageProvider {
         "test-output",
         "file-storage"
       )
-      if (!fs.existsSync(testOutputDir)) {
-        fs.mkdirSync(testOutputDir, { recursive: true })
+      if (!existsSync(testOutputDir)) {
+        mkdirSync(testOutputDir, { recursive: true })
       }
       this.filePath = path.join(testOutputDir, "memory.json")
     }

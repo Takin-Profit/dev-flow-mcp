@@ -1,79 +1,116 @@
+/**
+ * Default Embedding Service
+ *
+ * Fallback embedding implementation that generates deterministic random vectors.
+ * Used for testing, development, or when no external API provider is available.
+ *
+ * Design Notes:
+ * - Generates deterministic embeddings (same input → same output)
+ * - Uses seeded random generation for consistency in tests
+ * - Produces normalized unit vectors compatible with cosine similarity
+ * - Accepts logger via constructor injection (dependency inversion)
+ */
+
 import {
   type EmbeddingModelInfo,
   EmbeddingService,
 } from "#embeddings/embedding-service.ts"
-import type { EmbeddingServiceConfig } from "#embeddings/embedding-service-factory.ts"
-import { logger } from "#utils/logger.ts"
+import type { Logger } from "#types"
 
 /**
- * Default embedding service implementation that generates random vectors.
- * This is a fallback service for testing and development environments
- * where an external API provider is not available.
+ * Configuration for default embedding service
+ */
+export type DefaultEmbeddingConfig = {
+  /** Embedding vector dimensions (default: 1536 for OpenAI compatibility) */
+  dimensions?: number
+  /** Model name for identification (default: text-embedding-3-small-mock) */
+  model?: string
+  /** Model version string (default: 1.0.0) */
+  version?: string
+  /** Logger instance for dependency injection */
+  logger?: Logger
+}
+
+/**
+ * Default embedding service that generates deterministic pseudo-random vectors
+ *
+ * This service:
+ * - Generates consistent embeddings for the same input text
+ * - Normalizes vectors to unit length for cosine similarity
+ * - Provides OpenAI-compatible dimensions by default
+ * - Logs operations for observability
  */
 export class DefaultEmbeddingService extends EmbeddingService {
-  private dimensions: number
-  private modelName: string
-  private modelVersion: string
+  private readonly dimensions: number
+  private readonly modelName: string
+  private readonly modelVersion: string
+  private readonly logger: Logger
 
   /**
-   * Create a new default embedding service instance
+   * Create a new default embedding service
    *
-   * @param config - Configuration options or dimensions
-   * @param modelName - Name to use for the model (legacy parameter)
-   * @param modelVersion - Version to use for the model (legacy parameter)
+   * @param config - Configuration options
    */
-  constructor(
-    config: EmbeddingServiceConfig | number = 1536, // Default to OpenAI's dimensions for better test compatibility
-    modelName = "memento-mcp-mock",
-    modelVersion = "1.0.0"
-  ) {
+  constructor(config: DefaultEmbeddingConfig = {}) {
     super()
 
-    // Handle both object config and legacy number dimensions
-    if (typeof config === "number") {
-      this.dimensions = config
-      this.modelName = modelName
-      this.modelVersion = modelVersion
+    // Determine if we're in mock mode
+    const isMockMode = process.env.DFM_MOCK_EMBEDDINGS === "true"
+
+    // Set defaults based on mode
+    const defaultDimensions = isMockMode ? 1536 : 384
+    const defaultModel = isMockMode ? "text-embedding-3-small-mock" : "memento-mcp-mock"
+
+    this.dimensions = config.dimensions ?? defaultDimensions
+    this.modelName = config.model ?? defaultModel
+    this.modelVersion = config.version ?? "1.0.0"
+    this.logger = config.logger ?? { info: () => {}, error: () => {}, warn: () => {}, debug: () => {} }
+
+    if (isMockMode) {
+      this.logger.info(
+        `DefaultEmbeddingService initialized in mock mode`,
+        {
+          dimensions: this.dimensions,
+          model: this.modelName,
+        }
+      )
     } else {
-      // For mock mode, default to OpenAI-compatible dimensions if not specified
-      const isMockMode = process.env.MOCK_EMBEDDINGS === "true"
-      const defaultDimensions = isMockMode ? 1536 : 384
-
-      this.dimensions = config.dimensions || defaultDimensions
-      this.modelName =
-        config.model || (isMockMode ? "text-embedding-3-small-mock" : modelName)
-      this.modelVersion = config.version?.toString() || modelVersion
-    }
-
-    if (process.env.MOCK_EMBEDDINGS === "true") {
-      logger.info(
-        `Using DefaultEmbeddingService in mock mode with dimensions: ${this.dimensions}`
+      this.logger.debug(
+        `DefaultEmbeddingService initialized`,
+        {
+          dimensions: this.dimensions,
+          model: this.modelName,
+        }
       )
     }
   }
 
   /**
-   * Generate an embedding vector for text
+   * Generate a deterministic embedding vector for text
+   *
+   * The same input text will always produce the same output vector,
+   * making this suitable for testing and development.
    *
    * @param text - Text to generate embedding for
-   * @returns Promise resolving to a vector as Array
+   * @returns Promise resolving to normalized embedding vector
    */
   override async generateEmbedding(text: string): Promise<number[]> {
-    // Generate deterministic embedding based on text
-    // This keeps the same input text producing the same output vector
-    const seed = this._hashString(text)
+    this.logger.debug("Generating embedding", {
+      textLength: text.length,
+      textPreview: text.substring(0, 50),
+    })
 
-    // Create an array of the specified dimensions
-    const vector = new Array(this.dimensions)
+    // Generate deterministic embedding based on text hash
+    const seed = this.hashString(text)
 
-    // Fill with seeded random values
+    // Create vector with seeded random values
+    const vector = new Array<number>(this.dimensions)
     for (let i = 0; i < this.dimensions; i++) {
-      // Use a simple deterministic algorithm based on seed and position
-      vector[i] = this._seededRandom(seed + i)
+      vector[i] = this.seededRandom(seed + i)
     }
 
-    // Normalize the vector to unit length
-    this._normalizeVector(vector)
+    // Normalize to unit length for cosine similarity
+    this.normalizeVector(vector)
 
     return vector
   }
@@ -85,12 +122,18 @@ export class DefaultEmbeddingService extends EmbeddingService {
    * @returns Promise resolving to array of embedding vectors
    */
   override async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    // Generate embeddings for each text in parallel
-    const embeddings: number[][] = []
+    this.logger.debug("Generating batch embeddings", {
+      count: texts.length,
+    })
 
+    const embeddings: number[][] = []
     for (const text of texts) {
       embeddings.push(await this.generateEmbedding(text))
     }
+
+    this.logger.debug("Batch embeddings generated", {
+      count: embeddings.length,
+    })
 
     return embeddings
   }
@@ -98,7 +141,7 @@ export class DefaultEmbeddingService extends EmbeddingService {
   /**
    * Get information about the embedding model
    *
-   * @returns Model information
+   * @returns Model metadata
    */
   override getModelInfo(): EmbeddingModelInfo {
     return {
@@ -111,11 +154,13 @@ export class DefaultEmbeddingService extends EmbeddingService {
   /**
    * Generate a simple hash from a string for deterministic random generation
    *
-   * @private
+   * Uses a basic hash algorithm that produces consistent results
+   * for the same input string.
+   *
    * @param text - Input text to hash
    * @returns Numeric hash value
    */
-  private _hashString(text: string): number {
+  private hashString(text: string): number {
     let hash = 0
 
     if (text.length === 0) return hash
@@ -130,28 +175,35 @@ export class DefaultEmbeddingService extends EmbeddingService {
   }
 
   /**
-   * Seeded random number generator
+   * Seeded pseudo-random number generator
    *
-   * @private
+   * Produces deterministic "random" numbers based on a seed value.
+   * Uses sine function for simple but effective pseudo-randomness.
+   *
    * @param seed - Seed value
    * @returns Random value between 0 and 1
    */
-  private _seededRandom(seed: number): number {
+  private seededRandom(seed: number): number {
     const x = Math.sin(seed) * 10_000
     return x - Math.floor(x)
   }
 
   /**
-   * Normalize a vector to unit length
+   * Normalize a vector to unit length (magnitude = 1)
    *
-   * @private
-   * @param vector - Vector to normalize
+   * This is required for cosine similarity calculations.
+   * Modifies the vector in place for efficiency.
+   *
+   * @param vector - Vector to normalize (modified in place)
    */
-  private _normalizeVector(vector: number[]): void {
+  private normalizeVector(vector: number[]): void {
     // Calculate magnitude (Euclidean norm)
     let magnitude = 0
     for (let i = 0; i < vector.length; i++) {
-      magnitude += vector[i] * vector[i]
+      const value = vector[i]
+      if (value !== undefined) {
+        magnitude += value * value
+      }
     }
     magnitude = Math.sqrt(magnitude)
 
@@ -159,11 +211,17 @@ export class DefaultEmbeddingService extends EmbeddingService {
     if (magnitude > 0) {
       // Normalize each component
       for (let i = 0; i < vector.length; i++) {
-        vector[i] /= magnitude
+        const value = vector[i]
+        if (value !== undefined) {
+          vector[i] = value / magnitude
+        }
       }
     } else {
-      // If magnitude is 0, set first element to 1 for a valid unit vector
-      vector[0] = 1
+      // If magnitude is 0, create a valid unit vector
+      // Set first element to 1
+      if (vector.length > 0) {
+        vector[0] = 1
+      }
     }
   }
 }
