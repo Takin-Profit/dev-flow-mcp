@@ -25,17 +25,19 @@ const description = "DevFlow MCP - Development workflow knowledge graph"
  * CLI Context
  * Provides access to Node.js APIs for commands
  */
-export interface CliContext extends CommandContext, StricliAutoCompleteContext {
+export interface AppContext {
   readonly process: NodeJS.Process
   readonly os: typeof os
   readonly fs: typeof fs
   readonly path: typeof path
 }
 
+export type CliContext = CommandContext & StricliAutoCompleteContext & AppContext
+
 /**
  * Build CLI context
  */
-export function buildCliContext(process: NodeJS.Process): CliContext {
+export function buildCliContext(process: NodeJS.Process): AppContext {
   return {
     process,
     os,

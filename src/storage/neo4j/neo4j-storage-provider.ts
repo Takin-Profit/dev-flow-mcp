@@ -20,6 +20,7 @@ import type {
   EntityEmbedding,
   SemanticSearchOptions,
 } from "#types/entity-embedding.ts"
+import { RelationType } from "#types/arktype.ts"
 import type { Relation } from "#types/relation.ts"
 
 /**
@@ -358,15 +359,15 @@ export class Neo4jStorageProvider implements StorageProvider {
 
       // Load relations query
       const relationQuery = `
-        MATCH (from:Entity)-[r:RELATES_TO]->(to:Entity)
-        WHERE r.validTo IS NULL
+        MATCH (from:Entity)-[r]->(to:Entity)
+        WHERE type(r) IN $relationTypes AND r.validTo IS NULL
         RETURN from.name AS fromName, to.name AS toName, r
       `
 
       // Execute query to get all current relations
       const relationResult = await this.connectionManager.executeQuery(
         relationQuery,
-        {}
+        { relationTypes: RelationType.infer }
       )
 
       // Process relation results

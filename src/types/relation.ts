@@ -23,6 +23,8 @@ export interface RelationMetadata {
   updatedAt: number
 }
 
+import { RelationType } from "#types/arktype.ts"
+
 /**
  * Represents a relationship between two entities in the knowledge graph
  */
@@ -40,7 +42,7 @@ export interface Relation {
   /**
    * The type of relationship between the entities
    */
-  relationType: string
+  relationType: RelationType
 
   /**
    * Optional strength of the relationship (0.0-1.0)

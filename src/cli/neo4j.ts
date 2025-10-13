@@ -108,11 +108,9 @@ async function initSchemaImpl(
   const recreate = flags.recreate ?? false
 
   const connectionManager = new Neo4jConnectionManager(config)
-  const schemaManager = new Neo4jSchemaManager(
-    connectionManager,
-    undefined,
-    debug
-  )
+  const schemaManager = new Neo4jSchemaManager(connectionManager, {
+    debug,
+  })
 
   try {
     cliLogger.start("Initializing Neo4j schema...")
@@ -200,6 +198,24 @@ const testCommand = buildCommand({
         kind: "parsed",
         parse: String,
         brief: "Neo4j database name",
+        optional: true,
+      },
+      vectorIndex: {
+        kind: "parsed",
+        parse: String,
+        brief: "Vector index name",
+        optional: true,
+      },
+      dimensions: {
+        kind: "parsed",
+        parse: Number,
+        brief: "Vector dimensions",
+        optional: true,
+      },
+      similarity: {
+        kind: "enum",
+        values: ["cosine", "euclidean"],
+        brief: "Similarity function",
         optional: true,
       },
       debug: {

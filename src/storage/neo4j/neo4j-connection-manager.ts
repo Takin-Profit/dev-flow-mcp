@@ -85,4 +85,20 @@ export class Neo4jConnectionManager {
   async close(): Promise<void> {
     await this.driver.close()
   }
+
+  /**
+   * Gets the underlying Neo4j driver instance
+   * @returns The Neo4j driver
+   */
+  getDriver(): Driver {
+    return this.driver
+  }
+
+  /**
+   * Verifies the connection to the Neo4j database
+   * @returns A promise that resolves if the connection is successful
+   */
+  async verifyConnectivity(): Promise<void> {
+    await this.driver.verifyConnectivity()
+  }
 }
