@@ -1,0 +1,64 @@
+# ls-lint configuration for devflow-mcp
+# Enforces kebab-case for all files and directories
+# Allows pointcase (kebab.case) for test-related files
+
+ls:
+  # Global rules - kebab-case for all directories
+  .dir: kebab-case
+
+  # Source files - kebab-case
+  .js: kebab-case
+  .ts: kebab-case
+  .mts: kebab-case
+  .cts: kebab-case
+  .jsx: kebab-case
+  .tsx: kebab-case
+
+  # TypeScript definition files - kebab-case or kebab.case
+  .d.ts: kebab-case | regex:[a-z0-9]+(\.[a-z0-9]+)*
+
+  # Test files - allow pointcase (e.g., file.test.ts, file.spec.ts)
+  .test.ts: regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+  .test.js: regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+  .spec.ts: regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+  .spec.js: regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+
+  # Config files - kebab-case or kebab.case (e.g., tsconfig.json, biome.jsonc)
+  .json: kebab-case | regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+  .jsonc: kebab-case | regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+  .yml: kebab-case | regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+  .yaml: kebab-case | regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+  .toml: kebab-case | regex:[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*
+
+  # Markdown and documentation - kebab-case, kebab-case with prefix, or uppercase
+  .md: kebab-case | regex:[a-z0-9]+(-[a-z0-9]+)*-[A-Z][A-Z0-9]* | regex:[A-Z][A-Z0-9_]*
+
+  # Shell scripts - kebab-case
+  .sh: kebab-case
+  .bash: kebab-case
+
+  # PowerShell scripts - kebab-case
+  .ps1: kebab-case
+  .psm1: kebab-case
+
+  # Other common files - kebab-case
+  .txt: kebab-case
+  .log: kebab-case
+
+# Ignore common directories and files
+ignore:
+  - .git
+  - .github
+  - .vscode
+  - .idea
+  - .claude
+  - .mise.toml
+  - .DS_Store
+  - node_modules
+  - dist
+  - coverage
+  - test-output
+  - "*.log"
+  - pnpm-lock.yaml
+  - package-lock.json
+  - yarn.lock

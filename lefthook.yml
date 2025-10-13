@@ -1,7 +1,11 @@
 pre-commit:
+  commands:
+    ls-lint:
+      run: mise exec -- ls-lint
+
   jobs:
-    - run: npx ultracite fix
-      glob: 
+    - run: pnpm dlx ultracite fix
+      glob:
         - "*.js"
         - "*.jsx"
         - "*.ts"
@@ -10,3 +14,8 @@ pre-commit:
         - "*.jsonc"
         - "*.css"
       stage_fixed: true
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm dlx commitlint --edit {1}

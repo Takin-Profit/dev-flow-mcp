@@ -1,0 +1,19 @@
+# mise configuration for devflow-mcp
+# https://mise.jdx.dev/
+
+[tools]
+# Node.js version 24.10.0
+node = "24.10.0"
+
+# Package manager - pnpm latest
+pnpm = "latest"
+
+# Git hooks manager - lefthook latest
+lefthook = "latest"
+
+# File and directory name linter - ls-lint latest
+ls-lint = "latest"
+
+[env]
+# Set pnpm to use the project's node_modules
+_.path = ["./node_modules/.bin"]

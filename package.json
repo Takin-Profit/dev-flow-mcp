@@ -22,7 +22,6 @@
   ],
   "scripts": {
     "build": "tsc && shx chmod +x dist/*.js",
-    "prepare": "pnpm build",
     "dev": "tsc --watch",
     "test": "node --experimental-transform-types --disable-warning=ExperimentalWarning --test",
     "test:watch": "node --experimental-transform-types --disable-warning=ExperimentalWarning --test --watch",
