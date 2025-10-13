@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/complexity/useLiteralKeys: <explanation> */
+import { type } from "arktype"
 import neo4j from "neo4j-driver"
 import { v4 as uuidv4 } from "uuid"
 import type { EmbeddingService } from "#embeddings/embedding-service.ts"
@@ -111,16 +113,16 @@ type KnowledgeGraphWithDiagnostics = KnowledgeGraph & {
  * A storage provider that uses Neo4j to store the knowledge graph
  */
 export class Neo4jStorageProvider implements StorageProvider {
-  private connectionManager: Neo4jConnectionManager
-  private schemaManager: Neo4jSchemaManager
+  private readonly connectionManager: Neo4jConnectionManager
+  private readonly schemaManager: Neo4jSchemaManager
   private readonly config: Neo4jConfig
   private readonly decayConfig: {
     enabled: boolean
     halfLifeDays: number
     minConfidence: number
   }
-  private vectorStore: Neo4jVectorStore
-  private embeddingService: EmbeddingService | null = null
+  private readonly vectorStore: Neo4jVectorStore
+  private readonly embeddingService: EmbeddingService | null = null
   private readonly logger: Logger
 
   /**
@@ -308,11 +310,19 @@ export class Neo4jStorageProvider implements StorageProvider {
       }
     }
 
+    // Validate and narrow relationType using arktype
+    const relationTypeResult = RelationType(rel.relationType)
+    if (relationTypeResult instanceof type.errors) {
+      throw new Error(
+        `Invalid relation type: ${rel.relationType}. Expected one of: implements, depends_on, relates_to, part_of`
+      )
+    }
+
     // Create a standard Relation object with proper type handling
     return {
       from: fromNode,
       to: toNode,
-      relationType: rel.relationType,
+      relationType: relationTypeResult,
       // Convert null to undefined for compatibility with Relation interface
       strength:
         (rel.strength as number | null) === null
@@ -396,7 +406,7 @@ export class Neo4jStorageProvider implements StorageProvider {
   async saveGraph(graph: KnowledgeGraph): Promise<void> {
     try {
       // Start a new session
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Begin transaction
@@ -682,15 +692,13 @@ export class Neo4jStorageProvider implements StorageProvider {
    * Create new entities in the knowledge graph
    * @param entities Array of entities to create
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createEntities(entities: any[]): Promise<any[]> {
     try {
       if (!entities || entities.length === 0) {
         return []
       }
 
-      const session = await this.connectionManager.getSession()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const session = this.connectionManager.getSession()
       const createdEntities: any[] = []
 
       try {
@@ -819,7 +827,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return []
       }
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
       const createdRelations: Relation[] = []
 
       try {
@@ -946,7 +954,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return []
       }
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
       const results: { entityName: string; addedObservations: string[] }[] = []
 
       try {
@@ -1069,7 +1077,9 @@ export class Neo4jStorageProvider implements StorageProvider {
 
             // Step 5: Recreate relationships for the new version
             for (const outRel of outgoingRels) {
-              if (!(outRel.rel && outRel.to)) continue
+              if (!(outRel.rel && outRel.to)) {
+                continue
+              }
 
               const relProps = outRel.rel.properties
               const newRelId = uuidv4()
@@ -1112,7 +1122,9 @@ export class Neo4jStorageProvider implements StorageProvider {
             }
 
             for (const inRel of incomingRels) {
-              if (!(inRel.rel && inRel.from)) continue
+              if (!(inRel.rel && inRel.from)) {
+                continue
+              }
 
               const relProps = inRel.rel.properties
               const newRelId = uuidv4()
@@ -1190,7 +1202,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return
       }
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Begin transaction
@@ -1235,7 +1247,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return
       }
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Begin transaction
@@ -1360,7 +1372,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return
       }
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Begin transaction
@@ -1403,7 +1415,6 @@ export class Neo4jStorageProvider implements StorageProvider {
    * Get an entity by name
    * @param entityName Name of the entity to retrieve
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getEntity(entityName: string): Promise<any | null> {
     try {
       // Query for entity by name
@@ -1503,7 +1514,7 @@ export class Neo4jStorageProvider implements StorageProvider {
    */
   async updateRelation(relation: Relation): Promise<void> {
     try {
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Begin transaction
@@ -1624,7 +1635,6 @@ export class Neo4jStorageProvider implements StorageProvider {
    * Get the history of all versions of an entity
    * @param entityName The name of the entity to retrieve history for
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getEntityHistory(entityName: string): Promise<any[]> {
     try {
       // Query for entity history
@@ -1664,7 +1674,6 @@ export class Neo4jStorageProvider implements StorageProvider {
    * @param to Target entity name
    * @param relationType Type of the relation
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getRelationHistory(
     from: string,
     to: string,
@@ -1891,7 +1900,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         throw new Error(`Entity ${entityName} not found`)
       }
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Begin transaction
@@ -1951,7 +1960,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         return null
       }
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         // Query to get the entity with its embedding
@@ -1970,7 +1979,7 @@ export class Neo4jStorageProvider implements StorageProvider {
 
         // Type guard for array access
         const firstRecord = result.records[0]
-        if (!(firstRecord && firstRecord.get("embedding"))) {
+        if (!firstRecord?.get("embedding")) {
           this.logger.debug(`No embedding found for entity: ${entityName}`)
           return null
         }
@@ -2000,7 +2009,6 @@ export class Neo4jStorageProvider implements StorageProvider {
    * @param queryVector The vector to compare against
    * @param limit Maximum number of results to return
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async findSimilarEntities(queryVector: number[], limit = 10): Promise<any[]> {
     try {
       // Direct vector search implementation using the approach proven to work in our test script
@@ -2008,7 +2016,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         `Neo4jStorageProvider: Using direct vector search with ${limit} limit`
       )
 
-      const session = await this.connectionManager.getSession()
+      const session = this.connectionManager.getSession()
 
       try {
         const result = await session.run(
@@ -2078,7 +2086,6 @@ export class Neo4jStorageProvider implements StorageProvider {
   ): Promise<KnowledgeGraphWithDiagnostics> {
     try {
       // Create diagnostics object for debugging
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const diagnostics: Record<string, any> = {
         query,
         startTime: Date.now(),
@@ -2109,6 +2116,7 @@ export class Neo4jStorageProvider implements StorageProvider {
       })
 
       // Ensure vector store is initialized
+      // biome-ignore lint/complexity/useLiteralKeys: private
       if (!this.vectorStore["initialized"]) {
         this.logger.info(
           "Neo4jStorageProvider: Vector store not initialized, initializing now"
@@ -2234,7 +2242,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         // Instead of using findSimilarEntities - which isn't working in the MCP context
         // we'll directly use the working technique from our test script
         try {
-          const session = await this.connectionManager.getSession()
+          const session = this.connectionManager.getSession()
 
           try {
             const vectorResult = await session.run(
@@ -2263,12 +2271,10 @@ export class Neo4jStorageProvider implements StorageProvider {
 
             if (foundResults > 0) {
               // Convert to EntityData objects
-              const entityPromises = vectorResult.records.map(
-                async (record) => {
-                  const entityName = record.get("name")
-                  return this.getEntity(entityName)
-                }
-              )
+              const entityPromises = vectorResult.records.map((record) => {
+                const entityName = record.get("name")
+                return this.getEntity(entityName)
+              })
 
               const entities = (await Promise.all(entityPromises)).filter(
                 Boolean
@@ -2504,12 +2510,10 @@ export class Neo4jStorageProvider implements StorageProvider {
       }
 
       // Check if we can access the diagnostic method
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (
         typeof (this.vectorStore as any).diagnosticGetEntityEmbeddings ===
         "function"
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return await (this.vectorStore as any).diagnosticGetEntityEmbeddings()
       }
       return {
