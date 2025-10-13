@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/complexity/useLiteralKeys: <explanation> */
+/** biome-ignore-all lint/complexity/useLiteralKeys: accessing private properties for diagnostics */
 import { type } from "arktype"
 import neo4j from "neo4j-driver"
 import { v4 as uuidv4 } from "uuid"
@@ -19,6 +19,57 @@ import type {
 import type { EntityEmbedding, Logger, SemanticSearchOptions } from "#types"
 import { createNoOpLogger, RelationType } from "#types"
 import type { Relation } from "#types/relation.ts"
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Default number of days for confidence to decay by half
+ */
+const DEFAULT_HALF_LIFE_DAYS = 30
+
+/**
+ * Default minimum confidence threshold for relations
+ */
+const DEFAULT_MIN_CONFIDENCE = 0.1
+
+/**
+ * Default strength value for relations when not specified
+ */
+const DEFAULT_RELATION_STRENGTH = 0.9
+
+/**
+ * Default confidence value for relations when not specified
+ */
+const DEFAULT_RELATION_CONFIDENCE = 0.95
+
+/**
+ * Default minimum similarity threshold for vector search
+ */
+const DEFAULT_MIN_SIMILARITY = 0.6
+
+/**
+ * Number of sample vector values to include in diagnostics
+ */
+const DIAGNOSTIC_SAMPLE_SIZE = 3
+
+/**
+ * Half-life decay constant (0.5 represents 50% decay at half-life)
+ */
+const HALF_LIFE_DECAY_CONSTANT = 0.5
+
+/**
+ * Time conversion constants
+ */
+const HOURS_PER_DAY = 24
+const MINUTES_PER_HOUR = 60
+const SECONDS_PER_MINUTE = 60
+const MILLISECONDS_PER_SECOND = 1000
+
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * Configuration options for Neo4j storage provider
@@ -142,8 +193,9 @@ export class Neo4jStorageProvider implements StorageProvider {
     // Configure decay settings
     this.decayConfig = {
       enabled: options?.decayConfig?.enabled ?? true,
-      halfLifeDays: options?.decayConfig?.halfLifeDays ?? 30,
-      minConfidence: options?.decayConfig?.minConfidence ?? 0.1,
+      halfLifeDays: options?.decayConfig?.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS,
+      minConfidence:
+        options?.decayConfig?.minConfidence ?? DEFAULT_MIN_CONFIDENCE,
     }
 
     this.logger.debug("Neo4jStorageProvider initialized", {
@@ -1108,11 +1160,13 @@ export class Neo4jStorageProvider implements StorageProvider {
                 id: newRelId,
                 relationType: relProps.relationType,
                 strength:
-                  relProps.strength !== undefined ? relProps.strength : 0.9,
+                  relProps.strength !== undefined
+                    ? relProps.strength
+                    : DEFAULT_RELATION_STRENGTH,
                 confidence:
                   relProps.confidence !== undefined
                     ? relProps.confidence
-                    : 0.95,
+                    : DEFAULT_RELATION_CONFIDENCE,
                 metadata: relProps.metadata || null,
                 version: relProps.version || 1,
                 createdAt: relProps.createdAt || Date.now(),
@@ -1153,11 +1207,13 @@ export class Neo4jStorageProvider implements StorageProvider {
                 id: newRelId,
                 relationType: relProps.relationType,
                 strength:
-                  relProps.strength !== undefined ? relProps.strength : 0.9,
+                  relProps.strength !== undefined
+                    ? relProps.strength
+                    : DEFAULT_RELATION_STRENGTH,
                 confidence:
                   relProps.confidence !== undefined
                     ? relProps.confidence
-                    : 0.95,
+                    : DEFAULT_RELATION_CONFIDENCE,
                 metadata: relProps.metadata || null,
                 version: relProps.version || 1,
                 createdAt: relProps.createdAt || Date.now(),
@@ -1816,8 +1872,13 @@ export class Neo4jStorageProvider implements StorageProvider {
       })
 
       // Calculate decay factor
-      const halfLifeMs = this.decayConfig.halfLifeDays * 24 * 60 * 60 * 1000
-      const decayFactor = Math.log(0.5) / halfLifeMs
+      const halfLifeMs =
+        this.decayConfig.halfLifeDays *
+        HOURS_PER_DAY *
+        MINUTES_PER_HOUR *
+        SECONDS_PER_MINUTE *
+        MILLISECONDS_PER_SECOND
+      const decayFactor = Math.log(HALF_LIFE_DECAY_CONSTANT) / halfLifeMs
 
       // Load relations and apply decay
       const relationQuery = `
@@ -2195,7 +2256,7 @@ export class Neo4jStorageProvider implements StorageProvider {
             timestamp: Date.now(),
             status: "success",
             vectorLength: options.queryVector.length,
-            sampleValues: options.queryVector.slice(0, 3),
+            sampleValues: options.queryVector.slice(0, DIAGNOSTIC_SAMPLE_SIZE),
           })
 
           this.logger.debug(
@@ -2228,7 +2289,7 @@ export class Neo4jStorageProvider implements StorageProvider {
         })
 
         const searchLimit = Math.floor(options.limit || 10)
-        const minSimilarity = options.minSimilarity || 0.6
+        const minSimilarity = options.minSimilarity || DEFAULT_MIN_SIMILARITY
 
         diagnostics.stepsTaken.push({
           step: "vectorSearch",
