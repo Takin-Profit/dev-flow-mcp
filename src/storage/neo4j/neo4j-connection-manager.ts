@@ -9,39 +9,20 @@ import {
 } from "#storage/neo4j/neo4j-config.ts"
 
 /**
- * Options for configuring a Neo4j connection
- * @deprecated Use Neo4jConfig instead
- */
-export interface Neo4jConnectionOptions {
-  uri?: string
-  username?: string
-  password?: string
-  database?: string
-}
-
-/**
  * Manages connections to a Neo4j database
  */
 export class Neo4jConnectionManager {
-  private driver: Driver
+  private readonly driver: Driver
   private readonly config: Neo4jConfig
 
   /**
    * Creates a new Neo4j connection manager
    * @param config Connection configuration
    */
-  constructor(config?: Partial<Neo4jConfig> | Neo4jConnectionOptions) {
-    // Handle deprecated options
-    if (config && "uri" in config) {
-      this.config = {
-        ...DEFAULT_NEO4J_CONFIG,
-        ...config,
-      }
-    } else {
-      this.config = {
-        ...DEFAULT_NEO4J_CONFIG,
-        ...config,
-      }
+  constructor(config?: Partial<Neo4jConfig>) {
+    this.config = {
+      ...DEFAULT_NEO4J_CONFIG,
+      ...config,
     }
 
     this.driver = neo4j.driver(
@@ -55,7 +36,7 @@ export class Neo4jConnectionManager {
    * Gets a Neo4j session for executing queries
    * @returns A Neo4j session
    */
-  async getSession(): Promise<Session> {
+  getSession(): Session {
     return this.driver.session({
       database: this.config.database,
     })
@@ -71,7 +52,7 @@ export class Neo4jConnectionManager {
     query: string,
     parameters: Record<string, unknown>
   ): Promise<QueryResult> {
-    const session = await this.getSession()
+    const session = this.getSession()
     try {
       return await session.run(query, parameters)
     } finally {
@@ -97,8 +78,11 @@ export class Neo4jConnectionManager {
   /**
    * Verifies the connection to the Neo4j database
    * @returns A promise that resolves if the connection is successful
+   * @throws Error if connection verification fails
    */
   async verifyConnectivity(): Promise<void> {
-    await this.driver.verifyConnectivity()
+    // Use getServerInfo() which internally calls verifyConnectivityAndGetServerInfo()
+    // This is the recommended non-deprecated approach in Neo4j driver v5
+    await this.driver.getServerInfo({ database: this.config.database })
   }
 }

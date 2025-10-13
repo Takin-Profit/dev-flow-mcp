@@ -14,9 +14,31 @@
 import type { Neo4jConfig } from "#storage/neo4j/neo4j-config.ts"
 import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager.ts"
 import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store.ts"
-import type { Logger } from "#types"
+import type { Logger, VectorStore } from "#types"
 import { createNoOpLogger } from "#types"
-import type { VectorStore } from "#types/vector-store.ts"
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Default vector dimensions for OpenAI text-embedding-3-small model
+ */
+const DEFAULT_VECTOR_DIMENSIONS = 1536
+
+/**
+ * Default vector index name in Neo4j
+ */
+const DEFAULT_INDEX_NAME = "entity_embeddings"
+
+/**
+ * Default similarity function for vector search
+ */
+const DEFAULT_SIMILARITY_FUNCTION = "cosine"
+
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * Supported vector store types
@@ -74,8 +96,83 @@ export type VectorStoreFactoryOptions = {
   logger?: Logger
 }
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 /**
- * Factory class for creating VectorStore instances
+ * Create a Neo4j vector store instance
+ */
+function createNeo4jVectorStore(
+  options: VectorStoreFactoryOptions,
+  logger: Logger
+): VectorStore {
+  const indexName = options.indexName || DEFAULT_INDEX_NAME
+  const dimensions = options.dimensions || DEFAULT_VECTOR_DIMENSIONS
+  const similarityFunction =
+    options.similarityFunction || DEFAULT_SIMILARITY_FUNCTION
+
+  logger.info("Creating Neo4jVectorStore instance", {
+    indexName,
+    dimensions,
+    similarityFunction,
+  })
+
+  // Ensure Neo4j config is provided
+  if (!options.neo4jConfig) {
+    const error = new Error(
+      "Neo4j configuration is required for Neo4j vector store"
+    )
+    logger.error("Missing Neo4j configuration", error)
+    throw error
+  }
+
+  // Create connection manager
+  const connectionManager = new Neo4jConnectionManager(options.neo4jConfig)
+
+  // Create vector store with logger injection
+  const vectorStore = new Neo4jVectorStore({
+    connectionManager,
+    indexName,
+    dimensions,
+    similarityFunction,
+    logger,
+  })
+
+  logger.debug("Neo4jVectorStore instance created successfully")
+  return vectorStore
+}
+
+/**
+ * Initialize vector store if requested
+ */
+async function initializeIfNeeded(
+  vectorStore: VectorStore,
+  initializeImmediately: boolean,
+  logger: Logger
+): Promise<void> {
+  if (initializeImmediately) {
+    logger.debug("Initializing vector store immediately")
+    try {
+      await vectorStore.initialize()
+      logger.info("Vector store initialized successfully")
+    } catch (error) {
+      logger.error("Failed to initialize vector store", error)
+      throw error
+    }
+  } else {
+    logger.debug(
+      "Vector store created but not initialized (lazy initialization)"
+    )
+  }
+}
+
+// ============================================================================
+// Factory
+// ============================================================================
+
+/**
+ * Factory for creating VectorStore instances
  *
  * This factory:
  * - Creates vector store instances based on configuration
@@ -83,7 +180,7 @@ export type VectorStoreFactoryOptions = {
  * - Supports lazy or immediate initialization
  * - Provides type-safe configuration
  */
-export class VectorStoreFactory {
+export const VectorStoreFactory = Object.freeze({
   /**
    * Create a new VectorStore instance based on configuration
    *
@@ -91,7 +188,7 @@ export class VectorStoreFactory {
    * @returns Initialized or uninitialized VectorStore instance
    * @throws {Error} If vector store type is unsupported or required config is missing
    */
-  static async createVectorStore(
+  async createVectorStore(
     options: VectorStoreFactoryOptions = {}
   ): Promise<VectorStore> {
     const storeType = options.type || "neo4j"
@@ -105,37 +202,11 @@ export class VectorStoreFactory {
       dimensions: options.dimensions,
     })
 
+    // Create vector store based on type
     let vectorStore: VectorStore
 
     if (storeType === "neo4j") {
-      logger.info("Creating Neo4jVectorStore instance", {
-        indexName: options.indexName || "entity_embeddings",
-        dimensions: options.dimensions || 1536,
-        similarityFunction: options.similarityFunction || "cosine",
-      })
-
-      // Ensure Neo4j config is provided
-      if (!options.neo4jConfig) {
-        const error = new Error(
-          "Neo4j configuration is required for Neo4j vector store"
-        )
-        logger.error("Missing Neo4j configuration", error)
-        throw error
-      }
-
-      // Create connection manager
-      const connectionManager = new Neo4jConnectionManager(options.neo4jConfig)
-
-      // Create vector store with logger injection
-      vectorStore = new Neo4jVectorStore({
-        connectionManager,
-        indexName: options.indexName || "entity_embeddings",
-        dimensions: options.dimensions || 1536,
-        similarityFunction: options.similarityFunction || "cosine",
-        logger,
-      })
-
-      logger.debug("Neo4jVectorStore instance created successfully")
+      vectorStore = createNeo4jVectorStore(options, logger)
     } else {
       const error = new Error(`Unsupported vector store type: ${storeType}`)
       logger.error("Unsupported vector store type", error, { storeType })
@@ -143,21 +214,8 @@ export class VectorStoreFactory {
     }
 
     // Initialize if requested
-    if (initializeImmediately) {
-      logger.debug("Initializing vector store immediately")
-      try {
-        await vectorStore.initialize()
-        logger.info("Vector store initialized successfully")
-      } catch (error) {
-        logger.error("Failed to initialize vector store", error)
-        throw error
-      }
-    } else {
-      logger.debug(
-        "Vector store created but not initialized (lazy initialization)"
-      )
-    }
+    await initializeIfNeeded(vectorStore, initializeImmediately, logger)
 
     return vectorStore
-  }
-}
+  },
+})
