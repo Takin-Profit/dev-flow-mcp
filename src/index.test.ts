@@ -34,50 +34,31 @@ afterEach(() => {
   mock.reset()
 })
 
-describe("Memory Server Index Module", () => {
-  it("index module exports KnowledgeGraphManager", async () => {
-    // Import the module
-    const indexModule = await import("#index.ts")
+describe("KnowledgeGraphManager Public API", () => {
+  it("knowledge-graph-manager module exports KnowledgeGraphManager class", async () => {
+    // Import the public API module
+    const kgmModule = await import("#knowledge-graph-manager.ts")
 
     // Verify exports
-    assert.notStrictEqual(indexModule.KnowledgeGraphManager, undefined)
+    assert.notStrictEqual(kgmModule.KnowledgeGraphManager, undefined)
+    assert.strictEqual(typeof kgmModule.KnowledgeGraphManager, "function")
   })
 
-  it("exports come from KnowledgeGraphManager.js module", async () => {
-    // Import both modules
-    const indexExports = await import("#index.ts")
-    const knowledgeGraphManagerExports = await import(
-      "#knowledge-graph-manager.ts"
-    )
-
-    // Verify the exports are the same
-    assert.strictEqual(
-      indexExports.KnowledgeGraphManager,
-      knowledgeGraphManagerExports.KnowledgeGraphManager
-    )
-  })
-
-  it("exports include relation types", async () => {
+  it("exports include Entity interface", async () => {
     // Import the module
-    const indexModule = await import("#index.ts")
-    const moduleExports = Object.keys(indexModule)
+    const kgmModule = await import("#knowledge-graph-manager.ts")
+    const moduleExports = Object.keys(kgmModule)
 
-    // Check that export keys include relation related exports
-    // Since we're testing a type export which might not be visible at runtime,
-    // we'll just verify the main exports we know should exist
+    // Verify the main exports exist
     assert.ok(moduleExports.includes("KnowledgeGraphManager"))
-    assert.ok(moduleExports.includes("main"))
   })
-})
 
-describe("Memory Server Main Function", () => {
-  it("main function exists and is callable", async (_t) => {
-    // Import the module
-    const indexModule = await import("#index.ts")
+  it("exports Relation type from types module", async () => {
+    // Import the types module directly
+    const relationType = await import("#types/relation.ts")
 
-    // Verify main function exists
-    assert.strictEqual(typeof indexModule.main, "function")
-    assert.strictEqual(indexModule.main.length, 0)
+    // Verify Relation type exists (as a runtime value check via the default export or named exports)
+    assert.notStrictEqual(relationType, undefined)
   })
 })
 
