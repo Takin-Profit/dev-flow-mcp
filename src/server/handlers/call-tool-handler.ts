@@ -1,5 +1,6 @@
 import * as toolHandlers from "#server/handlers/tool-handlers/index.ts"
 import type { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
+import type { Logger } from "#types"
 
 /**
  * Handles the CallTool request.
@@ -7,13 +8,15 @@ import type { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
  *
  * @param request The CallTool request object
  * @param knowledgeGraphManager The KnowledgeGraphManager instance
+ * @param logger Logger instance for structured logging
  * @returns A response object with the result content
  * @throws Error if the tool is unknown or arguments are missing
  */
 
 export async function handleCallToolRequest(
   request: { params?: { name?: string; arguments?: Record<string, unknown> } },
-  knowledgeGraphManager: KnowledgeGraphManager
+  knowledgeGraphManager: KnowledgeGraphManager,
+  logger: Logger
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   if (!request) {
     throw new Error("Invalid request: request is null or undefined")

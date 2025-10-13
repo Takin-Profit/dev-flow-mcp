@@ -493,6 +493,27 @@ Based on Neo4j documentation, we implement:
 **Location:** `src/cli/neo4j.ts:114`
 **Fix:** Updated the call to use an options object.
 
+### Priority 2.5: Logging Cleanup (HIGH PRIORITY)
+
+**Issue:** Multiple files use `process.stderr.write()` and `process.stdout.write()` instead of the proper logger
+**Impact:** Inconsistent logging, no structured logging, difficult to debug
+
+**Files to fix:**
+- `src/server/handlers/call-tool-handler.ts` (31 occurrences)
+- `src/server/handlers/tool-handlers/add-observations.ts`
+- `src/cli/bash-complete.ts` (check if appropriate)
+
+**Actions:**
+1. Add logger parameter to `handleCallToolRequest()` function
+2. Pass logger from server setup through to handlers
+3. Replace all `process.stderr.write()` with appropriate logger methods:
+   - `[ERROR]` → `logger.error()`
+   - `[DEBUG]` → `logger.debug()`
+   - `[INFO]` → `logger.info()`
+   - `[WARN]` → `logger.warn()`
+4. Update tool handlers to receive and use logger
+5. For CLI tools (bash-complete.ts), use cli-logger if appropriate
+
 ### Priority 3: Type Safety Improvements
 
 #### ✅ Union Types with arktype (Completed)
