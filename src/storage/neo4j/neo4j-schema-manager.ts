@@ -154,8 +154,9 @@ export class Neo4jSchemaManager {
       this.log("Constraint dropped successfully", { constraintName: name })
       return true
     } catch (error) {
-      this.logger.warn("Failed to drop constraint", error, {
+      this.logger.warn("Failed to drop constraint", {
         constraintName: name,
+        error,
       })
       return false
     }
@@ -178,7 +179,10 @@ export class Neo4jSchemaManager {
       this.log("Index dropped successfully", { indexName: name })
       return true
     } catch (error) {
-      this.logger.warn("Failed to drop index", error, { indexName: name })
+      this.logger.warn("Failed to drop index", {
+        indexName: name,
+        error,
+      })
       return false
     }
   }
