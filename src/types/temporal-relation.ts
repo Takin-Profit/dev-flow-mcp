@@ -46,29 +46,28 @@ export interface TemporalRelation extends Relation {
 
 // Add static methods to the TemporalRelation interface for JavaScript tests
 // This allows tests to access validation methods directly from the interface
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace TemporalRelation {
-  export function isTemporalRelation(obj: unknown): boolean {
+export const TemporalRelation = Object.freeze({
+  isTemporalRelation(obj: unknown): boolean {
     return TemporalRelationValidator.isTemporalRelation(obj)
-  }
+  },
 
-  export function hasValidTimeRange(obj: unknown): boolean {
+  hasValidTimeRange(obj: unknown): boolean {
     return TemporalRelationValidator.hasValidTimeRange(obj)
-  }
+  },
 
-  export function isCurrentlyValid(obj: unknown, now = Date.now()): boolean {
+  isCurrentlyValid(obj: unknown, now = Date.now()): boolean {
     return TemporalRelationValidator.isCurrentlyValid(obj, now)
-  }
-}
+  },
+})
 
 /**
  * TemporalRelationValidator class with validation methods
  */
-export class TemporalRelationValidator {
+export const TemporalRelationValidator = Object.freeze({
   /**
    * Validates if an object conforms to the TemporalRelation interface
    */
-  static isTemporalRelation(obj: unknown): boolean {
+  isTemporalRelation(obj: unknown): boolean {
     // First ensure it's a valid Relation
     if (!RelationValidator.isRelation(obj)) {
       return false
@@ -109,12 +108,12 @@ export class TemporalRelationValidator {
     }
 
     return true
-  }
+  },
 
   /**
    * Checks if a relation has a valid temporal range
    */
-  static hasValidTimeRange(obj: unknown): boolean {
+  hasValidTimeRange(obj: unknown): boolean {
     if (!TemporalRelationValidator.isTemporalRelation(obj)) {
       return false
     }
@@ -131,12 +130,12 @@ export class TemporalRelationValidator {
     }
 
     return true
-  }
+  },
 
   /**
    * Checks if a relation is currently valid based on its temporal range
    */
-  static isCurrentlyValid(obj: unknown, now = Date.now()): boolean {
+  isCurrentlyValid(obj: unknown, now = Date.now()): boolean {
     if (!TemporalRelationValidator.isTemporalRelation(obj)) {
       return false
     }
@@ -154,5 +153,5 @@ export class TemporalRelationValidator {
     }
 
     return true
-  }
-}
+  },
+})

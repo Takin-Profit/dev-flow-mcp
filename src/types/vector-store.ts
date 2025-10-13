@@ -1,14 +1,12 @@
-export interface VectorSearchResult {
+export type VectorSearchResult = {
   id: string | number
   similarity: number
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata: Record<string, any>
 }
 
-export interface VectorStore {
+export type VectorStore = {
   initialize(): Promise<void>
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addVector(
     id: string | number,
     vector: number[],
@@ -21,7 +19,6 @@ export interface VectorStore {
     queryVector: number[],
     options?: {
       limit?: number
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       filter?: Record<string, any>
       hybridSearch?: boolean
       minSimilarity?: number

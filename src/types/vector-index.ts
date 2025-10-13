@@ -1,7 +1,7 @@
 /**
  * Interface for optimized vector index operations
  */
-export interface VectorIndex {
+export type VectorIndex = {
   /**
    * Add a vector to the index
    * @param id Unique identifier for the vector
