@@ -1,33 +1,33 @@
-import type { StorageProvider } from './StorageProvider.ts';
-import { FileStorageProvider } from './FileStorageProvider.ts';
-import type { VectorStoreFactoryOptions } from './VectorStoreFactory.ts';
-import { Neo4jStorageProvider } from './neo4j/Neo4jStorageProvider.ts';
-import type { Neo4jConfig } from './neo4j/Neo4jConfig.ts';
+import { FileStorageProvider } from "#storage/file-storage-provider.ts"
+import type { Neo4jConfig } from "#storage/neo4j/neo4j-config.ts"
+import { Neo4jStorageProvider } from "#storage/neo4j/neo4j-storage-provider.ts"
+import type { StorageProvider } from "#storage/storage-provider.ts"
+import type { VectorStoreFactoryOptions } from "#storage/vector-store-factory.ts"
 
 export interface StorageProviderConfig {
-  type: 'file' | 'neo4j';
+  type: "file" | "neo4j"
   options?: {
-    memoryFilePath?: string;
-    enableDecay?: boolean;
+    memoryFilePath?: string
+    enableDecay?: boolean
     decayConfig?: {
-      enabled?: boolean;
-      halfLifeDays?: number;
-      minConfidence?: number;
-    };
+      enabled?: boolean
+      halfLifeDays?: number
+      minConfidence?: number
+    }
     // Neo4j specific options
-    neo4jUri?: string;
-    neo4jUsername?: string;
-    neo4jPassword?: string;
-    neo4jDatabase?: string;
-    neo4jVectorIndexName?: string;
-    neo4jVectorDimensions?: number;
-    neo4jSimilarityFunction?: 'cosine' | 'euclidean';
-  };
-  vectorStoreOptions?: VectorStoreFactoryOptions;
+    neo4jUri?: string
+    neo4jUsername?: string
+    neo4jPassword?: string
+    neo4jDatabase?: string
+    neo4jVectorIndexName?: string
+    neo4jVectorDimensions?: number
+    neo4jSimilarityFunction?: "cosine" | "euclidean"
+  }
+  vectorStoreOptions?: VectorStoreFactoryOptions
 }
 
 interface CleanableProvider extends StorageProvider {
-  cleanup?: () => Promise<void>;
+  cleanup?: () => Promise<void>
 }
 
 /**
@@ -35,7 +35,7 @@ interface CleanableProvider extends StorageProvider {
  */
 export class StorageProviderFactory {
   // Track connected providers
-  private connectedProviders = new Set<StorageProvider>();
+  private connectedProviders = new Set<StorageProvider>()
 
   /**
    * Create a storage provider based on configuration
@@ -44,31 +44,31 @@ export class StorageProviderFactory {
    */
   createProvider(config: StorageProviderConfig): StorageProvider {
     if (!config) {
-      throw new Error('Storage provider configuration is required');
+      throw new Error("Storage provider configuration is required")
     }
 
     if (!config.type) {
-      throw new Error('Storage provider type is required');
+      throw new Error("Storage provider type is required")
     }
 
     if (!config.options) {
-      throw new Error('Storage provider options are required');
+      throw new Error("Storage provider options are required")
     }
 
-    let provider: StorageProvider;
+    let provider: StorageProvider
 
     switch (config.type.toLowerCase()) {
-      case 'file': {
+      case "file": {
         if (!config.options.memoryFilePath) {
-          throw new Error('memoryFilePath is required for file provider');
+          throw new Error("memoryFilePath is required for file provider")
         }
         provider = new FileStorageProvider({
           filePath: config.options.memoryFilePath,
           vectorStoreOptions: config.vectorStoreOptions,
-        });
-        break;
+        })
+        break
       }
-      case 'neo4j': {
+      case "neo4j": {
         // Configure Neo4j provider
         const neo4jConfig: Partial<Neo4jConfig> = {
           uri: config.options.neo4jUri,
@@ -78,7 +78,7 @@ export class StorageProviderFactory {
           vectorIndexName: config.options.neo4jVectorIndexName,
           vectorDimensions: config.options.neo4jVectorDimensions,
           similarityFunction: config.options.neo4jSimilarityFunction,
-        };
+        }
 
         provider = new Neo4jStorageProvider({
           config: neo4jConfig,
@@ -89,16 +89,16 @@ export class StorageProviderFactory {
                 minConfidence: config.options.decayConfig.minConfidence,
               }
             : undefined,
-        });
-        break;
+        })
+        break
       }
       default:
-        throw new Error(`Unsupported provider type: ${config.type}`);
+        throw new Error(`Unsupported provider type: ${config.type}`)
     }
 
     // Track the provider as connected
-    this.connectedProviders.add(provider);
-    return provider;
+    this.connectedProviders.add(provider)
+    return provider
   }
 
   /**
@@ -107,9 +107,9 @@ export class StorageProviderFactory {
    */
   getDefaultProvider(): StorageProvider {
     // Create a Neo4j provider with default settings
-    const provider = new Neo4jStorageProvider();
-    this.connectedProviders.add(provider);
-    return provider;
+    const provider = new Neo4jStorageProvider()
+    this.connectedProviders.add(provider)
+    return provider
   }
 
   /**
@@ -118,7 +118,7 @@ export class StorageProviderFactory {
    * @returns True if the provider is connected, false otherwise
    */
   isProviderConnected(provider: StorageProvider): boolean {
-    return this.connectedProviders.has(provider);
+    return this.connectedProviders.has(provider)
   }
 
   /**
@@ -126,7 +126,7 @@ export class StorageProviderFactory {
    * @param provider The provider to disconnect
    */
   disconnectProvider(provider: StorageProvider): void {
-    this.connectedProviders.delete(provider);
+    this.connectedProviders.delete(provider)
   }
 
   /**
@@ -136,9 +136,9 @@ export class StorageProviderFactory {
   async cleanupProvider(provider: CleanableProvider): Promise<void> {
     if (this.isProviderConnected(provider)) {
       if (provider.cleanup) {
-        await provider.cleanup();
+        await provider.cleanup()
       }
-      this.disconnectProvider(provider);
+      this.disconnectProvider(provider)
     }
   }
 
@@ -146,9 +146,11 @@ export class StorageProviderFactory {
    * Cleanup all connected providers
    */
   async cleanupAllProviders(): Promise<void> {
-    const providers = Array.from(this.connectedProviders);
+    const providers = Array.from(this.connectedProviders)
     await Promise.all(
-      providers.map((provider) => this.cleanupProvider(provider as CleanableProvider))
-    );
+      providers.map((provider) =>
+        this.cleanupProvider(provider as CleanableProvider)
+      )
+    )
   }
 }

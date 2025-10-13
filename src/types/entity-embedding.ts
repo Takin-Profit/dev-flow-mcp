@@ -5,17 +5,17 @@ export interface EntityEmbedding {
   /**
    * The embedding vector
    */
-  vector: number[];
+  vector: number[]
 
   /**
    * Name/version of embedding model used
    */
-  model: string;
+  model: string
 
   /**
    * Timestamp when embedding was last updated
    */
-  lastUpdated: number;
+  lastUpdated: number
 }
 
 /**
@@ -25,18 +25,18 @@ export interface SearchFilter {
   /**
    * Field to filter on
    */
-  field: string;
+  field: string
 
   /**
    * Filter operation
    */
-  operator: 'eq' | 'ne' | 'gt' | 'lt' | 'contains';
+  operator: "eq" | "ne" | "gt" | "lt" | "contains"
 
   /**
    * Filter value
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: any;
+  value: any
 }
 
 /**
@@ -46,67 +46,67 @@ export interface SemanticSearchOptions {
   /**
    * Use vector similarity for search
    */
-  semanticSearch?: boolean;
+  semanticSearch?: boolean
 
   /**
    * Combine keyword and semantic search
    */
-  hybridSearch?: boolean;
+  hybridSearch?: boolean
 
   /**
    * Balance between keyword vs semantic (0.0-1.0)
    */
-  semanticWeight?: number;
+  semanticWeight?: number
 
   /**
    * Minimum similarity threshold
    */
-  minSimilarity?: number;
+  minSimilarity?: number
 
   /**
    * Apply query expansion
    */
-  expandQuery?: boolean;
+  expandQuery?: boolean
 
   /**
    * Include facet information in results
    */
-  includeFacets?: boolean;
+  includeFacets?: boolean
 
   /**
    * Facets to include (entityType, etc.)
    */
-  facets?: string[];
+  facets?: string[]
 
   /**
    * Include score explanations
    */
-  includeExplanations?: boolean;
+  includeExplanations?: boolean
 
   /**
    * Additional filters
    */
-  filters?: SearchFilter[];
+  filters?: SearchFilter[]
 
   /**
    * Maximum number of results to return
    */
-  limit?: number;
+  limit?: number
 
   /**
    * Number of results to skip (for pagination)
    */
-  offset?: number;
+  offset?: number
 
   /**
    * Include document content in search (when available)
    */
-  includeDocuments?: boolean;
+  includeDocuments?: boolean
 
   /**
    * Use search result caching
    */
-  useCache?: boolean;
+  useCache?: boolean
 }
 
 /**
@@ -116,21 +116,21 @@ export interface SearchMatch {
   /**
    * Field that matched
    */
-  field: string;
+  field: string
 
   /**
    * Score for this field
    */
-  score: number;
+  score: number
 
   /**
    * Text match locations
    */
   textMatches?: Array<{
-    start: number;
-    end: number;
-    text: string;
-  }>;
+    start: number
+    end: number
+    text: string
+  }>
 }
 
 /**
@@ -141,23 +141,23 @@ export interface SearchResult {
    * The matching entity
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  entity: any;
+  entity: any
 
   /**
    * Overall relevance score
    */
-  score: number;
+  score: number
 
   /**
    * Match details
    */
-  matches?: SearchMatch[];
+  matches?: SearchMatch[]
 
   /**
    * Explanation of the scoring (if requested)
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  explanation?: any;
+  explanation?: any
 }
 
 /**
@@ -167,12 +167,12 @@ export interface SearchResponse {
   /**
    * Search results
    */
-  results: SearchResult[];
+  results: SearchResult[]
 
   /**
    * Total number of matching results
    */
-  total: number;
+  total: number
 
   /**
    * Facet information
@@ -180,12 +180,12 @@ export interface SearchResponse {
   facets?: Record<
     string,
     {
-      counts: Record<string, number>;
+      counts: Record<string, number>
     }
-  >;
+  >
 
   /**
    * Search execution time in ms
    */
-  timeTaken: number;
+  timeTaken: number
 }

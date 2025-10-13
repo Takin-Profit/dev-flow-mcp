@@ -7,7 +7,7 @@ export interface VectorIndex {
    * @param id Unique identifier for the vector
    * @param vector The vector to add
    */
-  addVector(id: string, vector: number[]): Promise<void>;
+  addVector(id: string, vector: number[]): Promise<void>
 
   /**
    * Search for nearest neighbors
@@ -20,39 +20,39 @@ export interface VectorIndex {
     limit: number
   ): Promise<
     {
-      id: string;
-      score: number;
+      id: string
+      score: number
     }[]
-  >;
+  >
 
   /**
    * Remove a vector from the index
    * @param id ID of the vector to remove
    */
-  removeVector(id: string): Promise<void>;
+  removeVector(id: string): Promise<void>
 
   /**
    * Get index statistics
    * @returns Object with index statistics
    */
   getStats(): {
-    totalVectors: number;
-    dimensionality: number;
-    indexType: string;
-    memoryUsage: number;
-    approximateSearch?: boolean;
-    quantized?: boolean;
-  };
+    totalVectors: number
+    dimensionality: number
+    indexType: string
+    memoryUsage: number
+    approximateSearch?: boolean
+    quantized?: boolean
+  }
 
   /**
    * Enable or disable approximate nearest neighbor search
    * @param enable Whether to enable approximate search
    */
-  setApproximateSearch(enable: boolean): void;
+  setApproximateSearch(enable: boolean): void
 
   /**
    * Enable or disable vector quantization for memory optimization
    * @param enable Whether to enable quantization
    */
-  setQuantization(enable: boolean): void;
+  setQuantization(enable: boolean): void
 }

@@ -1,6 +1,9 @@
-import type { KnowledgeGraph } from '../KnowledgeGraphManager.ts';
-import type { Relation } from '../types/relation.ts';
-import type { EntityEmbedding, SemanticSearchOptions } from '../types/entity-embedding.ts';
+import type { KnowledgeGraph } from "#knowledge-graph-manager.ts"
+import type {
+  EntityEmbedding,
+  SemanticSearchOptions,
+} from "#types/entity-embedding.ts"
+import type { Relation } from "#types/relation.ts"
 
 /**
  * Options for searching nodes in the knowledge graph
@@ -9,17 +12,17 @@ export interface SearchOptions {
   /**
    * Maximum number of results to return
    */
-  limit?: number;
+  limit?: number
 
   /**
    * Whether the search should be case-sensitive
    */
-  caseSensitive?: boolean;
+  caseSensitive?: boolean
 
   /**
    * Filter results by entity types
    */
-  entityTypes?: string[];
+  entityTypes?: string[]
 }
 
 /**
@@ -30,14 +33,14 @@ export interface StorageProvider {
    * Load a knowledge graph from storage
    * @returns Promise resolving to the loaded knowledge graph
    */
-  loadGraph(): Promise<KnowledgeGraph>;
+  loadGraph(): Promise<KnowledgeGraph>
 
   /**
    * Save a knowledge graph to storage
    * @param graph The knowledge graph to save
    * @returns Promise that resolves when the save is complete
    */
-  saveGraph(graph: KnowledgeGraph): Promise<void>;
+  saveGraph(graph: KnowledgeGraph): Promise<void>
 
   /**
    * Search for nodes in the graph that match the query
@@ -45,14 +48,14 @@ export interface StorageProvider {
    * @param options Optional search parameters
    * @returns Promise resolving to a KnowledgeGraph containing matching nodes
    */
-  searchNodes(query: string, options?: SearchOptions): Promise<KnowledgeGraph>;
+  searchNodes(query: string, options?: SearchOptions): Promise<KnowledgeGraph>
 
   /**
    * Open specific nodes by their exact names
    * @param names Array of node names to open
    * @returns Promise resolving to a KnowledgeGraph containing the specified nodes
    */
-  openNodes(names: string[]): Promise<KnowledgeGraph>;
+  openNodes(names: string[]): Promise<KnowledgeGraph>
 
   /**
    * Create new entities in the knowledge graph
@@ -60,14 +63,14 @@ export interface StorageProvider {
    * @returns Promise resolving to array of newly created entities with temporal metadata
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createEntities(entities: any[]): Promise<any[]>;
+  createEntities(entities: any[]): Promise<any[]>
 
   /**
    * Create new relations between entities
    * @param relations Array of relations to create
    * @returns Promise resolving to array of newly created relations
    */
-  createRelations(relations: Relation[]): Promise<Relation[]>;
+  createRelations(relations: Relation[]): Promise<Relation[]>
 
   /**
    * Add observations to entities
@@ -76,28 +79,30 @@ export interface StorageProvider {
    */
   addObservations(
     observations: { entityName: string; contents: string[] }[]
-  ): Promise<{ entityName: string; addedObservations: string[] }[]>;
+  ): Promise<{ entityName: string; addedObservations: string[] }[]>
 
   /**
    * Delete entities and their relations
    * @param entityNames Array of entity names to delete
    * @returns Promise that resolves when deletion is complete
    */
-  deleteEntities(entityNames: string[]): Promise<void>;
+  deleteEntities(entityNames: string[]): Promise<void>
 
   /**
    * Delete observations from entities
    * @param deletions Array of objects with entity name and observations to delete
    * @returns Promise that resolves when deletion is complete
    */
-  deleteObservations(deletions: { entityName: string; observations: string[] }[]): Promise<void>;
+  deleteObservations(
+    deletions: { entityName: string; observations: string[] }[]
+  ): Promise<void>
 
   /**
    * Delete relations from the graph
    * @param relations Array of relations to delete
    * @returns Promise that resolves when deletion is complete
    */
-  deleteRelations(relations: Relation[]): Promise<void>;
+  deleteRelations(relations: Relation[]): Promise<void>
 
   /**
    * Get a specific relation by its source, target, and type
@@ -106,14 +111,14 @@ export interface StorageProvider {
    * @param type Relation type
    * @returns Promise resolving to the relation or null if not found
    */
-  getRelation?(from: string, to: string, type: string): Promise<Relation | null>;
+  getRelation?(from: string, to: string, type: string): Promise<Relation | null>
 
   /**
    * Update an existing relation with new properties
    * @param relation The relation with updated properties
    * @returns Promise that resolves when the update is complete
    */
-  updateRelation?(relation: Relation): Promise<void>;
+  updateRelation?(relation: Relation): Promise<void>
 
   /**
    * Get the history of all versions of an entity
@@ -121,7 +126,7 @@ export interface StorageProvider {
    * @returns Promise resolving to an array of entity versions in chronological order
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getEntityHistory?(entityName: string): Promise<any[]>;
+  getEntityHistory?(entityName: string): Promise<any[]>
 
   /**
    * Get the history of all versions of a relation
@@ -131,21 +136,25 @@ export interface StorageProvider {
    * @returns Promise resolving to an array of relation versions in chronological order
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getRelationHistory?(from: string, to: string, relationType: string): Promise<any[]>;
+  getRelationHistory?(
+    from: string,
+    to: string,
+    relationType: string
+  ): Promise<any[]>
 
   /**
    * Get the state of the knowledge graph at a specific point in time
    * @param timestamp The timestamp to get the graph state at
    * @returns Promise resolving to the knowledge graph as it was at the specified time
    */
-  getGraphAtTime?(timestamp: number): Promise<KnowledgeGraph>;
+  getGraphAtTime?(timestamp: number): Promise<KnowledgeGraph>
 
   /**
    * Get the current knowledge graph with confidence decay applied to relations
    * based on their age and the configured decay settings
    * @returns Promise resolving to the knowledge graph with decayed confidence values
    */
-  getDecayedGraph?(): Promise<KnowledgeGraph>;
+  getDecayedGraph?(): Promise<KnowledgeGraph>
 
   /**
    * Store or update the embedding vector for an entity
@@ -153,7 +162,10 @@ export interface StorageProvider {
    * @param embedding The embedding data to store
    * @returns Promise that resolves when the update is complete
    */
-  updateEntityEmbedding?(entityName: string, embedding: EntityEmbedding): Promise<void>;
+  updateEntityEmbedding?(
+    entityName: string,
+    embedding: EntityEmbedding
+  ): Promise<void>
 
   /**
    * Find entities similar to a query vector
@@ -162,7 +174,7 @@ export interface StorageProvider {
    * @returns Promise resolving to array of entities with similarity scores
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findSimilarEntities?(queryVector: number[], limit?: number): Promise<any[]>;
+  findSimilarEntities?(queryVector: number[], limit?: number): Promise<any[]>
 
   /**
    * Search for entities using semantic search
@@ -173,7 +185,7 @@ export interface StorageProvider {
   semanticSearch?(
     query: string,
     options?: SearchOptions & SemanticSearchOptions
-  ): Promise<KnowledgeGraph>;
+  ): Promise<KnowledgeGraph>
 
   /**
    * Get an entity by name
@@ -181,7 +193,7 @@ export interface StorageProvider {
    * @returns Promise resolving to the entity or null if not found
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getEntity(entityName: string): Promise<any | null>;
+  getEntity(entityName: string): Promise<any | null>
 }
 
 // Add static methods to the StorageProvider interface for JavaScript tests
@@ -190,7 +202,7 @@ export interface StorageProvider {
 export namespace StorageProvider {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function isStorageProvider(obj: any): boolean {
-    return StorageProviderValidator.isStorageProvider(obj);
+    return StorageProviderValidator.isStorageProvider(obj)
   }
 }
 
@@ -205,30 +217,33 @@ export class StorageProviderValidator {
   static isStorageProvider(obj: any): boolean {
     const hasRequiredMethods =
       obj &&
-      typeof obj.loadGraph === 'function' &&
-      typeof obj.saveGraph === 'function' &&
-      typeof obj.searchNodes === 'function' &&
-      typeof obj.openNodes === 'function' &&
-      typeof obj.createEntities === 'function' &&
-      typeof obj.createRelations === 'function' &&
-      typeof obj.addObservations === 'function' &&
-      typeof obj.deleteEntities === 'function' &&
-      typeof obj.deleteObservations === 'function' &&
-      typeof obj.deleteRelations === 'function' &&
-      typeof obj.getEntity === 'function';
+      typeof obj.loadGraph === "function" &&
+      typeof obj.saveGraph === "function" &&
+      typeof obj.searchNodes === "function" &&
+      typeof obj.openNodes === "function" &&
+      typeof obj.createEntities === "function" &&
+      typeof obj.createRelations === "function" &&
+      typeof obj.addObservations === "function" &&
+      typeof obj.deleteEntities === "function" &&
+      typeof obj.deleteObservations === "function" &&
+      typeof obj.deleteRelations === "function" &&
+      typeof obj.getEntity === "function"
 
     // Check that any optional methods, if present, are functions
     const optionalMethodsValid =
-      (!obj.getRelation || typeof obj.getRelation === 'function') &&
-      (!obj.updateRelation || typeof obj.updateRelation === 'function') &&
-      (!obj.getEntityHistory || typeof obj.getEntityHistory === 'function') &&
-      (!obj.getRelationHistory || typeof obj.getRelationHistory === 'function') &&
-      (!obj.getGraphAtTime || typeof obj.getGraphAtTime === 'function') &&
-      (!obj.getDecayedGraph || typeof obj.getDecayedGraph === 'function') &&
-      (!obj.updateEntityEmbedding || typeof obj.updateEntityEmbedding === 'function') &&
-      (!obj.findSimilarEntities || typeof obj.findSimilarEntities === 'function') &&
-      (!obj.semanticSearch || typeof obj.semanticSearch === 'function');
+      (!obj.getRelation || typeof obj.getRelation === "function") &&
+      (!obj.updateRelation || typeof obj.updateRelation === "function") &&
+      (!obj.getEntityHistory || typeof obj.getEntityHistory === "function") &&
+      (!obj.getRelationHistory ||
+        typeof obj.getRelationHistory === "function") &&
+      (!obj.getGraphAtTime || typeof obj.getGraphAtTime === "function") &&
+      (!obj.getDecayedGraph || typeof obj.getDecayedGraph === "function") &&
+      (!obj.updateEntityEmbedding ||
+        typeof obj.updateEntityEmbedding === "function") &&
+      (!obj.findSimilarEntities ||
+        typeof obj.findSimilarEntities === "function") &&
+      (!obj.semanticSearch || typeof obj.semanticSearch === "function")
 
-    return hasRequiredMethods && optionalMethodsValid;
+    return hasRequiredMethods && optionalMethodsValid
   }
 }

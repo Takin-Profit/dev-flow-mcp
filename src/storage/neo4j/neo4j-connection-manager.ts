@@ -1,23 +1,30 @@
-import neo4j, { type Driver, type Session, type QueryResult } from 'neo4j-driver';
-import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.ts';
+import neo4j, {
+  type Driver,
+  type QueryResult,
+  type Session,
+} from "neo4j-driver"
+import {
+  DEFAULT_NEO4J_CONFIG,
+  type Neo4jConfig,
+} from "#storage/neo4j/neo4j-config.ts"
 
 /**
  * Options for configuring a Neo4j connection
  * @deprecated Use Neo4jConfig instead
  */
 export interface Neo4jConnectionOptions {
-  uri?: string;
-  username?: string;
-  password?: string;
-  database?: string;
+  uri?: string
+  username?: string
+  password?: string
+  database?: string
 }
 
 /**
  * Manages connections to a Neo4j database
  */
 export class Neo4jConnectionManager {
-  private driver: Driver;
-  private readonly config: Neo4jConfig;
+  private driver: Driver
+  private readonly config: Neo4jConfig
 
   /**
    * Creates a new Neo4j connection manager
@@ -25,23 +32,23 @@ export class Neo4jConnectionManager {
    */
   constructor(config?: Partial<Neo4jConfig> | Neo4jConnectionOptions) {
     // Handle deprecated options
-    if (config && 'uri' in config) {
+    if (config && "uri" in config) {
       this.config = {
         ...DEFAULT_NEO4J_CONFIG,
         ...config,
-      };
+      }
     } else {
       this.config = {
         ...DEFAULT_NEO4J_CONFIG,
         ...config,
-      };
+      }
     }
 
     this.driver = neo4j.driver(
       this.config.uri,
       neo4j.auth.basic(this.config.username, this.config.password),
       {}
-    );
+    )
   }
 
   /**
@@ -51,7 +58,7 @@ export class Neo4jConnectionManager {
   async getSession(): Promise<Session> {
     return this.driver.session({
       database: this.config.database,
-    });
+    })
   }
 
   /**
@@ -60,12 +67,15 @@ export class Neo4jConnectionManager {
    * @param parameters Query parameters
    * @returns Query result
    */
-  async executeQuery(query: string, parameters: Record<string, unknown>): Promise<QueryResult> {
-    const session = await this.getSession();
+  async executeQuery(
+    query: string,
+    parameters: Record<string, unknown>
+  ): Promise<QueryResult> {
+    const session = await this.getSession()
     try {
-      return await session.run(query, parameters);
+      return await session.run(query, parameters)
     } finally {
-      await session.close();
+      await session.close()
     }
   }
 
@@ -73,6 +83,6 @@ export class Neo4jConnectionManager {
    * Closes the Neo4j driver connection
    */
   async close(): Promise<void> {
-    await this.driver.close();
+    await this.driver.close()
   }
 }

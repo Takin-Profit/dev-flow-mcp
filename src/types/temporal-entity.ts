@@ -1,7 +1,7 @@
 /**
  * Interface for entities with temporal metadata
  */
-import type { Entity } from '../KnowledgeGraphManager.ts';
+import type { Entity } from "#knowledge-graph-manager.ts"
 
 /**
  * Represents an entity with temporal awareness capabilities
@@ -11,37 +11,37 @@ export interface TemporalEntity extends Entity {
   /**
    * Unique identifier for the entity
    */
-  id?: string;
+  id?: string
 
   /**
    * Timestamp when the entity was created (milliseconds since epoch)
    */
-  createdAt: number;
+  createdAt: number
 
   /**
    * Timestamp when the entity was last updated (milliseconds since epoch)
    */
-  updatedAt: number;
+  updatedAt: number
 
   /**
    * Optional start time for the validity period (milliseconds since epoch)
    */
-  validFrom?: number;
+  validFrom?: number
 
   /**
    * Optional end time for the validity period (milliseconds since epoch)
    */
-  validTo?: number;
+  validTo?: number
 
   /**
    * Version number, incremented with each update
    */
-  version: number;
+  version: number
 
   /**
    * Optional identifier of the system or user that made the change
    */
-  changedBy?: string;
+  changedBy?: string
 }
 
 // Add static methods to the TemporalEntity interface for JavaScript tests
@@ -50,12 +50,12 @@ export interface TemporalEntity extends Entity {
 export namespace TemporalEntity {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function isTemporalEntity(obj: any): boolean {
-    return TemporalEntityValidator.isTemporalEntity(obj);
+    return TemporalEntityValidator.isTemporalEntity(obj)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function hasValidTimeRange(obj: any): boolean {
-    return TemporalEntityValidator.hasValidTimeRange(obj);
+    return TemporalEntityValidator.hasValidTimeRange(obj)
   }
 }
 
@@ -71,36 +71,36 @@ export class TemporalEntityValidator {
     // First ensure it's a valid Entity
     if (
       !obj ||
-      typeof obj.name !== 'string' ||
-      typeof obj.entityType !== 'string' ||
+      typeof obj.name !== "string" ||
+      typeof obj.entityType !== "string" ||
       !Array.isArray(obj.observations)
     ) {
-      return false;
+      return false
     }
 
     // Then check temporal properties
     if (
-      typeof obj.createdAt !== 'number' ||
-      typeof obj.updatedAt !== 'number' ||
-      typeof obj.version !== 'number'
+      typeof obj.createdAt !== "number" ||
+      typeof obj.updatedAt !== "number" ||
+      typeof obj.version !== "number"
     ) {
-      return false;
+      return false
     }
 
     // Optional properties type checking
-    if (obj.validFrom !== undefined && typeof obj.validFrom !== 'number') {
-      return false;
+    if (obj.validFrom !== undefined && typeof obj.validFrom !== "number") {
+      return false
     }
 
-    if (obj.validTo !== undefined && typeof obj.validTo !== 'number') {
-      return false;
+    if (obj.validTo !== undefined && typeof obj.validTo !== "number") {
+      return false
     }
 
-    if (obj.changedBy !== undefined && typeof obj.changedBy !== 'string') {
-      return false;
+    if (obj.changedBy !== undefined && typeof obj.changedBy !== "string") {
+      return false
     }
 
-    return true;
+    return true
   }
 
   /**
@@ -108,15 +108,15 @@ export class TemporalEntityValidator {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static hasValidTimeRange(obj: any): boolean {
-    if (!this.isTemporalEntity(obj)) {
-      return false;
+    if (!TemporalEntityValidator.isTemporalEntity(obj)) {
+      return false
     }
 
     // If both are defined, validFrom must be before validTo
     if (obj.validFrom !== undefined && obj.validTo !== undefined) {
-      return obj.validFrom <= obj.validTo;
+      return obj.validFrom <= obj.validTo
     }
 
-    return true;
+    return true
   }
 }

@@ -1,7 +1,10 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { handleListToolsRequest } from './handlers/listToolsHandler.ts';
-import { handleCallToolRequest } from './handlers/callToolHandler.ts';
+import { Server } from "@modelcontextprotocol/sdk/server/index.js"
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js"
+import { handleCallToolRequest } from "#server/handlers/call-tool-handler.ts"
+import { handleListToolsRequest } from "#server/handlers/list-tools-handler.ts"
 
 /**
  * Sets up and configures the MCP server with the appropriate request handlers.
@@ -14,10 +17,10 @@ export function setupServer(knowledgeGraphManager: any): Server {
   // Create server instance
   const server = new Server(
     {
-      name: 'memento-mcp',
-      version: '1.0.0',
-      description: 'Memento MCP: Your persistent knowledge graph memory system',
-      publisher: 'gannonh',
+      name: "memento-mcp",
+      version: "1.0.0",
+      description: "Memento MCP: Your persistent knowledge graph memory system",
+      publisher: "gannonh",
     },
     {
       capabilities: {
@@ -27,26 +30,26 @@ export function setupServer(knowledgeGraphManager: any): Server {
         logging: {}, // Add this capability for complete support
       },
     }
-  );
+  )
 
   // Register request handlers
   server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
     try {
-      const result = await handleListToolsRequest();
-      return result;
+      const result = await handleListToolsRequest()
+      return result
     } catch (error: unknown) {
-      throw error;
+      throw error
     }
-  });
+  })
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
-      const result = await handleCallToolRequest(request, knowledgeGraphManager);
-      return result;
+      const result = await handleCallToolRequest(request, knowledgeGraphManager)
+      return result
     } catch (error: unknown) {
-      throw error;
+      throw error
     }
-  });
+  })
 
-  return server;
+  return server
 }

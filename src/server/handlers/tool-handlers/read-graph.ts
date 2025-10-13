@@ -10,13 +10,13 @@ export async function handleReadGraph(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   knowledgeGraphManager: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
-  const result = await knowledgeGraphManager.readGraph();
+  const result = await knowledgeGraphManager.readGraph()
   return {
     content: [
       {
-        type: 'text',
+        type: "text",
         text: JSON.stringify(result, null, 2),
       },
     ],
-  };
+  }
 }

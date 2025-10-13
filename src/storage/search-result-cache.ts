@@ -7,16 +7,16 @@
  */
 interface CacheEntry<T> {
   // The cached data
-  data: T;
+  data: T
 
   // Expiration timestamp
-  expiration: number;
+  expiration: number
 
   // When the entry was created
-  created: number;
+  created: number
 
   // Size of the entry in bytes (approximate)
-  size: number;
+  size: number
 }
 
 /**
@@ -24,13 +24,13 @@ interface CacheEntry<T> {
  */
 export interface SearchCacheConfig {
   // Maximum cache size in bytes
-  maxSize?: number;
+  maxSize?: number
 
   // Default TTL in milliseconds
-  defaultTtl?: number;
+  defaultTtl?: number
 
   // Enable cache statistics
-  enableStats?: boolean;
+  enableStats?: boolean
 }
 
 /**
@@ -38,46 +38,46 @@ export interface SearchCacheConfig {
  */
 export interface CacheStats {
   // Total number of cache hits
-  hits: number;
+  hits: number
 
   // Total number of cache misses
-  misses: number;
+  misses: number
 
   // Hit rate (0-1)
-  hitRate: number;
+  hitRate: number
 
   // Current size in bytes
-  currentSize: number;
+  currentSize: number
 
   // Maximum size in bytes
-  maxSize: number;
+  maxSize: number
 
   // Current number of entries
-  entryCount: number;
+  entryCount: number
 
   // Number of evictions
-  evictions: number;
+  evictions: number
 
   // Average lookup time (ms)
-  averageLookupTime: number;
+  averageLookupTime: number
 }
 
 /**
  * A memory-efficient cache for search results
  */
 export class SearchResultCache<T> {
-  private cache: Map<string, CacheEntry<T>> = new Map();
-  private maxSize: number;
-  private currentSize: number = 0;
-  private defaultTtl: number;
-  private enableStats: boolean;
+  private cache: Map<string, CacheEntry<T>> = new Map()
+  private maxSize: number
+  private currentSize = 0
+  private defaultTtl: number
+  private enableStats: boolean
 
   // Statistics
-  private hits: number = 0;
-  private misses: number = 0;
-  private evictions: number = 0;
-  private totalLookupTime: number = 0;
-  private totalLookups: number = 0;
+  private hits = 0
+  private misses = 0
+  private evictions = 0
+  private totalLookupTime = 0
+  private totalLookups = 0
 
   /**
    * Create a new SearchResultCache
@@ -85,13 +85,13 @@ export class SearchResultCache<T> {
    */
   constructor(config?: SearchCacheConfig) {
     // Default to 100MB max size
-    this.maxSize = config?.maxSize || 100 * 1024 * 1024;
+    this.maxSize = config?.maxSize || 100 * 1024 * 1024
 
     // Default to 5 minute TTL
-    this.defaultTtl = config?.defaultTtl || 5 * 60 * 1000;
+    this.defaultTtl = config?.defaultTtl || 5 * 60 * 1000
 
     // Enable stats by default
-    this.enableStats = config?.enableStats !== false;
+    this.enableStats = config?.enableStats !== false
   }
 
   /**
@@ -102,32 +102,32 @@ export class SearchResultCache<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private estimateSize(obj: any): number {
     if (obj === null || obj === undefined) {
-      return 0;
+      return 0
     }
 
     // For arrays of numbers (vectors), use more precise calculation
-    if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === 'number') {
-      return obj.length * 8; // 8 bytes per number (Float64)
+    if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === "number") {
+      return obj.length * 8 // 8 bytes per number (Float64)
     }
 
     // For strings, use character count * 2 (for UTF-16)
-    if (typeof obj === 'string') {
-      return obj.length * 2;
+    if (typeof obj === "string") {
+      return obj.length * 2
     }
 
     // For simple objects with a 'data' property containing a string
-    if (obj && typeof obj === 'object' && typeof obj.data === 'string') {
-      return obj.data.length * 2 + 100; // String length + overhead
+    if (obj && typeof obj === "object" && typeof obj.data === "string") {
+      return obj.data.length * 2 + 100 // String length + overhead
     }
 
     // Use JSON stringification as an approximation for complex objects
     // Add a small overhead to account for object structure
     try {
-      const json = JSON.stringify(obj);
-      return json ? json.length * 2 + 100 : 100; // UTF-16 characters + overhead
+      const json = JSON.stringify(obj)
+      return json ? json.length * 2 + 100 : 100 // UTF-16 characters + overhead
     } catch {
       // If stringification fails, use a reasonable default
-      return 1024; // 1KB default
+      return 1024 // 1KB default
     }
   }
 
@@ -139,16 +139,16 @@ export class SearchResultCache<T> {
    */
   private generateKey(query: string, params?: Record<string, unknown>): string {
     if (!params) {
-      return query;
+      return query
     }
 
     // Sort keys for consistent key generation regardless of parameter order
     const sortedParams = Object.keys(params)
       .sort()
       .map((key) => `${key}:${JSON.stringify(params[key])}`)
-      .join(',');
+      .join(",")
 
-    return `${query}|${sortedParams}`;
+    return `${query}|${sortedParams}`
   }
 
   /**
@@ -158,36 +158,38 @@ export class SearchResultCache<T> {
   private evictEntries(requiredSpace: number): void {
     // If cache is empty, nothing to evict
     if (this.cache.size === 0) {
-      return;
+      return
     }
 
     // Create an array of entries sorted by "value"
     // Value is determined by how recently they were created
-    const entries = Array.from(this.cache.entries()).sort((a, b) => a[1].created - b[1].created);
+    const entries = Array.from(this.cache.entries()).sort(
+      (a, b) => a[1].created - b[1].created
+    )
 
-    let freedSpace = 0;
-    let evictionCount = 0;
+    let freedSpace = 0
+    let evictionCount = 0
 
     // Evict entries until we have enough space
     for (const [key, entry] of entries) {
       if (freedSpace >= requiredSpace && evictionCount > 0) {
-        break;
+        break
       }
 
-      this.cache.delete(key);
-      freedSpace += entry.size;
-      this.currentSize -= entry.size;
-      evictionCount++;
+      this.cache.delete(key)
+      freedSpace += entry.size
+      this.currentSize -= entry.size
+      evictionCount++
 
       // Only evict the oldest entry and then check if we have enough space
       if (evictionCount === 1 && freedSpace >= requiredSpace) {
-        break;
+        break
       }
     }
 
     // Update statistics
     if (this.enableStats) {
-      this.evictions += evictionCount;
+      this.evictions += evictionCount
     }
   }
 
@@ -198,24 +200,29 @@ export class SearchResultCache<T> {
    * @param data The data to cache
    * @param ttl Optional time-to-live in milliseconds
    */
-  set(query: string, data: T, params?: Record<string, unknown>, ttl?: number): void {
+  set(
+    query: string,
+    data: T,
+    params?: Record<string, unknown>,
+    ttl?: number
+  ): void {
     // Clean expired entries
-    this.removeExpired();
+    this.removeExpired()
 
     // Generate cache key
-    const key = this.generateKey(query, params);
+    const key = this.generateKey(query, params)
 
     // Estimate data size
-    const size = this.estimateSize(data);
+    const size = this.estimateSize(data)
 
     // If item is too large for the cache, don't cache it
     if (size > this.maxSize) {
-      return;
+      return
     }
 
     // Calculate expiration time
-    const now = Date.now();
-    const expiration = now + (ttl || this.defaultTtl);
+    const now = Date.now()
+    const expiration = now + (ttl || this.defaultTtl)
 
     // Create cache entry
     const entry: CacheEntry<T> = {
@@ -223,16 +230,16 @@ export class SearchResultCache<T> {
       expiration,
       created: now,
       size,
-    };
+    }
 
     // Check if we need to make space
     if (this.currentSize + size > this.maxSize) {
-      this.evictEntries(size);
+      this.evictEntries(size)
     }
 
     // Add to cache
-    this.cache.set(key, entry);
-    this.currentSize += size;
+    this.cache.set(key, entry)
+    this.currentSize += size
   }
 
   /**
@@ -242,73 +249,73 @@ export class SearchResultCache<T> {
    * @returns The cached data or undefined if not found or expired
    */
   get(query: string, params?: Record<string, unknown>): T | undefined {
-    const startTime = this.enableStats ? performance.now() : 0;
+    const startTime = this.enableStats ? performance.now() : 0
 
     // Generate cache key
-    const key = this.generateKey(query, params);
+    const key = this.generateKey(query, params)
 
     // Get entry
-    const entry = this.cache.get(key);
+    const entry = this.cache.get(key)
 
     // Track lookup time
     if (this.enableStats) {
-      const endTime = performance.now();
-      this.totalLookupTime += endTime - startTime;
-      this.totalLookups++;
+      const endTime = performance.now()
+      this.totalLookupTime += endTime - startTime
+      this.totalLookups++
     }
 
     // If entry doesn't exist, return undefined
     if (!entry) {
       if (this.enableStats) {
-        this.misses++;
+        this.misses++
       }
-      return undefined;
+      return
     }
 
     // Check if expired
     if (entry.expiration < Date.now()) {
       // Remove expired entry
-      this.cache.delete(key);
-      this.currentSize -= entry.size;
+      this.cache.delete(key)
+      this.currentSize -= entry.size
 
       if (this.enableStats) {
-        this.misses++;
+        this.misses++
       }
 
-      return undefined;
+      return
     }
 
     // Valid cache hit
     if (this.enableStats) {
-      this.hits++;
+      this.hits++
     }
 
-    return entry.data;
+    return entry.data
   }
 
   /**
    * Remove all expired entries from the cache
    */
   removeExpired(): void {
-    const now = Date.now();
-    let removedSize = 0;
+    const now = Date.now()
+    let removedSize = 0
 
     for (const [key, entry] of this.cache.entries()) {
       if (entry.expiration < now) {
-        this.cache.delete(key);
-        removedSize += entry.size;
+        this.cache.delete(key)
+        removedSize += entry.size
       }
     }
 
-    this.currentSize -= removedSize;
+    this.currentSize -= removedSize
   }
 
   /**
    * Clear the entire cache
    */
   clear(): void {
-    this.cache.clear();
-    this.currentSize = 0;
+    this.cache.clear()
+    this.currentSize = 0
   }
 
   /**
@@ -317,11 +324,12 @@ export class SearchResultCache<T> {
    */
   getStats(): CacheStats {
     // Calculate hit rate
-    const totalRequests = this.hits + this.misses;
-    const hitRate = totalRequests > 0 ? this.hits / totalRequests : 0;
+    const totalRequests = this.hits + this.misses
+    const hitRate = totalRequests > 0 ? this.hits / totalRequests : 0
 
     // Calculate average lookup time
-    const averageLookupTime = this.totalLookups > 0 ? this.totalLookupTime / this.totalLookups : 0;
+    const averageLookupTime =
+      this.totalLookups > 0 ? this.totalLookupTime / this.totalLookups : 0
 
     return {
       hits: this.hits,
@@ -332,7 +340,7 @@ export class SearchResultCache<T> {
       entryCount: this.cache.size,
       evictions: this.evictions,
       averageLookupTime,
-    };
+    }
   }
 
   /**
@@ -340,7 +348,7 @@ export class SearchResultCache<T> {
    * @returns Number of entries
    */
   size(): number {
-    return this.cache.size;
+    return this.cache.size
   }
 
   /**
@@ -350,20 +358,20 @@ export class SearchResultCache<T> {
    * @returns True if the key exists and is not expired
    */
   has(query: string, params?: Record<string, unknown>): boolean {
-    const key = this.generateKey(query, params);
-    const entry = this.cache.get(key);
+    const key = this.generateKey(query, params)
+    const entry = this.cache.get(key)
 
     if (!entry) {
-      return false;
+      return false
     }
 
     if (entry.expiration < Date.now()) {
       // Remove expired entry
-      this.cache.delete(key);
-      this.currentSize -= entry.size;
-      return false;
+      this.cache.delete(key)
+      this.currentSize -= entry.size
+      return false
     }
 
-    return true;
+    return true
   }
 }

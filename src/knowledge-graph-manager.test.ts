@@ -14,7 +14,7 @@ import {
   type Relation,
   type SemanticSearchOptions,
 } from "#knowledge-graph-manager.ts"
-import type { StorageProvider } from "#storage/StorageProvider.ts"
+import type { StorageProvider } from "#storage/storage-provider.ts"
 
 // Define EntityObservation type based on the addObservations method parameter
 type EntityObservation = {

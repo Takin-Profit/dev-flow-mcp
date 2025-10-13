@@ -1,22 +1,22 @@
 /**
- * Handles the delete_entities tool request
+ * Handles the create_entities tool request
  * @param args The arguments for the tool request
  * @param knowledgeGraphManager The KnowledgeGraphManager instance
- * @returns A response object with the success message
+ * @returns A response object with the result content
  */
 
-export async function handleDeleteEntities(
+export async function handleCreateEntities(
   args: Record<string, unknown>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   knowledgeGraphManager: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
-  await knowledgeGraphManager.deleteEntities(args.entityNames);
+  const result = await knowledgeGraphManager.createEntities(args.entities)
   return {
     content: [
       {
-        type: 'text',
-        text: 'Entities deleted successfully',
+        type: "text",
+        text: JSON.stringify(result, null, 2),
       },
     ],
-  };
+  }
 }

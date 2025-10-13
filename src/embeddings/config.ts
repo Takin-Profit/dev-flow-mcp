@@ -37,12 +37,12 @@ export const DEFAULT_EMBEDDING_SETTINGS = {
    * Status options for embedding jobs
    */
   JOB_STATUS: {
-    PENDING: 'pending',
-    PROCESSING: 'processing',
-    COMPLETED: 'completed',
-    FAILED: 'failed',
+    PENDING: "pending",
+    PROCESSING: "processing",
+    COMPLETED: "completed",
+    FAILED: "failed",
   },
-};
+}
 
 /**
  * Configuration for the LRU cache used for embeddings
@@ -51,12 +51,12 @@ export interface EmbeddingCacheOptions {
   /**
    * Maximum number of items to keep in the cache
    */
-  max: number;
+  max: number
 
   /**
    * Time-to-live in milliseconds for cache entries
    */
-  ttl: number;
+  ttl: number
 }
 
 /**
@@ -66,17 +66,17 @@ export interface EmbeddingJobProcessingOptions {
   /**
    * Maximum number of jobs to process in a single batch
    */
-  batchSize: number;
+  batchSize: number
 
   /**
    * Minimum time in milliseconds between API calls
    */
-  apiRateLimitMs: number;
+  apiRateLimitMs: number
 
   /**
    * Maximum age in milliseconds for jobs to be eligible for cleanup
    */
-  jobCleanupAgeMs: number;
+  jobCleanupAgeMs: number
 }
 
 /**
@@ -91,7 +91,7 @@ export function getEmbeddingCacheConfig(
   return {
     max: options.max || DEFAULT_EMBEDDING_SETTINGS.CACHE_MAX_SIZE,
     ttl: options.ttl || DEFAULT_EMBEDDING_SETTINGS.CACHE_TTL_MS,
-  };
+  }
 }
 
 /**
@@ -105,7 +105,9 @@ export function getJobProcessingConfig(
 ): EmbeddingJobProcessingOptions {
   return {
     batchSize: options.batchSize || DEFAULT_EMBEDDING_SETTINGS.BATCH_SIZE,
-    apiRateLimitMs: options.apiRateLimitMs || DEFAULT_EMBEDDING_SETTINGS.API_RATE_LIMIT_MS,
-    jobCleanupAgeMs: options.jobCleanupAgeMs || DEFAULT_EMBEDDING_SETTINGS.JOB_CLEANUP_AGE_MS,
-  };
+    apiRateLimitMs:
+      options.apiRateLimitMs || DEFAULT_EMBEDDING_SETTINGS.API_RATE_LIMIT_MS,
+    jobCleanupAgeMs:
+      options.jobCleanupAgeMs || DEFAULT_EMBEDDING_SETTINGS.JOB_CLEANUP_AGE_MS,
+  }
 }

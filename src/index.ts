@@ -1,64 +1,70 @@
 #!/usr/bin/env node
-import { fileURLToPath } from 'node:url';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { KnowledgeGraphManager } from './knowledge-graph-manager.ts';
-import { initializeStorageProvider } from './config/storage.ts';
-import { setupServer } from './server/setup.ts';
-import { EmbeddingJobManager } from './embeddings/EmbeddingJobManager.ts';
-import { EmbeddingServiceFactory } from './embeddings/EmbeddingServiceFactory.ts';
-import { logger } from './utils/logger.ts';
+import { fileURLToPath } from "node:url"
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
+import { initializeStorageProvider } from "#config/storage.ts"
+import { EmbeddingJobManager } from "#embeddings/embedding-job-manager.ts"
+import { EmbeddingServiceFactory } from "#embeddings/embedding-service-factory.ts"
+import { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
+import { setupServer } from "#server/setup.ts"
+import { logger } from "#utils/logger.ts"
 
 // Re-export the types and classes for use in other modules
-export * from './knowledge-graph-manager.ts';
+export * from "#knowledge-graph-manager.ts"
 // Export the Relation type
-export type { RelationMetadata, Relation } from './types/relation.ts';
+export type { Relation, RelationMetadata } from "#types/relation.ts"
 
 // Check if this module is being run directly
-const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === fileURLToPath(import.meta.url)
 
 // Only initialize if running as main module, not when imported by tests
 if (isMainModule) {
-  (async () => {
+  ;(async () => {
     // Initialize storage and create KnowledgeGraphManager
-    const storageProvider = initializeStorageProvider();
-    
+    const storageProvider = initializeStorageProvider()
+
     // Initialize embedding job manager only if storage provider supports it
-    let embeddingJobManager: EmbeddingJobManager | undefined = undefined;
+    let embeddingJobManager: EmbeddingJobManager | undefined
     try {
       // Force debug logging to help troubleshoot
-      logger.debug(`OpenAI API key exists: ${!!process.env.OPENAI_API_KEY}`);
-      logger.debug(`OpenAI Embedding model: ${process.env.OPENAI_EMBEDDING_MODEL || 'not set'}`);
-      logger.debug(`Storage provider type: ${process.env.MEMORY_STORAGE_TYPE || 'default'}`);
-    
+      logger.debug(`OpenAI API key exists: ${!!process.env.OPENAI_API_KEY}`)
+      logger.debug(
+        `OpenAI Embedding model: ${process.env.OPENAI_EMBEDDING_MODEL || "not set"}`
+      )
+      logger.debug(
+        `Storage provider type: ${process.env.MEMORY_STORAGE_TYPE || "default"}`
+      )
+
       // Ensure OPENAI_API_KEY is defined for embedding generation
-      if (!process.env.OPENAI_API_KEY) {
-        logger.warn(
-          'OPENAI_API_KEY environment variable is not set. Semantic search will use random embeddings.'
-        );
+      if (process.env.OPENAI_API_KEY) {
+        logger.info("OpenAI API key found, will use for generating embeddings")
       } else {
-        logger.info('OpenAI API key found, will use for generating embeddings');
+        logger.warn(
+          "OPENAI_API_KEY environment variable is not set. Semantic search will use random embeddings."
+        )
       }
-    
+
       // Initialize the embedding service
-      const embeddingService = EmbeddingServiceFactory.createFromEnvironment();
-      logger.debug(`Embedding service model info: ${JSON.stringify(embeddingService.getModelInfo())}`);
-    
+      const embeddingService = EmbeddingServiceFactory.createFromEnvironment()
+      logger.debug(
+        `Embedding service model info: ${JSON.stringify(embeddingService.getModelInfo())}`
+      )
+
       // Configure rate limiting options - stricter limits to prevent OpenAI API abuse
       const rateLimiterOptions = {
         tokensPerInterval: process.env.EMBEDDING_RATE_LIMIT_TOKENS
-          ? parseInt(process.env.EMBEDDING_RATE_LIMIT_TOKENS, 10)
+          ? Number.parseInt(process.env.EMBEDDING_RATE_LIMIT_TOKENS, 10)
           : 20, // Default: 20 requests per minute
         interval: process.env.EMBEDDING_RATE_LIMIT_INTERVAL
-          ? parseInt(process.env.EMBEDDING_RATE_LIMIT_INTERVAL, 10)
+          ? Number.parseInt(process.env.EMBEDDING_RATE_LIMIT_INTERVAL, 10)
           : 60 * 1000, // Default: 1 minute
-      };
-    
-      logger.info('Initializing EmbeddingJobManager', {
+      }
+
+      logger.info("Initializing EmbeddingJobManager", {
         rateLimiterOptions,
         model: embeddingService.getModelInfo().name,
-        storageType: process.env.MEMORY_STORAGE_TYPE || 'neo4j',
-      });
-    
+        storageType: process.env.MEMORY_STORAGE_TYPE || "neo4j",
+      })
+
       // For Neo4j (which is always the storage provider)
       // Create a compatible wrapper for the Neo4j storage provider
       const adaptedStorageProvider = {
@@ -66,9 +72,9 @@ if (isMainModule) {
         // Add a fake db with exec function for compatibility
         db: {
           exec: (sql: string) => {
-            logger.debug(`Neo4j adapter: Received SQL: ${sql}`);
+            logger.debug(`Neo4j adapter: Received SQL: ${sql}`)
             // No-op, just for compatibility
-            return null;
+            return null
           },
           prepare: () => ({
             run: () => null,
@@ -78,46 +84,56 @@ if (isMainModule) {
         },
         // Make sure getEntity is available
         getEntity: async (name: string) => {
-          if (typeof storageProvider.getEntity === 'function') {
-            return storageProvider.getEntity(name);
+          if (typeof storageProvider.getEntity === "function") {
+            return storageProvider.getEntity(name)
           }
-          const result = await storageProvider.openNodes([name]);
-          return result.entities[0] || null;
+          const result = await storageProvider.openNodes([name])
+          return result.entities[0] || null
         },
         // Make sure storeEntityVector is available
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         storeEntityVector: async (name: string, embedding: any) => {
           logger.debug(`Neo4j adapter: storeEntityVector called for ${name}`, {
             embeddingType: typeof embedding,
-            vectorLength: embedding?.vector?.length || 'no vector',
-            model: embedding?.model || 'no model',
-          });
-    
+            vectorLength: embedding?.vector?.length || "no vector",
+            model: embedding?.model || "no model",
+          })
+
           // Ensure embedding has the correct format
           const formattedEmbedding = {
             vector: embedding.vector || embedding,
-            model: embedding.model || 'unknown',
+            model: embedding.model || "unknown",
             lastUpdated: embedding.lastUpdated || Date.now(),
-          };
-    
+          }
+
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (typeof (storageProvider as any).updateEntityEmbedding === 'function') {
+          if (
+            typeof (storageProvider as any).updateEntityEmbedding === "function"
+          ) {
             try {
-              logger.debug(`Neo4j adapter: Using updateEntityEmbedding for ${name}`);
+              logger.debug(
+                `Neo4j adapter: Using updateEntityEmbedding for ${name}`
+              )
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              return await (storageProvider as any).updateEntityEmbedding(name, formattedEmbedding);
+              return await (storageProvider as any).updateEntityEmbedding(
+                name,
+                formattedEmbedding
+              )
             } catch (error) {
-              logger.error(`Neo4j adapter: Error in storeEntityVector for ${name}`, error);
-              throw error;
+              logger.error(
+                `Neo4j adapter: Error in storeEntityVector for ${name}`,
+                error
+              )
+              throw error
             }
           } else {
-            const errorMsg = `Neo4j adapter: Neither storeEntityVector nor updateEntityEmbedding implemented for ${name}`;
-            logger.error(errorMsg);
-            throw new Error(errorMsg);
+            const errorMsg = `Neo4j adapter: Neither storeEntityVector nor updateEntityEmbedding implemented for ${name}`
+            logger.error(errorMsg)
+            throw new Error(errorMsg)
           }
         },
-      };
-    
+      }
+
       // Create the embedding job manager with adapted storage provider
       embeddingJobManager = new EmbeddingJobManager(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,31 +142,31 @@ if (isMainModule) {
         rateLimiterOptions,
         null, // Use default cache options
         logger
-      );
-    
+      )
+
       // Schedule periodic processing for embedding jobs
-      const EMBEDDING_PROCESS_INTERVAL = 10000; // 10 seconds - more frequent processing
+      const EMBEDDING_PROCESS_INTERVAL = 10_000 // 10 seconds - more frequent processing
       setInterval(async () => {
         try {
           // Process pending embedding jobs
-          await embeddingJobManager?.processJobs(10);
+          await embeddingJobManager?.processJobs(10)
         } catch (error) {
           // Log error but don't crash
-          logger.error('Error in scheduled job processing', {
+          logger.error("Error in scheduled job processing", {
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
-          });
+          })
         }
-      }, EMBEDDING_PROCESS_INTERVAL);
+      }, EMBEDDING_PROCESS_INTERVAL)
     } catch (error) {
       // Fail gracefully if embedding job manager initialization fails
-      logger.error('Failed to initialize EmbeddingJobManager', {
+      logger.error("Failed to initialize EmbeddingJobManager", {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-      });
-      embeddingJobManager = undefined;
+      })
+      embeddingJobManager = undefined
     }
-    
+
     // Create the KnowledgeGraphManager with the storage provider, embedding job manager, and vector store options
     const knowledgeGraphManager = new KnowledgeGraphManager({
       storageProvider,
@@ -158,16 +174,17 @@ if (isMainModule) {
       // Pass vector store options from storage provider if available
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vectorStoreOptions: (storageProvider as any).vectorStoreOptions,
-    });
-    
+    })
+
     // Ensure the storeEntityVector method is available on KnowledgeGraphManager's storageProvider
     // Cast to any to bypass type checking for internal properties
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const knowledgeGraphManagerAny = knowledgeGraphManager as any;
-    
+    const knowledgeGraphManagerAny = knowledgeGraphManager as any
+
     if (
       knowledgeGraphManagerAny.storageProvider &&
-      typeof knowledgeGraphManagerAny.storageProvider.storeEntityVector !== 'function'
+      typeof knowledgeGraphManagerAny.storageProvider.storeEntityVector !==
+        "function"
     ) {
       // Add the storeEntityVector method to the storage provider
       knowledgeGraphManagerAny.storageProvider.storeEntityVector = async (
@@ -175,89 +192,105 @@ if (isMainModule) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         embedding: any
       ) => {
-        logger.debug(`Neo4j knowledgeGraphManager adapter: storeEntityVector called for ${name}`, {
-          embeddingType: typeof embedding,
-          vectorLength: embedding?.vector?.length || 'no vector',
-          model: embedding?.model || 'no model',
-        });
-    
+        logger.debug(
+          `Neo4j knowledgeGraphManager adapter: storeEntityVector called for ${name}`,
+          {
+            embeddingType: typeof embedding,
+            vectorLength: embedding?.vector?.length || "no vector",
+            model: embedding?.model || "no model",
+          }
+        )
+
         // Ensure embedding has the correct format
         const formattedEmbedding = {
           vector: embedding.vector || embedding,
-          model: embedding.model || 'unknown',
+          model: embedding.model || "unknown",
           lastUpdated: embedding.lastUpdated || Date.now(),
-        };
-    
-        if (typeof knowledgeGraphManagerAny.storageProvider.updateEntityEmbedding === 'function') {
+        }
+
+        if (
+          typeof knowledgeGraphManagerAny.storageProvider
+            .updateEntityEmbedding === "function"
+        ) {
           try {
             logger.debug(
               `Neo4j knowledgeGraphManager adapter: Using updateEntityEmbedding for ${name}`
-            );
+            )
             return await knowledgeGraphManagerAny.storageProvider.updateEntityEmbedding(
               name,
               formattedEmbedding
-            );
+            )
           } catch (error) {
             logger.error(
               `Neo4j knowledgeGraphManager adapter: Error in storeEntityVector for ${name}`,
               error
-            );
-            throw error;
+            )
+            throw error
           }
         } else {
-          const errorMsg = `Neo4j knowledgeGraphManager adapter: updateEntityEmbedding not implemented for ${name}`;
-          logger.error(errorMsg);
-          throw new Error(errorMsg);
+          const errorMsg = `Neo4j knowledgeGraphManager adapter: updateEntityEmbedding not implemented for ${name}`
+          logger.error(errorMsg)
+          throw new Error(errorMsg)
         }
-      };
-    
+      }
+
       logger.info(
-        'Added storeEntityVector adapter method to Neo4j storage provider for KnowledgeGraphManager'
-      );
+        "Added storeEntityVector adapter method to Neo4j storage provider for KnowledgeGraphManager"
+      )
     }
-    
+
     // Use a custom createEntities method for immediate job processing, but only if knowledgeGraphManager exists
-    if (knowledgeGraphManager && typeof knowledgeGraphManager.createEntities === 'function') {
-      const originalCreateEntities = knowledgeGraphManager.createEntities.bind(knowledgeGraphManager);
-      knowledgeGraphManager.createEntities = async function (entities) {
+    if (
+      knowledgeGraphManager &&
+      typeof knowledgeGraphManager.createEntities === "function"
+    ) {
+      const originalCreateEntities = knowledgeGraphManager.createEntities.bind(
+        knowledgeGraphManager
+      )
+      knowledgeGraphManager.createEntities = async (entities) => {
         // First call the original method to create the entities
-        const result = await originalCreateEntities(entities);
-    
+        const result = await originalCreateEntities(entities)
+
         // Then process jobs immediately if we have an embedding job manager
         if (embeddingJobManager) {
           try {
-            logger.info('Processing embedding jobs immediately after entity creation', {
-              entityCount: entities.length,
-              entityNames: entities.map((e) => e.name).join(', '),
-            });
-            await embeddingJobManager.processJobs(entities.length);
+            logger.info(
+              "Processing embedding jobs immediately after entity creation",
+              {
+                entityCount: entities.length,
+                entityNames: entities.map((e) => e.name).join(", "),
+              }
+            )
+            await embeddingJobManager.processJobs(entities.length)
           } catch (error) {
-            logger.error('Error processing embedding jobs immediately', {
+            logger.error("Error processing embedding jobs immediately", {
               error: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
-            });
+            })
           }
         }
-    
-        return result;
-      };
+
+        return result
+      }
     }
-    
+
     // Setup the server with the KnowledgeGraphManager
-    const server = setupServer(knowledgeGraphManager);
+    const server = setupServer(knowledgeGraphManager)
 
     // Start the server
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
+    const transport = new StdioServerTransport()
+    await server.connect(transport)
   })().catch((error) => {
-    logger.error(`Main process terminated: ${error}`);
-    process.exit(1);
-  });
+    logger.error(`Main process terminated: ${error}`)
+    process.exit(1)
+  })
 }
 
 // Export main function for testing
 export async function main(): Promise<void> {
   if (!isMainModule) {
-    throw new Error('main() should only be called when index.ts is the entry point');
+    throw new Error(
+      "main() should only be called when index.ts is the entry point"
+    )
   }
 }

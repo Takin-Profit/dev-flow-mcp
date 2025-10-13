@@ -5,22 +5,22 @@ export interface RelationMetadata {
   /**
    * Array of relation IDs that this relation was inferred from
    */
-  inferredFrom?: string[];
+  inferredFrom?: string[]
 
   /**
    * Timestamp when the relation was last accessed/retrieved
    */
-  lastAccessed?: number;
+  lastAccessed?: number
 
   /**
    * Timestamp when the relation was created
    */
-  createdAt: number;
+  createdAt: number
 
   /**
    * Timestamp when the relation was last updated
    */
-  updatedAt: number;
+  updatedAt: number
 }
 
 /**
@@ -30,35 +30,35 @@ export interface Relation {
   /**
    * The source entity name (where the relation starts)
    */
-  from: string;
+  from: string
 
   /**
    * The target entity name (where the relation ends)
    */
-  to: string;
+  to: string
 
   /**
    * The type of relationship between the entities
    */
-  relationType: string;
+  relationType: string
 
   /**
    * Optional strength of the relationship (0.0-1.0)
    * Higher values indicate stronger relationships
    */
-  strength?: number;
+  strength?: number
 
   /**
    * Optional confidence score (0.0-1.0)
    * Represents how confident the system is about this relationship
    * Particularly useful for inferred relations
    */
-  confidence?: number;
+  confidence?: number
 
   /**
    * Optional metadata providing additional context about the relation
    */
-  metadata?: RelationMetadata;
+  metadata?: RelationMetadata
 }
 
 // Add static methods to the Relation interface for JavaScript tests
@@ -67,22 +67,22 @@ export interface Relation {
 export namespace Relation {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function isRelation(obj: any): boolean {
-    return RelationValidator.isRelation(obj);
+    return RelationValidator.isRelation(obj)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function hasStrength(obj: any): boolean {
-    return RelationValidator.hasStrength(obj);
+    return RelationValidator.hasStrength(obj)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function hasConfidence(obj: any): boolean {
-    return RelationValidator.hasConfidence(obj);
+    return RelationValidator.hasConfidence(obj)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function hasValidMetadata(obj: any): boolean {
-    return RelationValidator.hasValidMetadata(obj);
+    return RelationValidator.hasValidMetadata(obj)
   }
 }
 
@@ -95,13 +95,13 @@ export class RelationValidator {
   static isRelation(obj: any): boolean {
     return (
       obj &&
-      typeof obj.from === 'string' &&
-      typeof obj.to === 'string' &&
-      typeof obj.relationType === 'string' &&
-      (obj.strength === undefined || typeof obj.strength === 'number') &&
-      (obj.confidence === undefined || typeof obj.confidence === 'number') &&
-      (obj.metadata === undefined || typeof obj.metadata === 'object')
-    );
+      typeof obj.from === "string" &&
+      typeof obj.to === "string" &&
+      typeof obj.relationType === "string" &&
+      (obj.strength === undefined || typeof obj.strength === "number") &&
+      (obj.confidence === undefined || typeof obj.confidence === "number") &&
+      (obj.metadata === undefined || typeof obj.metadata === "object")
+    )
   }
 
   /**
@@ -110,11 +110,11 @@ export class RelationValidator {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static hasStrength(obj: any): boolean {
     return (
-      this.isRelation(obj) &&
-      typeof obj.strength === 'number' &&
+      RelationValidator.isRelation(obj) &&
+      typeof obj.strength === "number" &&
       obj.strength >= 0 &&
       obj.strength <= 1
-    );
+    )
   }
 
   /**
@@ -123,11 +123,11 @@ export class RelationValidator {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static hasConfidence(obj: any): boolean {
     return (
-      this.isRelation(obj) &&
-      typeof obj.confidence === 'number' &&
+      RelationValidator.isRelation(obj) &&
+      typeof obj.confidence === "number" &&
       obj.confidence >= 0 &&
       obj.confidence <= 1
-    );
+    )
   }
 
   /**
@@ -135,35 +135,41 @@ export class RelationValidator {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static hasValidMetadata(obj: any): boolean {
-    if (!this.isRelation(obj) || !obj.metadata) {
-      return false;
+    if (!(RelationValidator.isRelation(obj) && obj.metadata)) {
+      return false
     }
 
-    const metadata = obj.metadata;
+    const metadata = obj.metadata
 
     // Required fields
-    if (typeof metadata.createdAt !== 'number' || typeof metadata.updatedAt !== 'number') {
-      return false;
+    if (
+      typeof metadata.createdAt !== "number" ||
+      typeof metadata.updatedAt !== "number"
+    ) {
+      return false
     }
 
     // Optional fields
-    if (metadata.lastAccessed !== undefined && typeof metadata.lastAccessed !== 'number') {
-      return false;
+    if (
+      metadata.lastAccessed !== undefined &&
+      typeof metadata.lastAccessed !== "number"
+    ) {
+      return false
     }
 
     if (metadata.inferredFrom !== undefined) {
       if (!Array.isArray(metadata.inferredFrom)) {
-        return false;
+        return false
       }
 
       // Verify all items in inferredFrom are strings
       for (const id of metadata.inferredFrom) {
-        if (typeof id !== 'string') {
-          return false;
+        if (typeof id !== "string") {
+          return false
         }
       }
     }
 
-    return true;
+    return true
   }
 }

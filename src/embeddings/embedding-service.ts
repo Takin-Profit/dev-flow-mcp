@@ -5,17 +5,17 @@ export interface EmbeddingProviderInfo {
   /**
    * Name of the embedding provider
    */
-  provider: string;
+  provider: string
 
   /**
    * Name of the embedding model
    */
-  model: string;
+  model: string
 
   /**
    * Number of dimensions in the embedding vectors
    */
-  dimensions: number;
+  dimensions: number
 }
 
 /**
@@ -25,17 +25,17 @@ export interface EmbeddingModelInfo {
   /**
    * Name of the embedding model
    */
-  name: string;
+  name: string
 
   /**
    * Number of dimensions in the embedding vectors
    */
-  dimensions: number;
+  dimensions: number
 
   /**
    * Version of the model
    */
-  version: string;
+  version: string
 }
 
 /**
@@ -48,7 +48,7 @@ export interface IEmbeddingService {
    * @param text - Text to embed
    * @returns Embedding vector
    */
-  generateEmbedding(text: string): Promise<number[]>;
+  generateEmbedding(text: string): Promise<number[]>
 
   /**
    * Generate embeddings for multiple texts
@@ -56,21 +56,21 @@ export interface IEmbeddingService {
    * @param texts - Array of texts to embed
    * @returns Array of embedding vectors
    */
-  generateEmbeddings(texts: string[]): Promise<number[][]>;
+  generateEmbeddings(texts: string[]): Promise<number[][]>
 
   /**
    * Get information about the embedding model
    *
    * @returns Model information
    */
-  getModelInfo(): EmbeddingModelInfo;
+  getModelInfo(): EmbeddingModelInfo
 
   /**
    * Get information about the embedding provider
    *
    * @returns Provider information
    */
-  getProviderInfo(): EmbeddingProviderInfo;
+  getProviderInfo(): EmbeddingProviderInfo
 }
 
 /**
@@ -84,7 +84,7 @@ export class EmbeddingService implements IEmbeddingService {
    * @returns Embedding vector
    */
   async generateEmbedding(_text: string): Promise<number[]> {
-    throw new Error('Method not implemented');
+    throw new Error("Method not implemented")
   }
 
   /**
@@ -94,7 +94,7 @@ export class EmbeddingService implements IEmbeddingService {
    * @returns Array of embedding vectors
    */
   async generateEmbeddings(_texts: string[]): Promise<number[][]> {
-    throw new Error('Method not implemented');
+    throw new Error("Method not implemented")
   }
 
   /**
@@ -103,7 +103,7 @@ export class EmbeddingService implements IEmbeddingService {
    * @returns Model information
    */
   getModelInfo(): EmbeddingModelInfo {
-    throw new Error('Method not implemented');
+    throw new Error("Method not implemented")
   }
 
   /**
@@ -113,9 +113,9 @@ export class EmbeddingService implements IEmbeddingService {
    */
   getProviderInfo(): EmbeddingProviderInfo {
     return {
-      provider: 'default',
+      provider: "default",
       model: this.getModelInfo().name,
       dimensions: this.getModelInfo().dimensions,
-    };
+    }
   }
 }

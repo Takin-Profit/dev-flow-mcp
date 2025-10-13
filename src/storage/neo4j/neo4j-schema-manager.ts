@@ -1,14 +1,17 @@
-import type { Neo4jConnectionManager } from './Neo4jConnectionManager.ts';
-import { DEFAULT_NEO4J_CONFIG, type Neo4jConfig } from './Neo4jConfig.ts';
-import { logger } from '../../utils/logger.ts';
+import {
+  DEFAULT_NEO4J_CONFIG,
+  type Neo4jConfig,
+} from "#storage/neo4j/neo4j-config.ts"
+import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager.ts"
+import { logger } from "#utils/logger.ts"
 
 /**
  * Manages Neo4j schema operations like creating constraints and indexes
  */
 export class Neo4jSchemaManager {
-  private connectionManager: Neo4jConnectionManager;
-  private config: Neo4jConfig;
-  private debug: boolean;
+  private connectionManager: Neo4jConnectionManager
+  private config: Neo4jConfig
+  private debug: boolean
 
   /**
    * Creates a new Neo4j schema manager
@@ -21,12 +24,12 @@ export class Neo4jSchemaManager {
     config?: Partial<Neo4jConfig>,
     debug = true
   ) {
-    this.connectionManager = connectionManager;
+    this.connectionManager = connectionManager
     this.config = {
       ...DEFAULT_NEO4J_CONFIG,
       ...config,
-    };
-    this.debug = debug;
+    }
+    this.debug = debug
   }
 
   /**
@@ -35,7 +38,7 @@ export class Neo4jSchemaManager {
    */
   private log(message: string): void {
     if (this.debug) {
-      logger.debug(`[Neo4jSchemaManager] ${message}`);
+      logger.debug(`[Neo4jSchemaManager] ${message}`)
     }
   }
 
@@ -44,11 +47,14 @@ export class Neo4jSchemaManager {
    * @returns Array of constraint information
    */
   async listConstraints(): Promise<Record<string, unknown>[]> {
-    this.log('Listing existing constraints...');
-    const result = await this.connectionManager.executeQuery('SHOW CONSTRAINTS', {});
-    const constraints = result.records.map((record) => record.toObject());
-    this.log(`Found ${constraints.length} constraints`);
-    return constraints;
+    this.log("Listing existing constraints...")
+    const result = await this.connectionManager.executeQuery(
+      "SHOW CONSTRAINTS",
+      {}
+    )
+    const constraints = result.records.map((record) => record.toObject())
+    this.log(`Found ${constraints.length} constraints`)
+    return constraints
   }
 
   /**
@@ -56,11 +62,11 @@ export class Neo4jSchemaManager {
    * @returns Array of index information
    */
   async listIndexes(): Promise<Record<string, unknown>[]> {
-    this.log('Listing existing indexes...');
-    const result = await this.connectionManager.executeQuery('SHOW INDEXES', {});
-    const indexes = result.records.map((record) => record.toObject());
-    this.log(`Found ${indexes.length} indexes`);
-    return indexes;
+    this.log("Listing existing indexes...")
+    const result = await this.connectionManager.executeQuery("SHOW INDEXES", {})
+    const indexes = result.records.map((record) => record.toObject())
+    this.log(`Found ${indexes.length} indexes`)
+    return indexes
   }
 
   /**
@@ -68,14 +74,17 @@ export class Neo4jSchemaManager {
    * @param name Name of the constraint to drop
    */
   async dropConstraintIfExists(name: string): Promise<boolean> {
-    this.log(`Dropping constraint ${name} if it exists...`);
+    this.log(`Dropping constraint ${name} if it exists...`)
     try {
-      await this.connectionManager.executeQuery(`DROP CONSTRAINT ${name} IF EXISTS`, {});
-      this.log(`Constraint ${name} dropped or didn't exist`);
-      return true;
+      await this.connectionManager.executeQuery(
+        `DROP CONSTRAINT ${name} IF EXISTS`,
+        {}
+      )
+      this.log(`Constraint ${name} dropped or didn't exist`)
+      return true
     } catch (error) {
-      this.log(`Error dropping constraint ${name}: ${error}`);
-      return false;
+      this.log(`Error dropping constraint ${name}: ${error}`)
+      return false
     }
   }
 
@@ -84,14 +93,17 @@ export class Neo4jSchemaManager {
    * @param name Name of the index to drop
    */
   async dropIndexIfExists(name: string): Promise<boolean> {
-    this.log(`Dropping index ${name} if it exists...`);
+    this.log(`Dropping index ${name} if it exists...`)
     try {
-      await this.connectionManager.executeQuery(`DROP INDEX ${name} IF EXISTS`, {});
-      this.log(`Index ${name} dropped or didn't exist`);
-      return true;
+      await this.connectionManager.executeQuery(
+        `DROP INDEX ${name} IF EXISTS`,
+        {}
+      )
+      this.log(`Index ${name} dropped or didn't exist`)
+      return true
     } catch (error) {
-      this.log(`Error dropping index ${name}: ${error}`);
-      return false;
+      this.log(`Error dropping index ${name}: ${error}`)
+      return false
     }
   }
 
@@ -100,12 +112,12 @@ export class Neo4jSchemaManager {
    * @param recreate Whether to drop and recreate the constraint if it exists
    */
   async createEntityConstraints(recreate = false): Promise<void> {
-    this.log('Creating entity name constraint...');
+    this.log("Creating entity name constraint...")
 
-    const constraintName = 'entity_name';
+    const constraintName = "entity_name"
 
     if (recreate) {
-      await this.dropConstraintIfExists(constraintName);
+      await this.dropConstraintIfExists(constraintName)
     }
 
     // Create a composite uniqueness constraint on name and validTo
@@ -113,15 +125,15 @@ export class Neo4jSchemaManager {
       CREATE CONSTRAINT entity_name IF NOT EXISTS
       FOR (e:Entity)
       REQUIRE (e.name, e.validTo) IS UNIQUE
-    `;
+    `
 
-    await this.connectionManager.executeQuery(query, {});
-    this.log('Entity name constraint created');
+    await this.connectionManager.executeQuery(query, {})
+    this.log("Entity name constraint created")
 
     // Verify the constraint was created
-    const constraints = await this.listConstraints();
-    const found = constraints.some((c) => c.name === constraintName);
-    this.log(`Constraint verification: ${found ? 'FOUND' : 'NOT FOUND'}`);
+    const constraints = await this.listConstraints()
+    const found = constraints.some((c) => c.name === constraintName)
+    this.log(`Constraint verification: ${found ? "FOUND" : "NOT FOUND"}`)
   }
 
   /**
@@ -139,13 +151,13 @@ export class Neo4jSchemaManager {
     nodeLabel: string,
     propertyName: string,
     dimensions: number,
-    similarityFunction?: 'cosine' | 'euclidean',
+    similarityFunction?: "cosine" | "euclidean",
     recreate = false
   ): Promise<void> {
-    this.log(`Creating vector index ${indexName}...`);
+    this.log(`Creating vector index ${indexName}...`)
 
     if (recreate) {
-      await this.dropIndexIfExists(indexName);
+      await this.dropIndexIfExists(indexName)
     }
 
     const query = `
@@ -158,15 +170,15 @@ export class Neo4jSchemaManager {
           \`vector.similarity_function\`: '${similarityFunction || this.config.similarityFunction}'
         }
       }
-    `;
+    `
 
-    this.log(`Executing vector index creation query: ${query}`);
-    await this.connectionManager.executeQuery(query, {});
-    this.log(`Vector index ${indexName} creation query executed`);
+    this.log(`Executing vector index creation query: ${query}`)
+    await this.connectionManager.executeQuery(query, {})
+    this.log(`Vector index ${indexName} creation query executed`)
 
     // Verify the index was created
-    const exists = await this.vectorIndexExists(indexName);
-    this.log(`Vector index verification: ${exists ? 'FOUND' : 'NOT FOUND'}`);
+    const exists = await this.vectorIndexExists(indexName)
+    this.log(`Vector index verification: ${exists ? "FOUND" : "NOT FOUND"}`)
   }
 
   /**
@@ -176,57 +188,61 @@ export class Neo4jSchemaManager {
    * @returns True if the index exists and is ONLINE, false otherwise
    */
   async vectorIndexExists(indexName: string): Promise<boolean> {
-    this.log(`Checking if vector index ${indexName} exists and is ONLINE...`);
+    this.log(`Checking if vector index ${indexName} exists and is ONLINE...`)
     try {
       const result = await this.connectionManager.executeQuery(
-        'SHOW VECTOR INDEXES WHERE name = $indexName',
+        "SHOW VECTOR INDEXES WHERE name = $indexName",
         { indexName }
-      );
+      )
 
       if (result.records.length === 0) {
-        this.log(`Vector index ${indexName} does not exist`);
-        return false;
+        this.log(`Vector index ${indexName} does not exist`)
+        return false
       }
 
-      const state = result.records[0].get('state');
-      const isOnline = state === 'ONLINE';
+      const state = result.records[0].get("state")
+      const isOnline = state === "ONLINE"
 
-      this.log(`Vector index ${indexName} exists with state: ${state}`);
+      this.log(`Vector index ${indexName} exists with state: ${state}`)
 
       if (!isOnline) {
-        this.log(`Vector index ${indexName} exists but is not ONLINE (state: ${state})`);
+        this.log(
+          `Vector index ${indexName} exists but is not ONLINE (state: ${state})`
+        )
       }
 
-      return isOnline;
+      return isOnline
     } catch (error) {
-      this.log(`Error checking vector index: ${error}`);
+      this.log(`Error checking vector index: ${error}`)
       // Try with a different syntax for Neo4j versions before 5.13
       try {
         const fallbackResult = await this.connectionManager.executeQuery(
           'SHOW INDEXES WHERE type = "VECTOR" AND name = $indexName',
           { indexName }
-        );
+        )
 
         if (fallbackResult.records.length === 0) {
-          this.log(`Vector index ${indexName} does not exist (fallback check)`);
-          return false;
+          this.log(`Vector index ${indexName} does not exist (fallback check)`)
+          return false
         }
 
-        const state = fallbackResult.records[0].get('state');
-        const isOnline = state === 'ONLINE';
+        const state = fallbackResult.records[0].get("state")
+        const isOnline = state === "ONLINE"
 
-        this.log(`Vector index ${indexName} exists with state: ${state} (fallback check)`);
+        this.log(
+          `Vector index ${indexName} exists with state: ${state} (fallback check)`
+        )
 
         if (!isOnline) {
           this.log(
             `Vector index ${indexName} exists but is not ONLINE (state: ${state}) (fallback check)`
-          );
+          )
         }
 
-        return isOnline;
+        return isOnline
       } catch (fallbackError) {
-        this.log(`Error in fallback check for vector index: ${fallbackError}`);
-        return false;
+        this.log(`Error in fallback check for vector index: ${fallbackError}`)
+        return false
       }
     }
   }
@@ -236,20 +252,20 @@ export class Neo4jSchemaManager {
    * @param recreate Whether to drop and recreate existing constraints and indexes
    */
   async initializeSchema(recreate = false): Promise<void> {
-    this.log('Initializing Neo4j schema...');
+    this.log("Initializing Neo4j schema...")
 
     // Create constraints
-    await this.createEntityConstraints(recreate);
+    await this.createEntityConstraints(recreate)
 
     // Create vector index for entity embeddings
-    const indexName = this.config.vectorIndexName;
-    const nodeLabel = 'Entity';
-    const propertyName = 'embedding';
-    const dimensions = this.config.vectorDimensions;
-    const similarityFunction = this.config.similarityFunction;
+    const indexName = this.config.vectorIndexName
+    const nodeLabel = "Entity"
+    const propertyName = "embedding"
+    const dimensions = this.config.vectorDimensions
+    const similarityFunction = this.config.similarityFunction
 
     if (recreate) {
-      await this.dropIndexIfExists(indexName);
+      await this.dropIndexIfExists(indexName)
     }
 
     const query = `
@@ -262,18 +278,18 @@ export class Neo4jSchemaManager {
           \`vector.similarity_function\`: '${similarityFunction}'
         }
       }
-    `;
+    `
 
-    await this.connectionManager.executeQuery(query, {});
+    await this.connectionManager.executeQuery(query, {})
 
-    this.log('Schema initialization complete');
+    this.log("Schema initialization complete")
   }
 
   /**
    * Closes the connection manager
    */
   async close(): Promise<void> {
-    this.log('Closing connection manager');
-    await this.connectionManager.close();
+    this.log("Closing connection manager")
+    await this.connectionManager.close()
   }
 }
