@@ -505,10 +505,22 @@ Based on Neo4j documentation, we implement:
 - Removed `relationTypes` parameter from StorageProvider interface methods (types are now centralized)
 
 #### 2. Remove Remaining `any` Types
+**Approach:**
+- Remove ALL `eslint-disable` comments (we use Biome/Ultracite, not ESLint)
+- Create proper types for all `any` usages
+- Use arktype for types that need runtime validation
+- Replace `catch (error: any)` with `catch (error: unknown)` and narrow with type guards
+
 **Locations:**
-- `src/knowledge-graph-manager.ts:226,340` (unused variables)
-- `src/storage/neo4j/neo4j-storage-provider.ts` (several methods)
-- `src/server/handlers/call-tool-handler.ts` (multiple locations)
+- `src/storage/storage-provider.ts` - `createEntities` returns `any[]` (needs proper temporal entity type)
+- `src/storage/neo4j/neo4j-storage-provider.ts` - `createEntities` and internal variables
+- `src/server/handlers/call-tool-handler.ts` - `knowledgeGraphManager: any` parameter and error catches
+
+**Actions:**
+1. Create `TemporalEntity` type with arktype for entities with temporal metadata
+2. Update `StorageProvider.createEntities` signature
+3. Replace all `error: any` with `error: unknown` and proper type narrowing
+4. Remove all `eslint-disable-next-line @typescript-eslint/no-explicit-any` comments
 
 #### 3. Add Type Guards for Record Access
 **Pattern:**

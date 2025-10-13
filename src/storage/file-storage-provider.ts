@@ -74,14 +74,20 @@ export class FileStorageProvider implements StorageProvider {
       const content = await this._fs.promises.readFile(this.filePath, "utf-8")
       this.graph = JSON.parse(content)
       return this.graph
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
+    } catch (error: unknown) {
+      // Check if it's a file not found error
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         // File doesn't exist, return empty graph
         return { entities: [], relations: [] }
       }
+      const errorMessage = error instanceof Error ? error.message : String(error)
       throw new Error(
-        `Error loading graph from ${this.filePath}: ${error.message}`
+        `Error loading graph from ${this.filePath}: ${errorMessage}`
       )
     }
   }

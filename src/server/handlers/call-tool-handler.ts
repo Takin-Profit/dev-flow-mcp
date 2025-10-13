@@ -1,4 +1,5 @@
 import * as toolHandlers from "#server/handlers/tool-handlers/index.ts"
+import type { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
 
 /**
  * Handles the CallTool request.
@@ -12,8 +13,7 @@ import * as toolHandlers from "#server/handlers/tool-handlers/index.ts"
 
 export async function handleCallToolRequest(
   request: { params?: { name?: string; arguments?: Record<string, unknown> } },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  knowledgeGraphManager: any
+  knowledgeGraphManager: KnowledgeGraphManager
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   if (!request) {
     throw new Error("Invalid request: request is null or undefined")
@@ -454,19 +454,22 @@ export async function handleCallToolRequest(
               },
             ],
           }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error)
+          const errorStack = error instanceof Error ? error.stack : undefined
+
           process.stderr.write(
-            `[ERROR] Failed to force generate embedding: ${error.message}\n`
+            `[ERROR] Failed to force generate embedding: ${errorMessage}\n`
           )
-          if (error.stack) {
-            process.stderr.write(`[ERROR] Stack trace: ${error.stack}\n`)
+          if (errorStack) {
+            process.stderr.write(`[ERROR] Stack trace: ${errorStack}\n`)
           }
           return {
             content: [
               {
                 type: "text",
-                text: `Failed to generate embedding: ${error.message}`,
+                text: `Failed to generate embedding: ${errorMessage}`,
               },
             ],
           }

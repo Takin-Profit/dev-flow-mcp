@@ -1,9 +1,11 @@
 import type { KnowledgeGraph } from "#knowledge-graph-manager.ts"
 import type {
+  Entity,
   EntityEmbedding,
   SemanticSearchOptions,
-} from "#types/entity-embedding.ts"
-import type { Relation } from "#types/relation.ts"
+  TemporalEntityType,
+  Relation,
+} from "#types"
 
 /**
  * Options for searching nodes in the knowledge graph
@@ -62,8 +64,7 @@ export interface StorageProvider {
    * @param entities Array of entities to create
    * @returns Promise resolving to array of newly created entities with temporal metadata
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createEntities(entities: any[]): Promise<any[]>
+  createEntities(entities: Entity[]): Promise<TemporalEntityType[]>
 
   /**
    * Create new relations between entities
@@ -125,8 +126,7 @@ export interface StorageProvider {
    * @param entityName The name of the entity to retrieve history for
    * @returns Promise resolving to an array of entity versions in chronological order
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getEntityHistory?(entityName: string): Promise<any[]>
+  getEntityHistory?(entityName: string): Promise<TemporalEntityType[]>
 
   /**
    * Get the history of all versions of a relation
@@ -135,12 +135,11 @@ export interface StorageProvider {
    * @param relationType Type of the relation
    * @returns Promise resolving to an array of relation versions in chronological order
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getRelationHistory?(
     from: string,
     to: string,
     relationType: string
-  ): Promise<any[]>
+  ): Promise<Relation[]>
 
   /**
    * Get the state of the knowledge graph at a specific point in time
@@ -173,8 +172,10 @@ export interface StorageProvider {
    * @param limit Maximum number of results to return
    * @returns Promise resolving to array of entities with similarity scores
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findSimilarEntities?(queryVector: number[], limit?: number): Promise<any[]>
+  findSimilarEntities?(
+    queryVector: number[],
+    limit?: number
+  ): Promise<Array<TemporalEntityType & { similarity: number }>>
 
   /**
    * Search for entities using semantic search
@@ -192,16 +193,13 @@ export interface StorageProvider {
    * @param entityName Name of the entity to retrieve
    * @returns Promise resolving to the entity or null if not found
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getEntity(entityName: string): Promise<any | null>
+  getEntity(entityName: string): Promise<TemporalEntityType | null>
 }
 
 // Add static methods to the StorageProvider interface for JavaScript tests
 // This allows tests to access validation methods directly from the interface
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace StorageProvider {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  export function isStorageProvider(obj: any): boolean {
+  export function isStorageProvider(obj: unknown): boolean {
     return StorageProviderValidator.isStorageProvider(obj)
   }
 }
@@ -213,8 +211,7 @@ export namespace StorageProvider {
 export class StorageProviderValidator {
   // No implementation - this is just to ensure the symbol exists in the compiled JS
   // JavaScript tests will use this as a type reference
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static isStorageProvider(obj: any): boolean {
+  static isStorageProvider(obj: unknown): boolean {
     const hasRequiredMethods =
       obj &&
       typeof obj.loadGraph === "function" &&
