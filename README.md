@@ -501,9 +501,9 @@ Alternatively, for local development, you can use:
 ```json
 {
   "mcpServers": {
-    "memento": {
-      "command": "/path/to/node",
-      "args": ["/path/to/memento-mcp/dist/index.js"],
+    "devflow": {
+      "command": "dfm",
+      "args": ["mcp"],
       "env": {
         "MEMORY_STORAGE_TYPE": "neo4j",
         "NEO4J_URI": "bolt://127.0.0.1:7687",

@@ -100,9 +100,9 @@ Or directly in the Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
-    "memento": {
-      "command": "/path/to/node",
-      "args": ["/path/to/memento-mcp/dist/index.js"],
+    "devflow": {
+      "command": "dfm",
+      "args": ["mcp"],
       "env": {
         "MEMORY_STORAGE_TYPE": "neo4j",
         "NEO4J_URI": "bolt://localhost:7687",

@@ -1,7 +1,7 @@
 /**
  * Interface representing a vector embedding for semantic search
  */
-export interface EntityEmbedding {
+export type EntityEmbedding = {
   /**
    * The embedding vector
    */
@@ -21,7 +21,7 @@ export interface EntityEmbedding {
 /**
  * Search filter for advanced filtering
  */
-export interface SearchFilter {
+export type SearchFilter = {
   /**
    * Field to filter on
    */
@@ -35,14 +35,13 @@ export interface SearchFilter {
   /**
    * Filter value
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: any
+  value: unknown
 }
 
 /**
  * Extended SearchOptions interface with semantic search capabilities
  */
-export interface SemanticSearchOptions {
+export type SemanticSearchOptions = {
   /**
    * Use vector similarity for search
    */
@@ -112,7 +111,7 @@ export interface SemanticSearchOptions {
 /**
  * Match details for search results
  */
-export interface SearchMatch {
+export type SearchMatch = {
   /**
    * Field that matched
    */
@@ -136,7 +135,7 @@ export interface SearchMatch {
 /**
  * Search result with relevance information
  */
-export interface SearchResult {
+export type SearchResult = {
   /**
    * The matching entity
    */
@@ -163,7 +162,7 @@ export interface SearchResult {
 /**
  * Search response with results and metadata
  */
-export interface SearchResponse {
+export type SearchResponse = {
   /**
    * Search results
    */

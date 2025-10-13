@@ -218,6 +218,14 @@ export class EmbeddingJobManager {
   }
 
   /**
+   * Get the embedding service instance
+   * @returns The embedding service
+   */
+  getEmbeddingService(): EmbeddingService {
+    return this.embeddingService
+  }
+
+  /**
    * Initialize the database schema for embedding jobs
    *
    * @private

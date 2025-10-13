@@ -20,4 +20,4 @@ RUN npm run build
 # EXPOSE 3000
 
 # Command to run the MCP server
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/server/index.js"]

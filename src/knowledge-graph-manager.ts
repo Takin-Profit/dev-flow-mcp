@@ -4,7 +4,6 @@ import {
   VectorStoreFactory,
   type VectorStoreFactoryOptions,
 } from "#storage/vector-store-factory.ts"
-import type { EntityEmbedding } from "#types/entity-embedding.ts"
 import type { Logger } from "#types/logger.ts"
 import { createNoOpLogger } from "#types/logger.ts"
 import type { Relation } from "#types/relation.ts"
@@ -27,7 +26,7 @@ interface StorageProviderWithSemanticSearch extends StorageProvider {
 }
 
 // This interface doesn't extend StorageProvider because the return types are incompatible
-interface StorageProviderWithUpdateRelation {
+type StorageProviderWithUpdateRelation = {
   updateRelation(relation: Relation): Promise<Relation>
 }
 
@@ -63,9 +62,10 @@ function hasUpdateRelation(provider: StorageProvider): boolean {
 
 import type { Entity } from "#types/entity.ts"
 
+// Re-export types for other modules
+export type { Entity } from "#types/entity.ts"
 export type { SemanticSearchOptions } from "#types/entity-embedding.ts"
-// Re-export the Relation interface for backward compatibility
-export { Relation } from "#types/relation.ts"
+export type { Relation } from "#types/relation.ts"
 
 // Export the KnowledgeGraph shape
 export type KnowledgeGraph = {
@@ -110,6 +110,11 @@ type KnowledgeGraphManagerOptions = {
   vectorStoreOptions?: VectorStoreFactoryOptions
   logger?: Logger
 }
+
+// Constants for semantic search defaults
+const DEFAULT_SEARCH_LIMIT = 10
+const DEFAULT_MIN_SIMILARITY = 0.7
+const DEFAULT_FALLBACK_THRESHOLD = 0.5
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
 export class KnowledgeGraphManager {
@@ -194,63 +199,6 @@ export class KnowledgeGraphManager {
     return this.vectorStore
   }
 
-  /**
-   * Update an entity's embedding in both the storage provider and vector store
-   *
-   * @param entityName - Name of the entity
-   * @param embedding - The embedding to store
-   * @private
-   */
-  private async updateEntityEmbedding(
-    entityName: string,
-    embedding: EntityEmbedding
-  ): Promise<void> {
-    // First, ensure we have the entity data
-    if (
-      !this.storageProvider ||
-      typeof this.storageProvider.getEntity !== "function"
-    ) {
-      throw new Error(
-        "Storage provider is required to update entity embeddings"
-      )
-    }
-
-    const entity = await this.storageProvider.getEntity(entityName)
-    if (!entity) {
-      throw new Error(`Entity ${entityName} not found`)
-    }
-
-    // Update the storage provider
-    if (
-      this.storageProvider &&
-      typeof this.storageProvider.updateEntityEmbedding === "function"
-    ) {
-      await this.storageProvider.updateEntityEmbedding(entityName, embedding)
-    }
-
-    // Update the vector store - ensure it's initialized first
-    try {
-      const vectorStore = await this.ensureVectorStore()
-
-      // Add metadata for filtering
-      const metadata = {
-        name: entityName,
-        entityType: entity.entityType,
-      }
-
-      await vectorStore.addVector(entityName, embedding.vector, metadata)
-      this.logger.debug(
-        `Updated vector for entity ${entityName} in vector store`
-      )
-    } catch (error) {
-      this.logger.error(
-        `Failed to update vector for entity ${entityName}`,
-        error
-      )
-      throw error
-    }
-  }
-
   async createEntities(entities: Entity[]): Promise<Entity[]> {
     // If no entities to create, return empty array early
     if (!entities || entities.length === 0) {
@@ -266,7 +214,9 @@ export class KnowledgeGraphManager {
     for (const entity of createdEntities) {
       if (entity.embedding?.vector) {
         try {
-          const vectorStore = await this.ensureVectorStore().catch(() => {})
+          const vectorStore = await this.ensureVectorStore().catch(() => {
+            // Vector store initialization failed, continue without it
+          })
           if (vectorStore) {
             // Add metadata for filtering
             const metadata = {
@@ -325,7 +275,9 @@ export class KnowledgeGraphManager {
     // Remove entities from vector store if available
     try {
       // Ensure vector store is available
-      const vectorStore = await this.ensureVectorStore().catch(() => {})
+      const vectorStore = await this.ensureVectorStore().catch(() => {
+        // Vector store initialization failed, continue without it
+      })
 
       if (vectorStore) {
         for (const entityName of entityNames) {
@@ -379,11 +331,11 @@ export class KnowledgeGraphManager {
     await this.storageProvider.deleteRelations(relations)
   }
 
-  async searchNodes(query: string): Promise<KnowledgeGraph> {
+  searchNodes(query: string): Promise<KnowledgeGraph> {
     return this.storageProvider.searchNodes(query)
   }
 
-  async openNodes(names: string[]): Promise<KnowledgeGraph> {
+  openNodes(names: string[]): Promise<KnowledgeGraph> {
     return this.storageProvider.openNodes(names)
   }
 
@@ -448,7 +400,7 @@ export class KnowledgeGraphManager {
       throw new Error("Embedding job manager is required for semantic search")
     }
 
-    const embeddingService = this.embeddingJobManager["embeddingService"]
+    const embeddingService = this.embeddingJobManager.getEmbeddingService()
     if (!embeddingService) {
       throw new Error("Embedding service not available")
     }
@@ -459,11 +411,13 @@ export class KnowledgeGraphManager {
     // If we have a vector store, use it directly
     try {
       // Ensure vector store is available
-      const vectorStore = await this.ensureVectorStore().catch(() => {})
+      const vectorStore = await this.ensureVectorStore().catch(() => {
+        // Vector store initialization failed, continue without it
+      })
 
       if (vectorStore) {
-        const limit = options.limit || 10
-        const minSimilarity = options.threshold || 0.7
+        const limit = options.limit || DEFAULT_SEARCH_LIMIT
+        const minSimilarity = options.threshold || DEFAULT_MIN_SIMILARITY
 
         // Search the vector store
         const results = await vectorStore.search(embedding, {
@@ -486,8 +440,8 @@ export class KnowledgeGraphManager {
     if (this.storageProvider && hasSearchVectors(this.storageProvider)) {
       return this.storageProvider.searchVectors(
         embedding,
-        options.limit || 10,
-        options.threshold || 0.7
+        options.limit || DEFAULT_SEARCH_LIMIT,
+        options.threshold || DEFAULT_MIN_SIMILARITY
       )
     }
 
@@ -501,8 +455,90 @@ export class KnowledgeGraphManager {
    * This is an alias for loadGraph() for backward compatibility
    * @returns The knowledge graph
    */
-  async readGraph(): Promise<KnowledgeGraph> {
+  readGraph(): Promise<KnowledgeGraph> {
     return this.storageProvider.loadGraph()
+  }
+
+  /**
+   * Try to perform semantic search using the storage provider
+   * @private
+   */
+  private async tryProviderSemanticSearch(
+    query: string,
+    effectiveOptions: Record<string, unknown>
+  ): Promise<KnowledgeGraph | null> {
+    if (!(this.storageProvider && hasSemanticSearch(this.storageProvider))) {
+      return null
+    }
+
+    try {
+      // Generate query vector if we have an embedding service
+      if (this.embeddingJobManager) {
+        const embeddingService = this.embeddingJobManager.getEmbeddingService()
+        if (embeddingService) {
+          const queryVector = await embeddingService.generateEmbedding(query)
+          return this.storageProvider.semanticSearch(query, {
+            ...effectiveOptions,
+            queryVector,
+          })
+        }
+      }
+
+      // Fall back to text search if no embedding service
+      return this.storageProvider.searchNodes(query)
+    } catch (error) {
+      this.logger.error(
+        "Provider semanticSearch failed, falling back to basic search",
+        error
+      )
+      return this.storageProvider.searchNodes(query)
+    }
+  }
+
+  /**
+   * Try to perform semantic search using internal implementation
+   * @private
+   */
+  private async tryInternalSemanticSearch(
+    query: string,
+    effectiveOptions: {
+      hybridSearch?: boolean
+      limit?: number
+      threshold?: number
+      minSimilarity?: number
+      entityTypes?: string[]
+      facets?: string[]
+      offset?: number
+    }
+  ): Promise<KnowledgeGraph | null> {
+    if (!this.embeddingJobManager) {
+      return null
+    }
+
+    try {
+      return await this.semanticSearch(query, {
+        hybridSearch: effectiveOptions.hybridSearch,
+        limit: effectiveOptions.limit || DEFAULT_SEARCH_LIMIT,
+        threshold:
+          effectiveOptions.threshold ||
+          effectiveOptions.minSimilarity ||
+          DEFAULT_FALLBACK_THRESHOLD,
+        entityTypes: effectiveOptions.entityTypes || [],
+        facets: effectiveOptions.facets || [],
+        offset: effectiveOptions.offset || 0,
+      })
+    } catch (error) {
+      this.logger.error(
+        "Semantic search failed, falling back to basic search",
+        error
+      )
+
+      // Explicitly call searchNodes if available in the provider
+      if (this.storageProvider) {
+        return this.storageProvider.searchNodes(query)
+      }
+      return null
+    }
   }
 
   /**
@@ -526,77 +562,44 @@ export class KnowledgeGraphManager {
     } = {}
   ): Promise<KnowledgeGraph> {
     // If hybridSearch is true, always set semanticSearch to true as well
-    if (options.hybridSearch) {
-      options = { ...options, semanticSearch: true }
-    }
+    const effectiveOptions = options.hybridSearch
+      ? { ...options, semanticSearch: true }
+      : options
 
     // Check if semantic search is requested
-    if (options.semanticSearch || options.hybridSearch) {
-      // Check if we have a storage provider with semanticSearch method
-      if (this.storageProvider && hasSemanticSearch(this.storageProvider)) {
-        try {
-          // Generate query vector if we have an embedding service
-          if (this.embeddingJobManager) {
-            const embeddingService =
-              this.embeddingJobManager["embeddingService"]
-            if (embeddingService) {
-              const queryVector =
-                await embeddingService.generateEmbedding(query)
-              return this.storageProvider.semanticSearch(query, {
-                ...options,
-                queryVector,
-              })
-            }
-          }
+    if (effectiveOptions.semanticSearch || effectiveOptions.hybridSearch) {
+      // Try provider semantic search first
+      const providerResult = await this.tryProviderSemanticSearch(
+        query,
+        effectiveOptions
+      )
+      if (providerResult) {
+        return providerResult
+      }
 
-          // Fall back to text search if no embedding service
-          return this.storageProvider.searchNodes(query)
-        } catch (error) {
-          this.logger.error(
-            "Provider semanticSearch failed, falling back to basic search",
-            error
-          )
-          return this.storageProvider.searchNodes(query)
-        }
-      } else if (this.storageProvider) {
-        // Fall back to searchNodes if semanticSearch is not available in the provider
+      // Fall back to storage provider's basic search if available
+      if (this.storageProvider) {
         return this.storageProvider.searchNodes(query)
       }
 
-      // If no storage provider or its semanticSearch is not available, try internal semantic search
-      if (this.embeddingJobManager) {
-        try {
-          // Try to use semantic search
-          const results = await this.semanticSearch(query, {
-            hybridSearch: options.hybridSearch,
-            limit: options.limit || 10,
-            threshold: options.threshold || options.minSimilarity || 0.5,
-            entityTypes: options.entityTypes || [],
-            facets: options.facets || [],
-            offset: options.offset || 0,
-          })
+      // Try internal semantic search
+      const internalResult = await this.tryInternalSemanticSearch(
+        query,
+        effectiveOptions
+      )
+      if (internalResult) {
+        return internalResult
+      }
 
-          return results
-        } catch (error) {
-          // Log error but fall back to basic search
-          this.logger.error(
-            "Semantic search failed, falling back to basic search",
-            error
-          )
-
-          // Explicitly call searchNodes if available in the provider
-          if (this.storageProvider) {
-            return (this.storageProvider as StorageProvider).searchNodes(query)
-          }
-        }
-      } else {
+      // Warn if semantic search was requested but not available
+      if (!this.embeddingJobManager) {
         this.logger.warn(
           "Semantic search requested but no embedding capability available"
         )
       }
     }
 
-    // Use basic search
+    // Use basic search as final fallback
     return this.searchNodes(query)
   }
 
@@ -620,8 +623,8 @@ export class KnowledgeGraphManager {
   ): Promise<KnowledgeGraph> {
     // Find similar entities using vector similarity
     const similarEntities = await this.findSimilarEntities(query, {
-      limit: options.limit || 10,
-      threshold: options.threshold || 0.5,
+      limit: options.limit || DEFAULT_SEARCH_LIMIT,
+      threshold: options.threshold || DEFAULT_FALLBACK_THRESHOLD,
     })
 
     if (!similarEntities.length) {
@@ -664,11 +667,11 @@ export class KnowledgeGraphManager {
    * @param relationType The type of the relation
    * @returns The relation or null if not found
    */
-  async getRelation(
+  getRelation(
     from: string,
     to: string,
     relationType: string
-  ): Promise<Relation | null> {
+  ): Promise<Relation | null> | null {
     if (typeof this.storageProvider.getRelation === "function") {
       return this.storageProvider.getRelation(from, to, relationType)
     }
@@ -681,7 +684,7 @@ export class KnowledgeGraphManager {
    * @param relation The relation to update
    * @returns The updated relation
    */
-  async updateRelation(relation: Relation): Promise<Relation> {
+  updateRelation(relation: Relation): Promise<Relation> {
     if (hasUpdateRelation(this.storageProvider)) {
       // Cast to the extended interface to access the method
       const provider = this
@@ -739,7 +742,7 @@ export class KnowledgeGraphManager {
    *
    * @returns Graph with decayed confidences
    */
-  async getDecayedGraph(): Promise<
+  getDecayedGraph(): Promise<
     KnowledgeGraph & { decay_info?: Record<string, unknown> }
   > {
     if (
@@ -758,7 +761,7 @@ export class KnowledgeGraphManager {
    * @param entityName The name of the entity to retrieve history for
    * @returns Array of entity versions
    */
-  async getEntityHistory(entityName: string): Promise<Entity[]> {
+  getEntityHistory(entityName: string): Promise<Entity[]> {
     if (
       !this.storageProvider ||
       typeof this.storageProvider.getEntityHistory !== "function"
@@ -779,7 +782,7 @@ export class KnowledgeGraphManager {
    * @param relationType The type of the relation
    * @returns Array of relation versions
    */
-  async getRelationHistory(
+  getRelationHistory(
     from: string,
     to: string,
     relationType: string
@@ -802,7 +805,7 @@ export class KnowledgeGraphManager {
    * @param timestamp The timestamp (in milliseconds since epoch) to query the graph at
    * @returns The knowledge graph as it existed at the specified time
    */
-  async getGraphAtTime(timestamp: number): Promise<KnowledgeGraph> {
+  getGraphAtTime(timestamp: number): Promise<KnowledgeGraph> {
     if (
       !this.storageProvider ||
       typeof this.storageProvider.getGraphAtTime !== "function"

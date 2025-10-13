@@ -1,5 +1,5 @@
-import * as toolHandlers from "#server/handlers/tool-handlers/index.ts"
 import type { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
+import * as toolHandlers from "#server/handlers/tool-handlers/index.ts"
 import type { Logger } from "#types"
 
 /**

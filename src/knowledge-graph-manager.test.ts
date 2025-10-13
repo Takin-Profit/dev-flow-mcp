@@ -13,8 +13,9 @@ import {
   KnowledgeGraphManager,
   type Relation,
   type SemanticSearchOptions,
-} from "#knowledge-graph-manager.ts"
-import type { StorageProvider } from "#storage/storage-provider.ts"
+} from "#knowledge-graph-manager"
+import type { StorageProvider } from "#storage/storage-provider"
+import type { TemporalEntityType } from "#types"
 
 // Define EntityObservation type based on the addObservations method parameter
 type EntityObservation = {
@@ -143,7 +144,20 @@ describe("KnowledgeGraphManager with StorageProvider", () => {
   })
 
   it("should use StorageProvider createEntities when creating entities", async (t) => {
-    const createEntitiesMock = t.mock.fn(async (entities: Entity[]) => entities)
+    const createEntitiesMock = t.mock.fn(
+      async (entities: Entity[]): Promise<TemporalEntityType[]> =>
+        entities.map((e) => ({
+          id: `id-${e.name}`,
+          name: e.name,
+          entityType: e.entityType,
+          observations: e.observations,
+          version: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          validFrom: Date.now(),
+          embedding: e.embedding,
+        })) as TemporalEntityType[]
+    )
     const mockProvider: Partial<StorageProvider> = {
       createEntities: createEntitiesMock,
       loadGraph: t.mock.fn(() => Promise.resolve(EMPTY_GRAPH)),
@@ -431,7 +445,24 @@ describe("KnowledgeGraphManager Search", () => {
   })
 
   it("should fall back to basic search for file-based implementation", async () => {
-    const fileBasedManager = new KnowledgeGraphManager({})
+    const mockProvider: Partial<StorageProvider> = {
+      searchNodes: mock.fn(() =>
+        Promise.resolve({
+          entities: [
+            {
+              name: "FileResult",
+              entityType: "Test",
+              observations: ["file result"],
+            },
+          ],
+          relations: [],
+        })
+      ),
+    }
+
+    const fileBasedManager = new KnowledgeGraphManager({
+      storageProvider: mockProvider as StorageProvider,
+    })
 
     const fileSearchMock = mock.fn(() =>
       Promise.resolve({
@@ -504,8 +535,21 @@ describe("KnowledgeGraphManager with VectorStore", () => {
       ),
     }
 
-    const createEntitiesMock = t.mock.fn((entities: Entity[]) =>
-      Promise.resolve(entities)
+    const createEntitiesMock = t.mock.fn(
+      (entities: Entity[]): Promise<TemporalEntityType[]> =>
+        Promise.resolve(
+          entities.map((e) => ({
+            id: `id-${e.name}`,
+            name: e.name,
+            entityType: e.entityType,
+            observations: e.observations,
+            version: 1,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            validFrom: Date.now(),
+            embedding: e.embedding,
+          })) as TemporalEntityType[]
+        )
     )
 
     const mockProvider: Partial<StorageProvider> = {
