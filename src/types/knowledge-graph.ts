@@ -27,14 +27,13 @@
  */
 
 import { type } from "arktype"
+import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
+import type { StorageProvider } from "#storage/storage-provider"
 import { Entity } from "#types/entity"
-import { Relation as RelationSchema } from "#types/relation"
-
 // Import types needed for KnowledgeGraphManagerOptions
 import type { Logger } from "#types/index"
-import type { StorageProvider } from "#storage/storage-provider"
+import { Relation as RelationSchema } from "#types/relation"
 import type { VectorStoreFactoryOptions } from "#types/storage"
-import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
 
 /**
  * KnowledgeGraph - the complete knowledge graph structure

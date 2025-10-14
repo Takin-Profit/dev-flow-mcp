@@ -1,47 +1,16 @@
 /**
- * Configuration options for Neo4j
+ * Neo4j Configuration
+ *
+ * Re-exports Neo4jConfig from types for backward compatibility.
+ * The type is now defined in src/types/storage.ts with arktype validation.
  */
-export type Neo4jConfig = {
-  /**
-   * The Neo4j server URI (e.g., 'bolt://localhost:7687')
-   */
-  uri: string
 
-  /**
-   * Username for authentication
-   */
-  username: string
-
-  /**
-   * Password for authentication
-   */
-  password: string
-
-  /**
-   * Neo4j database name
-   */
-  database: string
-
-  /**
-   * Name of the vector index
-   */
-  vectorIndexName: string
-
-  /**
-   * Dimensions for vector embeddings
-   */
-  vectorDimensions: number
-
-  /**
-   * Similarity function to use for vector search
-   */
-  similarityFunction: "cosine" | "euclidean"
-}
+export type { Neo4jConfig } from "#types/storage"
 
 /**
  * Default Neo4j configuration
  */
-export const DEFAULT_NEO4J_CONFIG: Neo4jConfig = {
+export const DEFAULT_NEO4J_CONFIG = {
   uri: "bolt://localhost:7687",
   username: "neo4j",
   password: "memento_password",
@@ -49,4 +18,4 @@ export const DEFAULT_NEO4J_CONFIG: Neo4jConfig = {
   vectorIndexName: "entity_embeddings",
   vectorDimensions: 1536,
   similarityFunction: "cosine",
-}
+} as const satisfies import("#types/storage").Neo4jConfig

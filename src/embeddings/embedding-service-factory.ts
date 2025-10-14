@@ -154,7 +154,9 @@ export class EmbeddingServiceFactory {
     )
 
     if (useMockEmbeddings) {
-      effectiveLogger.info("EmbeddingServiceFactory: Using mock embeddings for testing")
+      effectiveLogger.info(
+        "EmbeddingServiceFactory: Using mock embeddings for testing"
+      )
       return new DefaultEmbeddingService({ logger: effectiveLogger })
     }
 
@@ -233,7 +235,10 @@ export class EmbeddingServiceFactory {
    * @param logger - Optional logger instance
    * @returns Default embedding service
    */
-  static createDefaultService(dimensions?: number, logger?: Logger): EmbeddingService {
+  static createDefaultService(
+    dimensions?: number,
+    logger?: Logger
+  ): EmbeddingService {
     return new DefaultEmbeddingService({ dimensions, logger })
   }
 }
@@ -244,10 +249,11 @@ export class EmbeddingServiceFactory {
 
 EmbeddingServiceFactory.registerProvider(
   "default",
-  (config = {}) => new DefaultEmbeddingService({
-    dimensions: config.dimensions,
-    logger: config.logger
-  })
+  (config = {}) =>
+    new DefaultEmbeddingService({
+      dimensions: config.dimensions,
+      logger: config.logger,
+    })
 )
 
 EmbeddingServiceFactory.registerProvider("openai", (config = {}) => {

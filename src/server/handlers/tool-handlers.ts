@@ -7,31 +7,31 @@
 
 import { type } from "arktype"
 import type { KnowledgeGraphManager } from "#knowledge-graph-manager"
-import { Entity, EntityValidator, Relation, RelationValidator } from "#types"
 import type { Logger } from "#types"
+import { Entity, Relation } from "#types"
 
 /**
  * Arktype schemas for runtime validation of tool arguments
  */
 const ObservationInputSchema = type({
   entityName: "string",
-  "contents": "string[]",
+  contents: "string[]",
 })
 
 const AddObservationsArgsSchema = type({
-  "observations": ObservationInputSchema.array(),
+  observations: ObservationInputSchema.array(),
 })
 
 const CreateEntitiesArgsSchema = type({
-  "entities": "unknown[]",
+  entities: "unknown[]",
 })
 
 const CreateRelationsArgsSchema = type({
-  "relations": "unknown[]",
+  relations: "unknown[]",
 })
 
 const DeleteEntitiesArgsSchema = type({
-  "entityNames": "string[]",
+  entityNames: "string[]",
 })
 
 /**
@@ -47,7 +47,7 @@ export async function handleCreateEntities(
   }
 
   // Validate each entity using ArkType Entity schema
-  const entities: typeof Entity.infer[] = []
+  const entities: (typeof Entity.infer)[] = []
   for (const rawEntity of validated.entities) {
     const entityResult = Entity(rawEntity)
     if (entityResult instanceof type.errors) {
@@ -80,7 +80,7 @@ export async function handleCreateRelations(
   }
 
   // Validate each relation using ArkType Relation schema
-  const relations: typeof Relation.infer[] = []
+  const relations: (typeof Relation.infer)[] = []
   for (const rawRelation of validated.relations) {
     const relationResult = Relation(rawRelation)
     if (relationResult instanceof type.errors) {
@@ -167,7 +167,9 @@ export async function handleAddObservations(
     })
 
     // Call knowledgeGraphManager - validated.observations is properly typed
-    const result = await knowledgeGraphManager.addObservations(validated.observations)
+    const result = await knowledgeGraphManager.addObservations(
+      validated.observations
+    )
 
     logger.debug("addObservations completed successfully", {
       resultCount: result.length,

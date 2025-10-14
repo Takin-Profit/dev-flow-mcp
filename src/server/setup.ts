@@ -3,9 +3,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js"
+import type { KnowledgeGraphManager } from "#knowledge-graph-manager"
 import { handleCallToolRequest } from "#server/handlers/call-tool-handler"
 import { handleListToolsRequest } from "#server/handlers/list-tools-handler"
-import type { KnowledgeGraphManager } from "#knowledge-graph-manager"
 import type { Logger } from "#types"
 
 /**
@@ -15,7 +15,10 @@ import type { Logger } from "#types"
  * @param logger Logger instance for structured logging
  * @returns The configured server instance
  */
-export function setupServer(knowledgeGraphManager: KnowledgeGraphManager, logger: Logger): Server {
+export function setupServer(
+  knowledgeGraphManager: KnowledgeGraphManager,
+  logger: Logger
+): Server {
   // Create server instance
   const server = new Server(
     {
@@ -46,7 +49,11 @@ export function setupServer(knowledgeGraphManager: KnowledgeGraphManager, logger
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
-      const result = await handleCallToolRequest(request, knowledgeGraphManager, logger)
+      const result = await handleCallToolRequest(
+        request,
+        knowledgeGraphManager,
+        logger
+      )
       return result
     } catch (error: unknown) {
       throw error

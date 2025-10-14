@@ -6,25 +6,29 @@ import neo4j from "neo4j-driver"
 import { v4 as uuidv4 } from "uuid"
 import type { EmbeddingService } from "#embeddings/embedding-service"
 import { EmbeddingServiceFactory } from "#embeddings/embedding-service-factory"
-import type { Entity, KnowledgeGraph } from "#knowledge-graph-manager"
-import {
-  DEFAULT_NEO4J_CONFIG,
-  type Neo4jConfig,
-} from "#storage/neo4j/neo4j-config"
+import type { Neo4jConfig } from "#storage/neo4j/neo4j-config"
+import { DEFAULT_NEO4J_CONFIG } from "#storage/neo4j/neo4j-config"
 import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
 import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager"
 import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store"
+import type { StorageProvider } from "#storage/storage-provider"
 import type {
-  SearchOptions,
-  StorageProvider,
-} from "#storage/storage-provider"
-import type {
+  Entity,
   EntityEmbedding,
+  ExtendedEntity,
+  ExtendedRelation,
+  KnowledgeGraph,
+  KnowledgeGraphWithDiagnostics,
   Logger,
-  SemanticSearchOptions,
+  Neo4jSemanticSearchOptions,
+  SearchOptions,
   TemporalEntityType,
 } from "#types"
-import { createNoOpLogger, RelationType } from "#types"
+import {
+  createNoOpLogger,
+  Neo4jNodeValidator,
+  Neo4jRelationshipValidator,
+} from "#types"
 import type { Relation } from "#types/relation"
 
 // ============================================================================
@@ -116,55 +120,6 @@ export type Neo4jStorageProviderOptions = {
    * Logger instance for dependency injection
    */
   logger?: Logger
-}
-
-/**
- * Extended Entity type with additional properties needed for Neo4j
- */
-type ExtendedEntity = Entity & {
-  id?: string
-  version?: number
-  createdAt?: number
-  updatedAt?: number
-  validFrom?: number
-  validTo?: number | null
-  changedBy?: string | null
-}
-
-/**
- * Extended Relation type with additional properties needed for Neo4j
- * Note: This doesn't extend Relation to avoid type conflicts with strength/confidence
- */
-type ExtendedRelation = {
-  id?: string
-  from: string
-  to: string
-  relationType: string
-  version?: number
-  createdAt?: number
-  updatedAt?: number
-  validFrom?: number
-  validTo?: number | null
-  changedBy?: string | null
-  strength?: number | null | undefined
-  confidence?: number | null | undefined
-  metadata?: Record<string, unknown> | null
-}
-
-// These types are used for documentation purposes to understand the Neo4j data model
-
-/**
- * Extended SemanticSearchOptions with additional properties needed for Neo4j
- */
-type Neo4jSemanticSearchOptions = SemanticSearchOptions & {
-  queryVector?: number[]
-}
-
-/**
- * Knowledge graph with optional diagnostics
- */
-type KnowledgeGraphWithDiagnostics = KnowledgeGraph & {
-  diagnostics?: Record<string, unknown>
 }
 
 /**
@@ -304,28 +259,43 @@ export class Neo4jStorageProvider implements StorageProvider {
   }
 
   /**
-   * Convert a Neo4j node to an entity object
+   * Convert a Neo4j node to an entity object with validation
    * @param node Neo4j node properties
    * @returns Entity object
    */
   private nodeToEntity(node: Record<string, unknown>): ExtendedEntity {
+    // Validate the node data using arktype
+    const validationResult = Neo4jNodeValidator(node)
+
+    if (validationResult instanceof type.errors) {
+      this.logger.error("Invalid Neo4j node data", undefined, {
+        errors: validationResult.summary,
+        node,
+      })
+      throw new Error(`Invalid Neo4j node data: ${validationResult.summary}`)
+    }
+
+    // Parse observations from JSON string
     const observations =
-      typeof node.observations === "string"
-        ? JSON.parse(node.observations as string)
+      typeof validationResult.observations === "string"
+        ? JSON.parse(validationResult.observations)
         : []
 
-    return {
-      name: node.name as string,
-      entityType: node.entityType as string,
+    // Return properly typed entity with required temporal fields
+    const entity: ExtendedEntity = {
+      name: validationResult.name,
+      entityType: validationResult.entityType,
       observations,
-      id: node.id as string | undefined,
-      version: node.version as number | undefined,
-      createdAt: node.createdAt as number | undefined,
-      updatedAt: node.updatedAt as number | undefined,
-      validFrom: node.validFrom as number | undefined,
-      validTo: node.validTo as number | null | undefined,
-      changedBy: node.changedBy as string | null | undefined,
+      id: validationResult.id,
+      version: validationResult.version,
+      createdAt: validationResult.createdAt,
+      updatedAt: validationResult.updatedAt,
+      validFrom: validationResult.validFrom,
+      validTo: validationResult.validTo,
+      changedBy: validationResult.changedBy,
     }
+
+    return entity
   }
 
   /**
@@ -342,15 +312,37 @@ export class Neo4jStorageProvider implements StorageProvider {
    * @param toNode To node name
    * @returns Relation object
    */
+  /**
+   * Parse a Neo4j relationship into a relation object with validation
+   * @param rel Relationship properties from Neo4j
+   * @param fromNode From node name
+   * @param toNode To node name
+   * @returns Validated Relation object
+   */
   private relationshipToRelation(
     rel: Record<string, unknown>,
     fromNode: string,
     toNode: string
   ): Relation {
-    // Extract timestamps from the Neo4j relation for metadata
+    // Validate the relationship data using arktype
+    const validationResult = Neo4jRelationshipValidator(rel)
+
+    if (validationResult instanceof type.errors) {
+      this.logger.error("Invalid Neo4j relationship data", undefined, {
+        errors: validationResult.summary,
+        rel,
+        fromNode,
+        toNode,
+      })
+      throw new Error(
+        `Invalid Neo4j relationship data: ${validationResult.summary}`
+      )
+    }
+
+    // Use validated data with defaults for required metadata fields
     const now = Date.now()
-    const createdAt = (rel.createdAt as number) || now
-    const updatedAt = (rel.updatedAt as number) || now
+    const createdAt = validationResult.createdAt || now
+    const updatedAt = validationResult.updatedAt || now
 
     // Create metadata with required fields
     const metadata = {
@@ -358,40 +350,28 @@ export class Neo4jStorageProvider implements StorageProvider {
       updatedAt,
     }
 
-    // Try to merge any additional metadata from the relation
-    if (typeof rel.metadata === "string" && rel.metadata) {
-      try {
-        const parsedMetadata = JSON.parse(rel.metadata as string)
-        Object.assign(metadata, parsedMetadata)
-      } catch {
-        this.logger.warn(
-          `Failed to parse metadata for relation from ${fromNode} to ${toNode}`
-        )
-      }
-    }
-
-    // Validate and narrow relationType using arktype
-    const relationTypeResult = RelationType(rel.relationType)
-    if (relationTypeResult instanceof type.errors) {
-      throw new Error(
-        `Invalid relation type: ${rel.relationType}. Expected one of: implements, depends_on, relates_to, part_of`
-      )
+    // Try to merge any additional metadata from the validated relation
+    if (
+      validationResult.metadata &&
+      typeof validationResult.metadata === "object"
+    ) {
+      Object.assign(metadata, validationResult.metadata)
     }
 
     // Create a standard Relation object with proper type handling
+    // Convert null to undefined for compatibility with Relation interface
     return {
       from: fromNode,
       to: toNode,
-      relationType: relationTypeResult,
-      // Convert null to undefined for compatibility with Relation interface
+      relationType: validationResult.relationType,
       strength:
-        (rel.strength as number | null) === null
+        validationResult.strength === null
           ? undefined
-          : (rel.strength as number),
+          : validationResult.strength,
       confidence:
-        (rel.confidence as number | null) === null
+        validationResult.confidence === null
           ? undefined
-          : (rel.confidence as number),
+          : validationResult.confidence,
       metadata,
     }
   }
@@ -432,7 +412,7 @@ export class Neo4jStorageProvider implements StorageProvider {
       // Execute query to get all current relations
       const relationResult = await this.connectionManager.executeQuery(
         relationQuery,
-        { relationTypes: RelationType.infer }
+        { relationTypes: ["implements", "depends_on", "relates_to", "part_of"] }
       )
 
       // Process relation results
@@ -814,11 +794,11 @@ export class Neo4jStorageProvider implements StorageProvider {
               entityType: entity.entityType,
               observations: JSON.stringify(entity.observations || []),
               version: 1,
-              createdAt: entity.createdAt || now,
-              updatedAt: entity.updatedAt || now,
-              validFrom: entity.validFrom || now,
+              createdAt: now,
+              updatedAt: now,
+              validFrom: now,
               validTo: null,
-              changedBy: entity.changedBy || null,
+              changedBy: null,
               embedding, // Add embedding directly to entity
             }
 
@@ -2179,7 +2159,6 @@ export class Neo4jStorageProvider implements StorageProvider {
         timestamp: Date.now(),
         options: {
           query,
-          hybridSearch: options.hybridSearch,
           hasQueryVector: !!options.queryVector,
           limit: options.limit,
           entityTypes: options.entityTypes,
@@ -2190,7 +2169,6 @@ export class Neo4jStorageProvider implements StorageProvider {
       // Enhanced logging for semantic search
       this.logger.debug("Neo4jStorageProvider: Starting semantic search", {
         query,
-        hybridSearch: options.hybridSearch,
         hasQueryVector: !!options.queryVector,
         limit: options.limit,
         entityTypes: options.entityTypes,

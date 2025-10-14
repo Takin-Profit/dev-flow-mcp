@@ -152,8 +152,7 @@ export function handleListToolsRequest(): {
         properties: {
           observations: {
             type: "array",
-            description:
-              "Array of observations to add to existing entities",
+            description: "Array of observations to add to existing entities",
             items: {
               type: "object",
               properties: {
@@ -165,7 +164,8 @@ export function handleListToolsRequest(): {
                 contents: {
                   type: "array",
                   items: { type: "string" },
-                  description: "An array of observation strings to add to this entity",
+                  description:
+                    "An array of observation strings to add to this entity",
                 },
               },
               required: ["entityName", "contents"],

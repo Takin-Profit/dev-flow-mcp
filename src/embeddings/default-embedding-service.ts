@@ -59,29 +59,30 @@ export class DefaultEmbeddingService extends EmbeddingService {
 
     // Set defaults based on mode
     const defaultDimensions = isMockMode ? 1536 : 384
-    const defaultModel = isMockMode ? "text-embedding-3-small-mock" : "memento-mcp-mock"
+    const defaultModel = isMockMode
+      ? "text-embedding-3-small-mock"
+      : "memento-mcp-mock"
 
     this.dimensions = config.dimensions ?? defaultDimensions
     this.modelName = config.model ?? defaultModel
     this.modelVersion = config.version ?? "1.0.0"
-    this.logger = config.logger ?? { info: () => {}, error: () => {}, warn: () => {}, debug: () => {} }
+    this.logger = config.logger ?? {
+      info: () => {},
+      error: () => {},
+      warn: () => {},
+      debug: () => {},
+    }
 
     if (isMockMode) {
-      this.logger.info(
-        `DefaultEmbeddingService initialized in mock mode`,
-        {
-          dimensions: this.dimensions,
-          model: this.modelName,
-        }
-      )
+      this.logger.info("DefaultEmbeddingService initialized in mock mode", {
+        dimensions: this.dimensions,
+        model: this.modelName,
+      })
     } else {
-      this.logger.debug(
-        `DefaultEmbeddingService initialized`,
-        {
-          dimensions: this.dimensions,
-          model: this.modelName,
-        }
-      )
+      this.logger.debug("DefaultEmbeddingService initialized", {
+        dimensions: this.dimensions,
+        model: this.modelName,
+      })
     }
   }
 

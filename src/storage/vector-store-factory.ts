@@ -11,11 +11,14 @@
  * - Type-safe configuration with proper defaults
  */
 
-import type { Neo4jConfig } from "#storage/neo4j/neo4j-config"
 import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
 import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store"
 import type { Logger, VectorStore } from "#types"
 import { createNoOpLogger } from "#types"
+import type { VectorStoreFactoryOptions } from "#types/storage"
+
+// Re-export for backward compatibility
+export type { VectorStoreFactoryOptions } from "#types/storage"
 
 // ============================================================================
 // Constants
@@ -35,66 +38,6 @@ const DEFAULT_INDEX_NAME = "entity_embeddings"
  * Default similarity function for vector search
  */
 const DEFAULT_SIMILARITY_FUNCTION = "cosine"
-
-// ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Supported vector store types
- */
-export type VectorStoreType = "neo4j"
-
-/**
- * Similarity functions for vector search
- */
-export type VectorSimilarityFunction = "cosine" | "euclidean"
-
-/**
- * Configuration options for vector store factory
- */
-export type VectorStoreFactoryOptions = {
-  /**
-   * The type of vector store to use
-   * @default 'neo4j'
-   */
-  type?: VectorStoreType
-
-  /**
-   * Neo4j configuration options (required for neo4j type)
-   */
-  neo4jConfig?: Neo4jConfig
-
-  /**
-   * Neo4j vector index name
-   * @default 'entity_embeddings'
-   */
-  indexName?: string
-
-  /**
-   * Dimensions for vector embeddings
-   * @default 1536 (OpenAI text-embedding-3-small)
-   */
-  dimensions?: number
-
-  /**
-   * Similarity function for vector search
-   * @default 'cosine'
-   */
-  similarityFunction?: VectorSimilarityFunction
-
-  /**
-   * Whether to initialize the vector store immediately
-   * If false, you must call initialize() manually
-   * @default false
-   */
-  initializeImmediately?: boolean
-
-  /**
-   * Logger instance for dependency injection
-   */
-  logger?: Logger
-}
 
 // ============================================================================
 // Helper Functions

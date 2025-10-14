@@ -1,7 +1,7 @@
-import type { KnowledgeGraph } from "#types"
 import type {
   Entity,
   EntityEmbedding,
+  KnowledgeGraph,
   Relation,
   SearchOptions,
   SemanticSearchOptions,
@@ -90,10 +90,10 @@ export type StorageProvider = {
    * Get a specific relation by its source, target, and type
    * @param from Source entity name
    * @param to Target entity name
-   * @param type Relation type
+   * @param relationType Relation type
    * @returns Promise resolving to the relation or null if not found
    */
-  getRelation?(from: string, to: string, type: string): Promise<Relation | null>
+  getRelation?(from: string, to: string, relationType: string): Promise<Relation | null>
 
   /**
    * Update an existing relation with new properties

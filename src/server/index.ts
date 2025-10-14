@@ -18,14 +18,9 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { initializeStorageProvider } from "#config"
-import { EmbeddingServiceFactory } from "#embeddings/embedding-service-factory"
 import { KnowledgeGraphManager } from "#knowledge-graph-manager"
 import { logger } from "#logger"
 import { setupServer } from "#server/setup"
-
-
-
-
 
 // ============================================================================
 // Main Server Initialization

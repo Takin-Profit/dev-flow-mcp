@@ -36,6 +36,12 @@ import { type } from "arktype"
 import { EntityName } from "#types/shared"
 
 /**
+ * Valid relation types in the knowledge graph
+ */
+export const RelationType = type("'implements' | 'depends_on' | 'relates_to' | 'part_of'")
+export type RelationType = typeof RelationType.infer
+
+/**
  * RelationMetadata with runtime validation
  * Provides additional context and information about relations
  */
@@ -65,7 +71,7 @@ export type RelationMetadata = typeof RelationMetadata.infer
 export const Relation = type({
   from: EntityName,
   to: EntityName,
-  relationType: "'implements' | 'depends_on' | 'relates_to' | 'part_of'",
+  relationType: RelationType,
   "strength?": "0 <= number <= 1",
   "confidence?": "0 <= number <= 1",
   "metadata?": RelationMetadata,
@@ -126,7 +132,9 @@ export const RelationValidator = Object.freeze({
   /**
    * Checks if a relation has valid metadata
    */
-  hasValidMetadata(data: unknown): data is Relation & { metadata: RelationMetadata } {
+  hasValidMetadata(
+    data: unknown
+  ): data is Relation & { metadata: RelationMetadata } {
     if (!RelationValidator.isRelation(data)) {
       return false
     }

@@ -32,7 +32,9 @@ export interface AppContext {
   readonly path: typeof path
 }
 
-export type CliContext = CommandContext & StricliAutoCompleteContext & AppContext
+export type CliContext = CommandContext &
+  StricliAutoCompleteContext &
+  AppContext
 
 /**
  * Build CLI context

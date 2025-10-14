@@ -97,8 +97,10 @@ export type {
 export {
   Relation,
   RelationMetadata,
+  RelationType as RelationTypeValidator,
   RelationValidator,
 } from "#types/relation"
+export type { RelationType as RelationTypeType } from "#types/relation"
 export type {
   EntityName as EntityNameType,
   Observation as ObservationType,
@@ -120,16 +122,30 @@ export {
 import type { default as TemporalEntity } from "#types/temporal"
 export type TemporalEntityType = TemporalEntity
 
-// Vector search and storage types
-export type {
-  VectorIndex,
-  VectorSearchResult,
-  VectorStore,
-} from "#types/vector"
 
+// Neo4j-specific types
+export type {
+  ExtendedEntity,
+  ExtendedRelation,
+  KnowledgeGraphWithDiagnostics,
+  Neo4jNode,
+  Neo4jRelationship,
+  Neo4jSemanticSearchOptions,
+} from "#types/neo4j"
+export {
+  Neo4jNode as Neo4jNodeValidator,
+  Neo4jRelationship as Neo4jRelationshipValidator,
+  Neo4jValidator,
+} from "#types/neo4j"
 // Storage types (SearchOptions and SemanticSearchOptions)
 export type { SearchOptions, SemanticSearchOptions } from "#types/storage"
 export {
   SearchOptions as SearchOptionsValidator,
   SemanticSearchOptions as SemanticSearchOptionsValidator,
 } from "#types/storage"
+// Vector search and storage types
+export type {
+  VectorIndex,
+  VectorSearchResult,
+  VectorStore,
+} from "#types/vector"

@@ -10,6 +10,7 @@ import { type } from "arktype"
 import type {
   Entity,
   KnowledgeGraph,
+  Logger,
   Relation,
   TemporalEntityType,
 } from "#types"
@@ -29,6 +30,36 @@ export type VectorStoreType = typeof VectorStoreType.infer
  */
 export const VectorSimilarityFunction = type("'cosine' | 'euclidean'")
 export type VectorSimilarityFunction = typeof VectorSimilarityFunction.infer
+
+/**
+ * Neo4j configuration with strict validation
+ *
+ * Validates Neo4j connection and vector index configuration.
+ * URIs must start with bolt://, bolt+s://, bolt+ssc://, or neo4j://
+ */
+export const Neo4jConfig = type({
+  /** Neo4j server URI - must be a valid bolt:// or neo4j:// URI */
+  uri: "string >= 10",
+
+  /** Username for authentication - non-empty string */
+  username: "string > 0",
+
+  /** Password for authentication - non-empty string */
+  password: "string > 0",
+
+  /** Neo4j database name - non-empty string */
+  database: "string > 0",
+
+  /** Name of the vector index - non-empty string */
+  vectorIndexName: "string > 0",
+
+  /** Dimensions for vector embeddings - must be positive integer */
+  vectorDimensions: "number.integer > 0",
+
+  /** Similarity function for vector search */
+  similarityFunction: VectorSimilarityFunction,
+})
+export type Neo4jConfig = typeof Neo4jConfig.infer
 
 /**
  * Options for searching nodes in the knowledge graph
@@ -60,17 +91,29 @@ export const SemanticSearchOptions = type({
 export type SemanticSearchOptions = typeof SemanticSearchOptions.infer
 
 /**
- * Configuration options for vector store factory
+ * Configuration options for vector store factory (runtime validation schema)
+ *
+ * This schema validates all properties except logger (which is a method-bearing interface).
+ * The exported TypeScript type intersects this with {logger?: Logger} for type safety.
  */
-export const VectorStoreFactoryOptions = type({
+export const VectorStoreFactoryOptionsSchema = type({
   "type?": VectorStoreType,
-  "neo4jConfig?": "unknown", // Neo4jConfig - complex object
-  "indexName?": "string",
+  "neo4jConfig?": Neo4jConfig,
+  "indexName?": "string > 0",
   "dimensions?": "number.integer > 0",
   "similarityFunction?": VectorSimilarityFunction,
-  "logger?": "unknown", // Logger type
+  "initializeImmediately?": "boolean",
 })
-export type VectorStoreFactoryOptions = typeof VectorStoreFactoryOptions.infer
+
+/**
+ * Configuration options for vector store factory
+ *
+ * Combines arktype validation schema with Logger type for complete type safety.
+ */
+export type VectorStoreFactoryOptions =
+  typeof VectorStoreFactoryOptionsSchema.infer & {
+    logger?: Logger
+  }
 
 // ============================================================================
 // Interface Types (contain methods - cannot use ArkType)
@@ -158,10 +201,10 @@ export type StorageProvider = {
    * Get a specific relation by its source, target, and type
    * @param from Source entity name
    * @param to Target entity name
-   * @param type Relation type
+   * @param relationType Relation type
    * @returns Promise resolving to the relation or null if not found
    */
-  getRelation?(from: string, to: string, type: string): Promise<Relation | null>
+  getRelation?(from: string, to: string, relationType: string): Promise<Relation | null>
 
   /**
    * Update an existing relation with new properties

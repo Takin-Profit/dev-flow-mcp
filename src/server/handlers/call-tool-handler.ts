@@ -336,17 +336,18 @@ export async function handleCallToolRequest(
 
           // Try different methods to find the entity
           // 1. Direct match by name
-          entity = allEntities.entities.find(
-            (e: Entity) => e.name === entityName
-          ) ?? null
+          entity =
+            allEntities.entities.find((e: Entity) => e.name === entityName) ??
+            null
 
           // 2. If not found and input is UUID, try matching by ID
           if (!entity && isUUID) {
-            entity = allEntities.entities.find(
-              (e: Entity & { id?: string }) =>
-                // The id property might not be in the Entity interface, but could exist at runtime
-                "id" in e && e.id === entityName
-            ) ?? null
+            entity =
+              allEntities.entities.find(
+                (e: Entity & { id?: string }) =>
+                  // The id property might not be in the Entity interface, but could exist at runtime
+                  "id" in e && e.id === entityName
+              ) ?? null
             logger.debug("Searching by ID match for UUID", {
               uuid: entityName,
             })
@@ -436,7 +437,9 @@ export async function handleCallToolRequest(
 
         // Directly get the text for the entity
         // Cast to Entity since TemporalEntityType extends Entity and we've already null-checked
-        const embeddingText = embeddingJobManager.prepareEntityText(entity as Entity)
+        const embeddingText = embeddingJobManager.prepareEntityText(
+          entity as Entity
+        )
         logger.debug("Prepared entity text for embedding", {
           textLength: embeddingText.length,
         })
