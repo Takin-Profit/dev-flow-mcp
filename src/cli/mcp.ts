@@ -11,7 +11,7 @@
  */
 
 import { buildCommand } from "@stricli/core"
-import type { CliContext } from "#cli/app.ts"
+import type { CliContext } from "#cli/app"
 import startMcpServer from "#server"
 
 /**

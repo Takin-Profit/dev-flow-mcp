@@ -1,11 +1,46 @@
-# Memento MCP: A Knowledge Graph Memory System for LLMs
-
-![Memento MCP Logo](assets/memento-logo-gray.svg)
+# DevFlow MCP: A Knowledge Graph Memory System for LLMs
 
 Scalable, high performance knowledge graph memory system with semantic retrieval, contextual recall, and temporal awareness. Provides any LLM client that supports the model context protocol (e.g., Claude Desktop, Cursor, Github Copilot) with resilient, adaptive, and persistent long-term ontological memory.
 
-[![Memento MCP Tests](https://github.com/gannonh/memento-mcp/actions/workflows/memento-mcp.yml/badge.svg)](https://github.com/gannonh/memento-mcp/actions/workflows/memento-mcp.yml)
-[![smithery badge](https://smithery.ai/badge/@gannonh/memento-mcp)](https://smithery.ai/server/@gannonh/memento-mcp)
+## About This Fork
+
+DevFlow MCP is a significant fork of [Memento MCP](https://github.com/gannonh/memento-mcp) by Gannon Hall. While we're grateful for the original foundation, DevFlow MCP represents a major architectural departure focused on simplicity, honesty, and AI model usability.
+
+### Why Fork?
+
+**Architectural Clarity**: The original codebase promoted features (strength, confidence, and metadata on observations) that were never implemented. DevFlow MCP removes misleading APIs and dead code, providing only features that actually work.
+
+**Code Quality**: DevFlow MCP has undergone comprehensive refactoring:
+- ✅ **Zero `any` types** - Full TypeScript type safety throughout
+- ✅ **Dependency injection** - Testable, modular architecture
+- ✅ **Modern Neo4j APIs** - Updated to driver v5 best practices
+- ✅ **Structured logging** - Winston + Consola for comprehensive observability
+- ✅ **Magic number elimination** - All constants properly named
+- ✅ **Reduced complexity** - Simpler, more maintainable code
+
+**Better CLI**: Enhanced command-line tools for Neo4j management, testing, and diagnostics.
+
+**Honest Documentation**: README accurately reflects what the code actually does, not aspirational features.
+
+### Key Differences from Memento MCP
+
+| Feature | Memento MCP | DevFlow MCP |
+|---------|-------------|-------------|
+| Observation strength/confidence | Documented but not implemented | Removed (use relations for this) |
+| Type safety | Extensive use of `any` types | Strict TypeScript, zero `any` |
+| Code complexity | High cognitive complexity | Refactored for simplicity |
+| Neo4j driver | Mixed old/new APIs | Fully updated to v5 |
+| Logging | Inconsistent (stderr.write) | Structured (Winston/Consola) |
+| Testing | Basic coverage | Comprehensive with proper mocks |
+| CLI tools | Basic | Enhanced with better diagnostics |
+
+**Bottom Line**: If you want a clean, well-architected, type-safe knowledge graph with honest APIs that actually work as documented, DevFlow MCP is the choice. If you need the original Memento MCP features and ecosystem, use the upstream project.
+
+### Credits
+
+Original work by [Gannon Hall](https://github.com/gannonh) - [Memento MCP](https://github.com/gannonh/memento-mcp)
+
+---
 
 ## Core Concepts
 
@@ -78,14 +113,14 @@ The easiest way to get started with Neo4j is to use [Neo4j Desktop](https://neo4
 1. Download and install Neo4j Desktop from <https://neo4j.com/download/>
 2. Create a new project
 3. Add a new database
-4. Set password to `memento_password` (or your preferred password)
+4. Set a secure password for your database
 5. Start the database
 
 The Neo4j database will be available at:
 
 - **Bolt URI**: `bolt://127.0.0.1:7687` (for driver connections)
 - **HTTP**: `http://127.0.0.1:7474` (for Neo4j Browser UI)
-- **Default credentials**: username: `neo4j`, password: `memento_password` (or whatever you configured)
+- **Default credentials**: username: `neo4j`, password: (your configured password)
 
 ### Neo4j Setup with Docker (Alternative)
 
@@ -280,6 +315,7 @@ The following tools are available to LLM client hosts through the Model Context 
     - Each object contains:
       - `entityName` (string): Target entity
       - `contents` (string[]): New observations to add
+  - Note: Unlike relations, observations do not support strength, confidence, or metadata fields. Observations are atomic facts about entities.
 
 - **delete_entities**
 
@@ -470,33 +506,7 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 
 ### Configuration
 
-Add this to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "memento": {
-      "command": "npx",
-      "args": ["-y", "@gannonh/memento-mcp"],
-      "env": {
-        "MEMORY_STORAGE_TYPE": "neo4j",
-        "NEO4J_URI": "bolt://127.0.0.1:7687",
-        "NEO4J_USERNAME": "neo4j",
-        "NEO4J_PASSWORD": "memento_password",
-        "NEO4J_DATABASE": "neo4j",
-        "NEO4J_VECTOR_INDEX": "entity_embeddings",
-        "NEO4J_VECTOR_DIMENSIONS": "1536",
-        "NEO4J_SIMILARITY_FUNCTION": "cosine",
-        "OPENAI_API_KEY": "your-openai-api-key",
-        "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
-        "DEBUG": "true"
-      }
-    }
-  }
-}
-```
-
-Alternatively, for local development, you can use:
+For local development, add this to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -508,7 +518,7 @@ Alternatively, for local development, you can use:
         "MEMORY_STORAGE_TYPE": "neo4j",
         "NEO4J_URI": "bolt://127.0.0.1:7687",
         "NEO4J_USERNAME": "neo4j",
-        "NEO4J_PASSWORD": "memento_password",
+        "NEO4J_PASSWORD": "your_password",
         "NEO4J_DATABASE": "neo4j",
         "NEO4J_VECTOR_INDEX": "entity_embeddings",
         "NEO4J_VECTOR_DIMENSIONS": "1536",
@@ -529,9 +539,9 @@ Alternatively, for local development, you can use:
 For optimal integration with Claude, add these statements to your system prompt:
 
 ```
-You have access to the Memento MCP knowledge graph memory system, which provides you with persistent memory capabilities.
-Your memory tools are provided by Memento MCP, a sophisticated knowledge graph implementation.
-When asked about past conversations or user information, always check the Memento MCP knowledge graph first.
+You have access to the DevFlow MCP knowledge graph memory system, which provides you with persistent memory capabilities.
+Your memory tools are provided by DevFlow MCP, a sophisticated knowledge graph implementation.
+When asked about past conversations or user information, always check the DevFlow MCP knowledge graph first.
 You should use semantic_search to find relevant information in your memory when answering questions.
 ```
 
@@ -561,7 +571,7 @@ The power of this approach is that users can interact naturally, while the LLM h
 
 ### Real-World Applications
 
-Memento's adaptive search capabilities provide practical benefits:
+DevFlow MCP's adaptive search capabilities provide practical benefits:
 
 1. **Query Versatility**: Users don't need to worry about how to phrase questions - the system adapts to different query types automatically
 
@@ -577,7 +587,7 @@ For example, when a user asks "What do you know about machine learning?", the sy
 
 ### Vector Search Diagnostics
 
-Memento MCP includes built-in diagnostic capabilities to help troubleshoot vector search issues:
+DevFlow MCP includes built-in diagnostic capabilities to help troubleshoot vector search issues:
 
 - **Embedding Verification**: The system checks if entities have valid embeddings and automatically generates them if missing
 - **Vector Index Status**: Verifies that the vector index exists and is in the ONLINE state
@@ -623,54 +633,47 @@ npm run neo4j:init
 
 ```bash
 # Clone the repository
-git clone https://github.com/gannonh/memento-mcp.git
-cd memento-mcp
+git clone https://github.com/takinprofit/devflow-mcp.git
+cd devflow-mcp
 
-# Install dependencies
-npm install
+# Install dependencies (uses pnpm, not npm)
+pnpm install
 
 # Build the project
-npm run build
+pnpm run build
 
 # Run tests
-npm test
+pnpm test
 
 # Check test coverage
-npm run test:coverage
+pnpm run test:coverage
+
+# Type checking
+npx tsc --noEmit
+
+# Linting
+npx ultracite check src/
+npx ultracite fix src/
 ```
 
 ## Installation
 
-### Installing via Smithery
-
-To install memento-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@gannonh/memento-mcp):
-
-```bash
-npx -y @smithery/cli install @gannonh/memento-mcp --client claude
-```
-
-### Global Installation with npx
-
-You can run Memento MCP directly using npx without installing it globally:
-
-```bash
-npx -y @gannonh/memento-mcp
-```
-
-This method is recommended for use with Claude Desktop and other MCP-compatible clients.
-
-### Local Installation
+### Local Development
 
 For development or contributing to the project:
 
 ```bash
-# Install locally
-npm install @gannonh/memento-mcp
+# Clone the repository
+git clone https://github.com/takinprofit/devflow-mcp.git
+cd devflow-mcp
 
-# Or clone the repository
-git clone https://github.com/gannonh/memento-mcp.git
-cd memento-mcp
-npm install
+# Install dependencies
+pnpm install
+
+# Build the CLI
+pnpm run build
+
+# The CLI will be available as 'dfm' command
 ```
 
 ## License

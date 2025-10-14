@@ -11,7 +11,7 @@ import path from "node:path"
 import { consola } from "consola"
 import winston from "winston"
 import DailyRotateFile from "winston-daily-rotate-file"
-import { getLogDir } from "#config.ts"
+import { getLogDir } from "#config"
 import type { Logger } from "#types"
 
 // Get log directory from config (uses XDG paths)

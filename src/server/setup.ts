@@ -3,9 +3,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js"
-import { handleCallToolRequest } from "#server/handlers/call-tool-handler.ts"
-import { handleListToolsRequest } from "#server/handlers/list-tools-handler.ts"
-import type { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
+import { handleCallToolRequest } from "#server/handlers/call-tool-handler"
+import { handleListToolsRequest } from "#server/handlers/list-tools-handler"
+import type { KnowledgeGraphManager } from "#knowledge-graph-manager"
 import type { Logger } from "#types"
 
 /**

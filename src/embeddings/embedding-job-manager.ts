@@ -1,10 +1,10 @@
 import crypto from "crypto"
 import { LRUCache } from "lru-cache"
 import { v4 as uuidv4 } from "uuid"
-import type { EmbeddingService } from "#embeddings/embedding-service.ts"
-import type { Entity } from "#knowledge-graph-manager.ts"
-import type { StorageProvider } from "#storage/storage-provider.ts"
-import type { EntityEmbedding } from "#types/entity-embedding.ts"
+import type { EmbeddingService } from "#embeddings/embedding-service"
+import type { Entity } from "#knowledge-graph-manager"
+import type { StorageProvider } from "#storage/storage-provider"
+import type { EntityEmbedding } from "#types/entity-embedding"
 
 /**
  * Job status type
@@ -223,6 +223,16 @@ export class EmbeddingJobManager {
    */
   getEmbeddingService(): EmbeddingService {
     return this.embeddingService
+  }
+
+  /**
+   * Prepare entity text for embedding generation
+   * Public wrapper for the private _prepareEntityText method
+   * @param entity The entity to prepare text for
+   * @returns The prepared text representation
+   */
+  prepareEntityText(entity: Entity): string {
+    return this._prepareEntityText(entity)
   }
 
   /**

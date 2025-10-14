@@ -17,8 +17,8 @@
 import {
   DEFAULT_NEO4J_CONFIG,
   type Neo4jConfig,
-} from "#storage/neo4j/neo4j-config.ts"
-import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager.ts"
+} from "#storage/neo4j/neo4j-config"
+import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
 import type { Logger } from "#types"
 import { createNoOpLogger } from "#types"
 

@@ -1,13 +1,18 @@
-import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager.ts"
-import type { StorageProvider } from "#storage/storage-provider.ts"
+import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
+import type { StorageProvider } from "#storage/storage-provider"
 import {
   VectorStoreFactory,
   type VectorStoreFactoryOptions,
-} from "#storage/vector-store-factory.ts"
-import type { Logger } from "#types/logger.ts"
-import { createNoOpLogger } from "#types/logger.ts"
-import type { Relation } from "#types/relation.ts"
-import type { VectorStore } from "#types/vector-store.ts"
+} from "#storage/vector-store-factory"
+import type {
+  Entity,
+  KnowledgeGraph,
+  KnowledgeGraphManagerOptions,
+  Logger,
+  Relation,
+  VectorStore,
+} from "#types"
+import { createNoOpLogger } from "#types"
 
 // Extended storage provider interfaces for optional methods
 interface StorageProviderWithSearchVectors extends StorageProvider {
@@ -60,57 +65,6 @@ function hasUpdateRelation(provider: StorageProvider): boolean {
   )
 }
 
-import type { Entity } from "#types/entity.ts"
-
-// Re-export types for other modules
-export type { Entity } from "#types/entity.ts"
-export type { SemanticSearchOptions } from "#types/entity-embedding.ts"
-export type { Relation } from "#types/relation.ts"
-
-// Export the KnowledgeGraph shape
-export type KnowledgeGraph = {
-  entities: Entity[]
-  relations: Relation[]
-  total?: number
-  timeTaken?: number
-  diagnostics?: Record<string, unknown>
-}
-
-// Re-export search types
-export type SearchResult = {
-  entity: Entity
-  score: number
-  matches?: Array<{
-    field: string
-    score: number
-    textMatches?: Array<{
-      start: number
-      end: number
-      text: string
-    }>
-  }>
-  explanation?: unknown
-}
-
-export type SearchResponse = {
-  results: SearchResult[]
-  total: number
-  facets?: Record<
-    string,
-    {
-      counts: Record<string, number>
-    }
-  >
-  timeTaken: number
-}
-
-type KnowledgeGraphManagerOptions = {
-  storageProvider: StorageProvider
-  embeddingJobManager?: EmbeddingJobManager
-  vectorStoreOptions?: VectorStoreFactoryOptions
-  logger?: Logger
-}
-
 // Constants for semantic search defaults
 const DEFAULT_SEARCH_LIMIT = 10
 const DEFAULT_MIN_SIMILARITY = 0.7
@@ -137,6 +91,22 @@ export class KnowledgeGraphManager {
         )
       )
     }
+  }
+
+  /**
+   * Get the storage provider instance
+   * @returns The storage provider or null if not available
+   */
+  getStorageProvider(): StorageProvider | null {
+    return this.storageProvider ?? null
+  }
+
+  /**
+   * Get the embedding job manager instance
+   * @returns The embedding job manager or null if not available
+   */
+  getEmbeddingJobManager(): EmbeddingJobManager | null {
+    return this.embeddingJobManager ?? null
   }
 
   /**

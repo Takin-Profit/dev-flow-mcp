@@ -8,9 +8,9 @@ import path from "node:path"
 import arkenv from "arkenv"
 import { type as t } from "arktype"
 import xdgAppPaths from "xdg-app-paths"
-import { logger } from "#logger.ts"
-import { StorageProviderFactory } from "#storage/storage-provider-factory.ts"
-import type { VectorStoreFactoryOptions } from "#storage/vector-store-factory.ts"
+import { logger } from "#logger"
+import { StorageProviderFactory } from "#storage/storage-provider-factory"
+import type { VectorStoreFactoryOptions } from "#storage/vector-store-factory"
 
 // ============================================================================
 // Environment Variables

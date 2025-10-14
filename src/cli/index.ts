@@ -5,6 +5,6 @@
  */
 
 import { run } from "@stricli/core"
-import { app, buildCliContext } from "#cli/app.ts"
+import { app, buildCliContext } from "#cli/app"
 
 await run(app, process.argv.slice(2), buildCliContext(process))

@@ -5,7 +5,7 @@
  */
 
 import { proposeCompletions } from "@stricli/core"
-import { app, buildCliContext } from "#cli/app.ts"
+import { app, buildCliContext } from "#cli/app"
 
 // Bash completion starts after argv[0] (node), argv[1] (script), argv[2] (command)
 const COMPLETION_ARGS_START_INDEX = 3

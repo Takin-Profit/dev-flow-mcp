@@ -11,8 +11,8 @@
  * - Validation utilities for temporal data
  */
 
-import type { Entity } from "#knowledge-graph-manager"
-import { type Relation, RelationValidator } from "./relation"
+import type { Entity } from "#types/entity"
+import { type Relation, RelationValidator } from "#types/relation"
 
 // ============================================================================
 // Temporal Entity
@@ -51,19 +51,6 @@ export default interface TemporalEntity extends Entity {
 }
 
 /**
- * Frozen object with validation methods for TemporalEntity
- */
-export const TemporalEntity = Object.freeze({
-  isTemporalEntity(obj: unknown): boolean {
-    return TemporalEntityValidator.isTemporalEntity(obj)
-  },
-
-  hasValidTimeRange(obj: unknown): boolean {
-    return TemporalEntityValidator.hasValidTimeRange(obj)
-  },
-})
-
-/**
  * Validator for TemporalEntity objects
  */
 export const TemporalEntityValidator = Object.freeze({
@@ -97,15 +84,24 @@ export const TemporalEntityValidator = Object.freeze({
     }
 
     // Optional properties type checking
-    if (candidate.validFrom !== undefined && typeof candidate.validFrom !== "number") {
+    if (
+      candidate.validFrom !== undefined &&
+      typeof candidate.validFrom !== "number"
+    ) {
       return false
     }
 
-    if (candidate.validTo !== undefined && typeof candidate.validTo !== "number") {
+    if (
+      candidate.validTo !== undefined &&
+      typeof candidate.validTo !== "number"
+    ) {
       return false
     }
 
-    if (candidate.changedBy !== undefined && typeof candidate.changedBy !== "string") {
+    if (
+      candidate.changedBy !== undefined &&
+      typeof candidate.changedBy !== "string"
+    ) {
       return false
     }
 
@@ -165,23 +161,6 @@ export interface TemporalRelation extends Relation {
   /** Optional identifier of who made the change */
   changedBy?: string
 }
-
-/**
- * Frozen object with validation methods for TemporalRelation
- */
-export const TemporalRelation = Object.freeze({
-  isTemporalRelation(obj: unknown): boolean {
-    return TemporalRelationValidator.isTemporalRelation(obj)
-  },
-
-  hasValidTimeRange(obj: unknown): boolean {
-    return TemporalRelationValidator.hasValidTimeRange(obj)
-  },
-
-  isCurrentlyValid(obj: unknown, now = Date.now()): boolean {
-    return TemporalRelationValidator.isCurrentlyValid(obj, now)
-  },
-})
 
 /**
  * Validator for TemporalRelation objects

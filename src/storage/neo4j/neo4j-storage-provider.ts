@@ -4,20 +4,20 @@
 import { type } from "arktype"
 import neo4j from "neo4j-driver"
 import { v4 as uuidv4 } from "uuid"
-import type { EmbeddingService } from "#embeddings/embedding-service.ts"
-import { EmbeddingServiceFactory } from "#embeddings/embedding-service-factory.ts"
-import type { Entity, KnowledgeGraph } from "#knowledge-graph-manager.ts"
+import type { EmbeddingService } from "#embeddings/embedding-service"
+import { EmbeddingServiceFactory } from "#embeddings/embedding-service-factory"
+import type { Entity, KnowledgeGraph } from "#knowledge-graph-manager"
 import {
   DEFAULT_NEO4J_CONFIG,
   type Neo4jConfig,
-} from "#storage/neo4j/neo4j-config.ts"
-import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager.ts"
-import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager.ts"
-import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store.ts"
+} from "#storage/neo4j/neo4j-config"
+import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
+import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager"
+import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store"
 import type {
   SearchOptions,
   StorageProvider,
-} from "#storage/storage-provider.ts"
+} from "#storage/storage-provider"
 import type {
   EntityEmbedding,
   Logger,
@@ -25,7 +25,7 @@ import type {
   TemporalEntityType,
 } from "#types"
 import { createNoOpLogger, RelationType } from "#types"
-import type { Relation } from "#types/relation.ts"
+import type { Relation } from "#types/relation"
 
 // ============================================================================
 // Constants

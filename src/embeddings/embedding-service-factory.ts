@@ -11,9 +11,9 @@
  * - Uses DFM_ prefixed environment variables
  */
 
-import { DefaultEmbeddingService } from "#embeddings/default-embedding-service.ts"
-import type { EmbeddingService } from "#embeddings/embedding-service.ts"
-import { OpenAIEmbeddingService } from "#embeddings/openai-embedding-service.ts"
+import { DefaultEmbeddingService } from "#embeddings/default-embedding-service"
+import type { EmbeddingService } from "#embeddings/embedding-service"
+import { OpenAIEmbeddingService } from "#embeddings/openai-embedding-service"
 import type { Logger } from "#types"
 import { createNoOpLogger } from "#types"
 

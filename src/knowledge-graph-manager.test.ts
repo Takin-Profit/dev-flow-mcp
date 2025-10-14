@@ -12,10 +12,9 @@ import {
   type KnowledgeGraph,
   KnowledgeGraphManager,
   type Relation,
-  type SemanticSearchOptions,
 } from "#knowledge-graph-manager"
 import type { StorageProvider } from "#storage/storage-provider"
-import type { TemporalEntityType } from "#types"
+import type { SemanticSearchOptions, TemporalEntityType } from "#types"
 
 // Define EntityObservation type based on the addObservations method parameter
 type EntityObservation = {
@@ -41,7 +40,7 @@ describe("KnowledgeGraphManager with Enhanced Relations", () => {
     const enhancedRelation: Relation = {
       from: "entity1",
       to: "entity2",
-      relationType: "knows",
+      relationType: "relates_to",
       strength: RELATION_STRENGTH,
       confidence: RELATION_CONFIDENCE,
       metadata: {
@@ -79,7 +78,7 @@ describe("KnowledgeGraphManager with Enhanced Relations", () => {
     const updatedRelation: Relation = {
       from: "entity1",
       to: "entity2",
-      relationType: "knows",
+      relationType: "relates_to",
       strength: UPDATED_STRENGTH,
       confidence: UPDATED_CONFIDENCE,
       metadata: {
@@ -241,7 +240,7 @@ describe("KnowledgeGraphManager with StorageProvider", () => {
     const newRelation: Relation = {
       from: "entity1",
       to: "entity2",
-      relationType: "test",
+      relationType: "relates_to",
     }
     await manager.createRelations([newRelation])
 
@@ -295,7 +294,7 @@ describe("KnowledgeGraphManager with StorageProvider", () => {
     const newRelation: Relation = {
       from: "entity1",
       to: "entity2",
-      relationType: "test",
+      relationType: "relates_to",
     }
 
     const createRelationsMock = t.mock.fn(

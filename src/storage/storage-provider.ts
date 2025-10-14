@@ -1,31 +1,12 @@
-import type { KnowledgeGraph } from "#knowledge-graph-manager.ts"
+import type { KnowledgeGraph } from "#types"
 import type {
   Entity,
   EntityEmbedding,
   Relation,
+  SearchOptions,
   SemanticSearchOptions,
   TemporalEntityType,
 } from "#types"
-
-/**
- * Options for searching nodes in the knowledge graph
- */
-export type SearchOptions = {
-  /**
-   * Maximum number of results to return
-   */
-  limit?: number
-
-  /**
-   * Whether the search should be case-sensitive
-   */
-  caseSensitive?: boolean
-
-  /**
-   * Filter results by entity types
-   */
-  entityTypes?: string[]
-}
 
 /**
  * Interface for storage providers that can load and save knowledge graphs
@@ -194,6 +175,47 @@ export type StorageProvider = {
    * @returns Promise resolving to the entity or null if not found
    */
   getEntity(entityName: string): Promise<TemporalEntityType | null>
+
+  /**
+   * Get the embedding for a specific entity (optional, for vector-enabled storage)
+   * @param entityName Name of the entity
+   * @returns Promise resolving to the embedding or null if not found
+   */
+  getEntityEmbedding?(entityName: string): Promise<EntityEmbedding | null>
+
+  /**
+   * Store or update a vector for an entity (optional, for vector-enabled storage)
+   * @param entityName Name of the entity
+   * @param vector The embedding vector
+   * @returns Promise that resolves when the operation is complete
+   */
+  storeEntityVector?(entityName: string, vector: number[]): Promise<void>
+
+  /**
+   * Get an entity by its internal ID (optional, implementation-specific)
+   * @param entityId The internal ID of the entity
+   * @returns Promise resolving to the entity or null if not found
+   */
+  getEntityById?(entityId: string): Promise<TemporalEntityType | null>
+
+  /**
+   * Count entities that have embeddings (optional, for diagnostic purposes)
+   * @returns Promise resolving to the count
+   */
+  countEntitiesWithEmbeddings?(): Promise<number>
+
+  /**
+   * Get connection manager (optional, implementation-specific)
+   * Used for diagnostics and connection management
+   * @returns The connection manager object
+   */
+  getConnectionManager?(): unknown
+
+  /**
+   * Diagnose vector search functionality (optional, for debugging)
+   * @returns Promise resolving to diagnostic information
+   */
+  diagnoseVectorSearch?(): Promise<Record<string, unknown>>
 }
 
 /**

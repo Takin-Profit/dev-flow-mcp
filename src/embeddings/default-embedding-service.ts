@@ -14,7 +14,7 @@
 import {
   type EmbeddingModelInfo,
   EmbeddingService,
-} from "#embeddings/embedding-service.ts"
+} from "#embeddings/embedding-service"
 import type { Logger } from "#types"
 
 /**

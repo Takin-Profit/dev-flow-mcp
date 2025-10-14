@@ -17,11 +17,11 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { initializeStorageProvider } from "#config.ts"
-import { EmbeddingServiceFactory } from "#embeddings/embedding-service-factory.ts"
-import { KnowledgeGraphManager } from "#knowledge-graph-manager.ts"
-import { logger } from "#logger.ts"
-import { setupServer } from "#server/setup.ts"
+import { initializeStorageProvider } from "#config"
+import { EmbeddingServiceFactory } from "#embeddings/embedding-service-factory"
+import { KnowledgeGraphManager } from "#knowledge-graph-manager"
+import { logger } from "#logger"
+import { setupServer } from "#server/setup"
 
 
 
@@ -59,12 +59,7 @@ export default async function startMcpServer(): Promise<void> {
     const storageProvider = initializeStorageProvider()
 
     // ========================================================================
-    // Step 2: Initialize Embedding Service and Job Manager
-    // ========================================================================
-    const embeddingService = EmbeddingServiceFactory.createFromEnvironment(logger)
-
-    // ========================================================================
-    // Step 3: Create Knowledge Graph Manager
+    // Step 2: Create Knowledge Graph Manager
     // ========================================================================
     logger.debug("Creating knowledge graph manager...")
     const knowledgeGraphManager = new KnowledgeGraphManager({
@@ -73,7 +68,7 @@ export default async function startMcpServer(): Promise<void> {
     })
 
     // ========================================================================
-    // Step 4: Setup and Start MCP Server
+    // Step 3: Setup and Start MCP Server
     // ========================================================================
     logger.debug("Setting up MCP server...")
     const server = setupServer(knowledgeGraphManager, logger)

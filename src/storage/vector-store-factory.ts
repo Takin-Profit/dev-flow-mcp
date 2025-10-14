@@ -11,9 +11,9 @@
  * - Type-safe configuration with proper defaults
  */
 
-import type { Neo4jConfig } from "#storage/neo4j/neo4j-config.ts"
-import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager.ts"
-import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store.ts"
+import type { Neo4jConfig } from "#storage/neo4j/neo4j-config"
+import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
+import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store"
 import type { Logger, VectorStore } from "#types"
 import { createNoOpLogger } from "#types"
 

@@ -1,6 +1,6 @@
-import type { Neo4jConfig } from "#storage/neo4j/neo4j-config.ts"
-import { Neo4jStorageProvider } from "#storage/neo4j/neo4j-storage-provider.ts"
-import type { StorageProvider } from "#storage/storage-provider.ts"
+import type { Neo4jConfig } from "#storage/neo4j/neo4j-config"
+import { Neo4jStorageProvider } from "#storage/neo4j/neo4j-storage-provider"
+import type { StorageProvider } from "#storage/storage-provider"
 
 export type StorageProviderConfig = {
   type: "neo4j"

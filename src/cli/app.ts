@@ -13,8 +13,8 @@ import {
 } from "@stricli/auto-complete"
 import type { CommandContext } from "@stricli/core"
 import { buildApplication, buildRouteMap } from "@stricli/core"
-import { mcpCommand } from "#cli/mcp.ts"
-import { neo4jRoutes } from "#cli/neo4j.ts"
+import { mcpCommand } from "#cli/mcp"
+import { neo4jRoutes } from "#cli/neo4j"
 
 // Package info
 const name = "dfm"

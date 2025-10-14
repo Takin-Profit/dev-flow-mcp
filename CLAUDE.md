@@ -1,39 +1,61 @@
-# DevFlow MCP Server - Comprehensive Project Guide
+# DevFlow MCP - Comprehensive Project Guide
 
 ## Project Overview
 
-**Project Name:** DevFlow MCP Server (fork of Memento MCP)
+**Project Name:** DevFlow MCP (DevFlow Model Context Protocol)
 **Version:** 1.0.0
 **Package Manager:** pnpm (NOT npm)
-**Node Version:** v24.10.0
-**TypeScript:** Latest with strict configuration
+**Node Version:** >=20.0.0
+**TypeScript:** 5.8.2 with strict configuration
 **Primary Language:** TypeScript (ESNext)
 
 ### What Is DevFlow MCP?
 
 DevFlow MCP is a **knowledge graph memory layer** specifically designed for AI-driven software development workflows. It provides persistent, queryable memory for AI agents working on software projects, enabling context-aware decision making, code review, and project planning.
 
+This is a **significant fork** of [Memento MCP](https://github.com/gannonh/memento-mcp) by Gannon Hall, focused on:
+- **Architectural honesty** - Only shipping features that actually work
+- **Code quality** - Zero `any` types, full dependency injection, strict TypeScript
+- **Simplicity** - Removing unimplemented features and dead code
+- **Maintainability** - Modern tooling, comprehensive logging, proper abstractions
+
 ### Core Architecture
 
 The system uses:
 - **Neo4j Graph Database** - For storing entities, relationships, and temporal versioning
 - **Vector Embeddings** - For semantic search (OpenAI text-embedding-3-small, 1536 dimensions)
-- **MCP Protocol** - For communication with AI agents (Claude, etc.)
-- **Stricli CLI** - For command-line operations and database management
+- **MCP Protocol** - For communication with AI agents (Claude Desktop, Cursor, etc.)
+- **Runtime Validation** - ArkType for type safety at runtime
 
-### Design Philosophy
+## Technology Stack
 
-1. **Temporal Knowledge Graph** - All entities and relations are versioned with `validFrom`/`validTo` timestamps
-2. **Semantic Search** - Vector embeddings enable finding related entities by meaning, not just keywords
-3. **Cascading Agent Workflow** - Supports multi-stage development process (Planner → Task Creator → Coder → Reviewer)
-4. **Type Safety First** - Strict TypeScript with no `any` types
-5. **Dependency Injection** - Services accept dependencies via constructor, enabling testability
+### Core Dependencies
+- **@modelcontextprotocol/sdk** (1.11.0) - MCP protocol implementation
+- **neo4j-driver** (^5.28.1) - Neo4j database driver
+- **arktype** (^2.1.22) - Runtime type validation
+- **arkenv** (^0.7.3) - Environment variable validation
+- **openai** (^4.90.0) - OpenAI API for embeddings
+- **winston** (^3.18.3) - Structured logging (server)
+- **consola** (^3.4.2) - User-friendly CLI logging
+- **@stricli/core** (^1.2.0) - CLI framework
 
-## Expected Final Product
+### Development Tools
+- **tsx** (^4.19.3) - Fast TypeScript runner for dev/tests
+- **tsdown** (^0.15.6) - Production TypeScript bundler
+- **ultracite** (^5.6.2) - Biome-based linter/formatter
+- **lefthook** (^1.13.6) - Git hooks for linting
 
-### User Experience
+### Build Tooling
+- **Development**: tsx (uses esbuild internally)
+- **Production**: tsdown for bundling
+- **Testing**: Native Node.js test runner with tsx
+- **Type Checking**: TypeScript compiler (tsc)
 
-A developer working with Claude (or other AI) can:
+## Project Goals & Expected Final Product
+
+### Product Vision
+
+A developer working with Claude (or other AI) should be able to:
 
 1. **Plan Features** - AI creates high-level entity nodes for features and architectural decisions
 2. **Break Down Tasks** - AI decomposes features into tasks with relationships
@@ -41,83 +63,185 @@ A developer working with Claude (or other AI) can:
 4. **Context-Aware Reviews** - AI retrieves relevant history when reviewing code
 5. **Audit Trail** - Full temporal history of all decisions and changes
 
-### Technical Capabilities
+### Cascading Agent Workflow
 
-- **Entity Management** - Create, update, delete entities with observations
-- **Relationship Tracking** - Connect entities with typed relationships (implements, depends_on, relates_to, etc.)
-- **Semantic Search** - Find entities by meaning using vector similarity
-- **Temporal Queries** - Query the graph state at any point in time
-- **Confidence Decay** - Relationships lose confidence over time (configurable)
-- **CLI Tools** - Database management, testing, diagnostics
+The system is designed to support a **multi-stage development cascade**:
 
-### Supported Workflows
+| Agent Role | Goal | Tools Used | Data Saved/Retrieved |
+|------------|------|------------|---------------------|
+| **1. Planner** | Generate high-level feature plan | `create_entities`, `add_observations` | Entity: Project/Feature, Observations: Goals, requirements |
+| **2. Task Creator** | Decompose plan into executable tasks | `create_relations`, `create_entities` | Entities: Task nodes, Relations: PLAN_DECOMPOSED_INTO |
+| **3. Coder/Executor** | Implement code and log key decisions | `add_observations`, `create_relations` | Entities: CodeSnippet, Relations: IMPLEMENTS |
+| **4. Reviewer** | Analyze code and provide feedback | `semantic_search`, `get_entity_history` | Retrieved: Decisions, historical CodeSnippets |
 
-#### 1. Planner Agent
-- Creates entities for high-level features
-- Logs architectural decisions as observations
-- Tools: `create_entities`, `add_observations`
+### Technical Capabilities (Final Product)
 
-#### 2. Task Creator Agent
-- Decomposes features into tasks
-- Creates relationships between tasks and features
-- Tools: `create_entities`, `create_relations`
+- ✅ **Entity Management** - Create, update, delete entities with observations
+- ✅ **Relationship Tracking** - Connect entities with typed relationships (implements, depends_on, relates_to, part_of)
+- ✅ **Semantic Search** - Find entities by meaning using vector similarity
+- ✅ **Temporal Queries** - Query the graph state at any point in time
+- ✅ **Confidence Decay** - Relationships lose confidence over time (configurable)
+- ✅ **CLI Tools** - Database management, testing, diagnostics
+- ✅ **Type Safety** - Runtime validation with arktype, strict TypeScript
+- ✅ **Structured Logging** - Winston (server) + Consola (CLI)
 
-#### 3. Coder/Executor Agent
-- Logs implementation decisions
-- Records patterns and trade-offs
-- Tools: `log_decision` (planned), `add_observations`
+## Current State & Recent Refactoring
 
-#### 4. Reviewer Agent
-- Searches for related code/decisions
-- Retrieves entity history for context
-- Tools: `semantic_search`, `get_entity_history`
+### ✅ Completed Major Refactoring
 
-## Current Architecture
+The project has undergone extensive refactoring from the original Memento MCP:
+
+#### 1. Type Safety (100% Complete)
+- **Zero `any` types** - All uses of `any` replaced with proper types or `unknown`
+- **Strict TypeScript** - `noUncheckedIndexedAccess`, `strictNullChecks`, all strict flags enabled
+- **Runtime Validation** - ArkType used for all data types that need runtime checking
+
+#### 2. Dependency Injection (100% Complete)
+- **Logger Injection** - All services accept logger via constructor
+- **No Global State** - No direct imports of logger or file system utilities
+- **Testable** - Easy to inject mocks for testing
+- **Flexible** - Can swap implementations (Winston vs Consola vs NoOp logger)
+
+#### 3. Modern Neo4j APIs (100% Complete)
+- **Driver v5** - Updated from deprecated APIs
+- **Vector Search** - Using `db.index.vector.queryNodes()` correctly
+- **Proper Normalization** - Vectors normalized to unit length (l2-norm = 1)
+- **Index Management** - Automatic index creation and state verification
+
+#### 4. Removed Unimplemented Features
+- **Observation metadata** - Old API accepted strength/confidence/metadata but silently ignored them
+- **Dead code** - Removed ~150 lines of misleading code that suggested features worked when they didn't
+- **File storage** - Removed deprecated file-based storage provider
+- **Backward compatibility layers** - Cleaned up migration code
+
+#### 5. Build Tooling Modernization
+- **Before**: Node.js experimental type stripping (`NODE_OPTIONS='--experimental-strip-types'`)
+- **After**: tsx (dev) + tsdown (production) - professional, reliable tooling
+- **Benefits**: Proper module resolution, faster builds, better compatibility
+
+#### 6. Type Consolidation
+- **Before**: ~10 small type files scattered across `src/types/`
+- **After**: Consolidated into 6 well-organized files:
+  - `index.ts` - Barrel exports with Logger type
+  - `entity.ts` - Entity types with arktype validation
+  - `relation.ts` - Relation types with arktype validation
+  - `temporal.ts` - Temporal entities/relations with versioning
+  - `vector.ts` - Vector search and store interfaces
+  - `storage.ts` - Storage provider interface and search options
+  - `knowledge-graph.ts` - Knowledge graph types
+  - `shared.ts` - Shared primitives (EntityName, Observation)
+
+### ⚠️ Current Issue: SemanticSearchOptions Type
+
+**Problem**: During type consolidation (commit `1a1e897`), the `SemanticSearchOptions` type was accidentally removed from `src/types/entity-embedding.ts` when that file was consolidated into `index.ts`. However, 4 files still try to import it, causing TypeScript errors.
+
+**Root Cause**: The old type had 15+ properties but most were **never implemented**:
+```typescript
+// Old type (entity-embedding.ts) - REMOVED
+export interface SemanticSearchOptions {
+  semanticSearch?: boolean       // ❌ Never used
+  hybridSearch?: boolean          // ❌ Only logged, doesn't change behavior
+  semanticWeight?: number         // ✅ Used
+  minSimilarity?: number          // ✅ Used
+  expandQuery?: boolean           // ❌ Never implemented
+  includeFacets?: boolean         // ❌ Never implemented
+  facets?: string[]               // ❌ Never implemented
+  includeExplanations?: boolean   // ❌ Never implemented
+  filters?: SearchFilter[]        // ❌ Never implemented
+  limit?: number                  // ✅ Used (but in SearchOptions, not here)
+  offset?: number                 // ❌ Never implemented
+  includeDocuments?: boolean      // ❌ Never implemented
+  useCache?: boolean              // ❌ Never implemented
+  queryVector?: number[]          // ✅ Used internally
+  threshold?: number              // ✅ Used (alias for minSimilarity)
+}
+```
+
+**Analysis of Actual Usage**:
+After grep'ing through `neo4j-storage-provider.ts` and `knowledge-graph-manager.ts`, only these properties **actually affect search results**:
+- `queryVector` - Used in Neo4j query (line 2342)
+- `minSimilarity` - Used in WHERE clause (line 2311, 2336)
+- `threshold` - Alias for minSimilarity (knowledge-graph-manager.ts)
+- `limit` - Already in `SearchOptions` (inherited via intersection)
+- `entityTypes` - Already in `SearchOptions` (inherited via intersection)
+
+Properties that are **only logged** (no behavior change):
+- `hybridSearch` - Only appears in `diagnostics` and `logger.debug`
+
+**Current Work**: Creating a minimal `SemanticSearchOptions` type with only the 3 vector-specific properties that actually affect behavior:
+```typescript
+export const SemanticSearchOptions = type({
+  "queryVector?": "number[]",
+  "minSimilarity?": "number >= 0 & <= 1",
+  "threshold?": "number >= 0 & <= 1",
+})
+export type SemanticSearchOptions = typeof SemanticSearchOptions.infer
+```
+
+**Files That Need Fixing**:
+1. ✅ `src/types/storage.ts` - Added SemanticSearchOptions definition
+2. ✅ `src/types/index.ts` - Added export
+3. ⚠️ `src/storage/storage-provider.ts` - Imports from `#types`, should now work
+4. ⚠️ `src/storage/neo4j/neo4j-storage-provider.ts` - Imports from `#types`, should now work
+5. ⚠️ `src/knowledge-graph-manager.test.ts` - Imports from `#knowledge-graph-manager`, need to check
+
+## Architecture & Code Organization
 
 ### Directory Structure
 
 ```
 src/
-├── cli/                    # Stricli-based CLI commands
-│   ├── index.ts           # CLI entry point
-│   ├── neo4j.ts           # Neo4j management commands
-│   └── bash-complete.ts   # Shell completion
-├── server/                 # MCP server
-│   ├── index.ts           # Server entry point (composition root)
-│   └── handlers/          # MCP tool handlers
-│       └── call-tool-handler.ts
-├── storage/               # Storage abstraction layer
-│   ├── storage-provider.ts          # Interface
-│   ├── file-storage-provider.ts     # File-based (legacy)
-│   ├── vector-store-factory.ts      # Vector store factory
-│   └── neo4j/             # Neo4j implementation
+├── cli/                          # Stricli-based CLI commands
+│   ├── index.ts                 # CLI entry point (bin: dfm)
+│   ├── app.ts                   # CLI application definition
+│   ├── neo4j.ts                 # Neo4j management commands
+│   ├── mcp.ts                   # MCP server command
+│   └── bash-complete.ts         # Shell completion
+│
+├── server/                       # MCP server
+│   ├── index.ts                 # Server entry point & composition root
+│   ├── setup.ts                 # MCP server configuration
+│   └── handlers/                # MCP tool handlers
+│       ├── call-tool-handler.ts      # Main tool dispatcher
+│       ├── list-tools-handler.ts     # Tool schema definitions
+│       └── tool-handlers.ts          # Individual tool implementations
+│
+├── storage/                      # Storage abstraction layer
+│   ├── storage-provider.ts            # StorageProvider interface
+│   ├── storage-provider-factory.ts   # Factory for creating storage providers
+│   ├── vector-store-factory.ts       # Factory for vector stores
+│   └── neo4j/                        # Neo4j implementation
 │       ├── neo4j-config.ts
 │       ├── neo4j-connection-manager.ts
 │       ├── neo4j-schema-manager.ts
-│       ├── neo4j-vector-store.ts    # Vector search (CRITICAL)
-│       └── neo4j-storage-provider.ts # Main storage impl
-├── embeddings/            # Embedding services
-│   ├── embedding-service.ts         # Base class
-│   ├── default-embedding-service.ts # Mock/testing
-│   ├── openai-embedding-service.ts  # Production
-│   └── embedding-service-factory.ts
-├── types/                 # Type definitions
-│   ├── index.ts          # Barrel exports
-│   ├── logger.ts         # Logger interface
-│   ├── entity-embedding.ts
-│   ├── relation.ts
-│   └── vector-store.ts
-├── utils/                 # Utilities
-│   ├── logger.ts         # Winston-based logger (file output)
-│   └── cli-logger.ts     # Consola-based logger (CLI output)
-├── knowledge-graph-manager.ts  # Core business logic
-└── index.ts               # MCP server main entry
-
-Key Configuration Files:
-- tsconfig.json            # TypeScript strict configuration
-- biome.json              # Linter/formatter rules
-- package.json            # Dependencies and scripts
-- lefthook.yml           # Git hooks for linting
+│       ├── neo4j-vector-store.ts        # CRITICAL for semantic search
+│       └── neo4j-storage-provider.ts    # Main storage impl (2450+ lines)
+│
+├── embeddings/                   # Embedding services
+│   ├── embedding-service.ts           # Base class
+│   ├── default-embedding-service.ts   # Mock/deterministic (testing)
+│   ├── openai-embedding-service.ts    # Production (OpenAI API)
+│   ├── embedding-service-factory.ts   # Service creation
+│   ├── embedding-job-manager.ts       # Job queue management
+│   └── config.ts                      # Embedding configuration
+│
+├── types/                        # Type definitions (arktype + TypeScript)
+│   ├── index.ts                 # Barrel exports + Logger type
+│   ├── entity.ts                # Entity with arktype validation
+│   ├── relation.ts              # Relation with arktype validation
+│   ├── temporal.ts              # Temporal entities/relations
+│   ├── vector.ts                # Vector search types
+│   ├── storage.ts               # Storage provider interface
+│   ├── knowledge-graph.ts       # Knowledge graph types
+│   └── shared.ts                # Shared primitives
+│
+├── utils/                        # Utilities
+│   └── search-result-cache.ts   # LRU cache for search results
+│
+├── knowledge-graph-manager.ts    # Core business logic (1500+ lines)
+├── logger.ts                     # Logger implementations (Winston + Consola)
+├── config.ts                     # Configuration and environment
+└── index.ts                      # MCP server main entry
 ```
 
 ### Key Components
@@ -131,7 +255,7 @@ The central orchestrator that:
 - Handles semantic search coordination
 - Provides business logic layer
 
-**Current Status:** Needs refactoring for dependency injection
+**Status:** ✅ Fully refactored with dependency injection
 
 #### 2. Neo4jStorageProvider
 **Location:** `src/storage/neo4j/neo4j-storage-provider.ts`
@@ -143,7 +267,7 @@ The main storage implementation:
 - Confidence decay calculations
 - Comprehensive error handling and logging
 
-**Status:** ✅ Fully refactored with dependency injection
+**Status:** ✅ Fully refactored with dependency injection, zero `any` types
 
 #### 3. Neo4jVectorStore
 **Location:** `src/storage/neo4j/neo4j-vector-store.ts`
@@ -155,7 +279,7 @@ The main storage implementation:
 - Index state verification (must be ONLINE)
 - Proper Neo4j query patterns using `db.index.vector.queryNodes()`
 
-**Status:** ✅ Fully refactored with Neo4j best practices
+**Status:** ✅ Fully refactored with Neo4j v5 best practices
 
 #### 4. Embedding Services
 **Locations:** `src/embeddings/*.ts`
@@ -163,135 +287,19 @@ The main storage implementation:
 - **OpenAIEmbeddingService** - Production embedding (text-embedding-3-small)
 - **DefaultEmbeddingService** - Deterministic mock for testing
 - **EmbeddingServiceFactory** - Creates services from environment config
+- **EmbeddingJobManager** - Manages embedding job queue
 
 **Status:** ✅ Fully refactored with dependency injection
 
-## ✅ Completed Work
+## Design Patterns & Principles
 
-### Phase 1: Foundation (Previously Completed)
+### 1. Dependency Injection
 
-1. **Test Migration** - Vitest → Node.js native test runner
-2. **TypeScript Modernization** - Strict config with bundler module resolution
-3. **Import Cleanup** - Removed `.js` extensions from imports
-4. **Path Aliasing** - `#*` maps to `./src/*` for clean imports
-5. **Development Tools** - Ultracite (Biome) for linting/formatting
-
-### Phase 2: Dependency Injection & Logging (Recently Completed)
-
-#### Embedding Services (Commits: ff20ddf, earlier)
-
-**Changes:**
-- Added `Logger` type definition in `src/types/logger.ts`
-- Created `createNoOpLogger()` factory for default logger
-- Updated `DefaultEmbeddingService` constructor to accept `logger?: Logger`
-- Updated `OpenAIEmbeddingService` constructor to accept `logger?: Logger`
-- Updated `EmbeddingServiceFactory` to pass logger to services
-- Changed environment variables to use `DFM_` prefix:
-  - `MOCK_EMBEDDINGS` → `DFM_MOCK_EMBEDDINGS`
-  - `OPENAI_API_KEY` → `DFM_OPENAI_API_KEY`
-  - `OPENAI_EMBEDDING_MODEL` → `DFM_OPENAI_EMBEDDING_MODEL`
-
-**Why:**
-- Eliminates tight coupling to concrete logger implementation
-- Enables testing with mock loggers
-- Allows swapping log outputs (file vs. CLI vs. no-op)
-
-#### Neo4j Vector Store (Commit: f9d20d7)
-
-**Logical Improvements (Based on Neo4j Documentation):**
-
-1. **Automatic Vector Normalization**
-   ```typescript
-   private normalizeVector(vector: number[]): number[] {
-     // Calculates l2-norm (Euclidean length)
-     // Normalizes to unit length (magnitude = 1)
-     // Required for Neo4j cosine similarity
-   }
-   ```
-
-2. **Vector Validation**
-   ```typescript
-   private isValidVector(vector: number[]): boolean {
-     // Checks for finite values
-     // Verifies non-zero l2-norm
-   }
-   ```
-
-3. **Index State Verification**
-   - Ensures vector index is ONLINE before queries
-   - Provides detailed diagnostics on index state
-
-4. **Proper Query Patterns**
-   ```cypher
-   CALL db.index.vector.queryNodes(
-     'entity_embeddings',  -- index name
-     $limit,               -- max results
-     $embedding            -- normalized query vector
-   )
-   YIELD node, score
-   WHERE score >= $minScore
-   ```
-
-**Code Quality Improvements:**
-- Constructor injection for logger
-- Changed `interface` to `type`
-- Type guards for array access (noUncheckedIndexedAccess compliance)
-- Comprehensive logging at every operation
-- Better error handling with context
-
-#### Neo4j Schema Manager (Commit: f9d20d7)
-
-**Changes:**
-- Logger injection via constructor
-- Refactored `createVectorIndex()` to use options object (4 params max)
-- Type guards for Neo4j record access
-- Changed `interface` to `type`
-
-#### Vector Store Factory (Commit: f9d20d7)
-
-**Changes:**
-- Logger injection throughout
-- Passes logger to Neo4jVectorStore constructor
-
-#### Neo4j Storage Provider (Commit: f9d20d7)
-
-**Major Refactoring:**
-- Logger injection to constructor
-- Passes logger to all child services:
-  - Neo4jSchemaManager
-  - Neo4jVectorStore
-  - EmbeddingServiceFactory
-- Changed all `interface` to `type`:
-  - `Neo4jStorageProviderOptions`
-  - `ExtendedEntity`
-  - `ExtendedRelation`
-  - `Neo4jSemanticSearchOptions`
-  - `KnowledgeGraphWithDiagnostics`
-- Type guards for 40+ Neo4j record array access points
-- Replaced all `logger` imports with `this.logger`
-- Comprehensive logging in all methods
-
-### Phase 3: Type Safety Improvements (In Progress)
-
-#### Completed:
-- Type guards for Neo4j record access (prevents undefined errors)
-- Changed `interface` to `type` throughout storage layer
-- Proper type annotations for all service constructors
-
-#### Remaining:
-- KnowledgeGraphManager type improvements
-- Call tool handler type safety
-- Union types with arktype validation
-
-## Technical Implementation Details
-
-### Dependency Injection Pattern
-
-We use **constructor injection** for all services:
+All services use **constructor injection**:
 
 ```typescript
-// Bad (tight coupling)
-import { logger } from "#utils/logger.ts"
+// ❌ BAD: Tight coupling
+import { logger } from "#logger"
 
 export class MyService {
   doSomething() {
@@ -299,7 +307,7 @@ export class MyService {
   }
 }
 
-// Good (dependency injection)
+// ✅ GOOD: Dependency injection
 import type { Logger } from "#types"
 import { createNoOpLogger } from "#types"
 
@@ -321,24 +329,55 @@ export class MyService {
 - Flexible (swap implementations)
 - No side effects (no global state)
 
-### Logging Strategy
+### 2. ArkType Runtime Validation
 
-We use **dual logging systems**:
+All data types use **arktype** for runtime validation:
 
-1. **Winston (File-based)** - For MCP server
-   - Location: `src/utils/logger.ts`
-   - Output: `logs/devflow-mcp.log`
-   - Levels: error, warn, info, debug
-   - Includes timestamps and metadata
+```typescript
+import { type } from "arktype"
 
-2. **Consola (CLI-based)** - For command-line tools
-   - Location: `src/utils/cli-logger.ts`
-   - Output: stdout/stderr with colors
-   - User-friendly formatting
-   - Progress indicators
+// Define schema with validation
+export const Entity = type({
+  name: "string",
+  entityType: "string",
+  "observations?": "string[]",
+})
+
+// Extract TypeScript type
+export type Entity = typeof Entity.infer
+
+// Validate at runtime
+const result = Entity({ name: "John", entityType: "person" })
+if (result instanceof type.errors) {
+  console.error(result.summary) // Validation errors
+} else {
+  console.log(result) // Validated entity
+}
+```
+
+**Pattern**: Always define schema first, then extract type:
+```typescript
+export const MyType = type({ /* schema */ })
+export type MyType = typeof MyType.infer
+```
+
+### 3. Dual Logging Systems
+
+We use **two different loggers** for different contexts:
+
+#### Winston (File-based) - For MCP Server
+- **Location:** `src/logger.ts` (createFileLogger)
+- **Output:** `~/.local/state/devflow-mcp/log/devflow-mcp.log`
+- **Levels:** error, warn, info, debug
+- **Includes:** timestamps, metadata, rotation
+
+#### Consola (CLI-based) - For Command-line Tools
+- **Location:** `src/logger.ts` (createCliLogger)
+- **Output:** stdout/stderr with colors
+- **User-friendly:** formatting, progress indicators
+- **Use in:** CLI commands only
 
 **Both implement the same `Logger` interface:**
-
 ```typescript
 export type Logger = {
   info(message: string, meta?: LogMetadata): void
@@ -348,72 +387,61 @@ export type Logger = {
 }
 ```
 
-### Environment Variables
+### 4. Composition Root Pattern
+
+The **server entry point** (`src/server/index.ts`) is the composition root where all dependencies are wired together:
+
+```typescript
+// 1. Create logger
+const logger = createFileLogger()
+
+// 2. Initialize storage provider (automatically creates embedding service)
+const storageProvider = await initializeStorageProvider(logger)
+
+// 3. Create knowledge graph manager
+const knowledgeGraphManager = new KnowledgeGraphManager({
+  storageProvider,
+  logger,
+})
+
+// 4. Start MCP server
+await setupMcpServer(server, knowledgeGraphManager, logger)
+```
+
+## Environment Variables
 
 All application environment variables use the `DFM_` prefix:
 
 ```bash
 # Embedding Configuration
-DFM_MOCK_EMBEDDINGS=true              # Use mock embeddings for testing
-DFM_OPENAI_API_KEY=sk-...            # OpenAI API key
+DFM_MOCK_EMBEDDINGS=false              # Use mock embeddings for testing
+DFM_OPENAI_API_KEY=sk-...             # OpenAI API key
 DFM_OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+DFM_EMBEDDING_RATE_LIMIT_TOKENS=150000
+DFM_EMBEDDING_RATE_LIMIT_INTERVAL=60000
 
-# Neo4j Configuration (no prefix)
+# Storage Configuration
+DFM_STORAGE_TYPE=neo4j                 # Only neo4j supported
+
+# Neo4j Configuration (no DFM_ prefix)
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=password
+NEO4J_PASSWORD=memento_password
 NEO4J_DATABASE=neo4j
+NEO4J_VECTOR_INDEX=entity_embeddings
+NEO4J_VECTOR_DIMENSIONS=1536
+NEO4J_SIMILARITY_FUNCTION=cosine
 
-# Logging
-DEBUG=true                            # Enable debug diagnostics
+# Logging Configuration
+DFM_LOG_LEVEL=info                     # error, warn, info, debug
+DFM_ENABLE_CONSOLE_LOGS=false          # Also log to console (in addition to file)
+DFM_DEBUG=false                        # Enable debug diagnostics
+
+# Node Environment
+NODE_ENV=development                    # development, production, test
 ```
 
-### Neo4j Vector Search Best Practices
-
-Based on Neo4j documentation, we implement:
-
-1. **Vector Normalization**
-   - All vectors normalized to unit length (l2-norm = 1)
-   - Required for accurate cosine similarity
-   - Done automatically before storage and search
-
-2. **HNSW Indexing**
-   - Hierarchical Navigable Small World algorithm
-   - Approximate nearest neighbor search
-   - Fast, scalable, and accurate
-
-3. **Index Configuration**
-   ```cypher
-   CREATE VECTOR INDEX entity_embeddings IF NOT EXISTS
-   FOR (n:Entity)
-   ON (n.embedding)
-   OPTIONS {
-     indexConfig: {
-       `vector.dimensions`: 1536,
-       `vector.similarity_function`: 'cosine'
-     }
-   }
-   ```
-
-4. **Index State Management**
-   - Index must be ONLINE before use
-   - Check state with: `SHOW VECTOR INDEXES`
-   - Wait for index population if POPULATING
-
-5. **Query Pattern**
-   ```cypher
-   CALL db.index.vector.queryNodes(
-     'entity_embeddings',  -- index name
-     10,                   -- limit
-     [0.1, 0.2, ...]      -- normalized query vector
-   )
-   YIELD node, score
-   WHERE score >= 0.6     -- minimum similarity
-   RETURN node, score
-   ORDER BY score DESC
-   ```
-
-### TypeScript Configuration
+## TypeScript Configuration
 
 **Key Settings:**
 
@@ -426,6 +454,7 @@ Based on Neo4j documentation, we implement:
     "strict": true,                 // All strict checks
     "noUncheckedIndexedAccess": true,  // array[0] returns T | undefined
     "noUnusedLocals": true,
+    "noUnusedParameters": false,    // Allow unused params (common in interfaces)
     "paths": {
       "#*": ["./src/*"]  // Path aliasing
     }
@@ -439,212 +468,7 @@ Based on Neo4j documentation, we implement:
 - Full type safety, no implicit any
 - Path aliases work in both TS and runtime (via package.json imports)
 
-## 🚧 Remaining Work
-
-### Priority 1: Core Refactoring
-
-#### ✅ KnowledgeGraphManager Dependency Injection (Completed)
-**File:** `src/knowledge-graph-manager.ts`
-
-**Changes:**
-- **Constructor Injection:** Refactored the constructor to require a `StorageProvider` and accept an optional `Logger`.
-- **Removed Direct Imports:** Eliminated direct imports of `#utils/logger.ts` and `#utils/fs.ts`.
-- **Eliminated Fallback Logic:** Removed all deprecated file-based storage logic, including the `loadGraph` and `saveGraph` methods and their usage throughout the class.
-- **Mandatory StorageProvider:** The `KnowledgeGraphManager` now relies exclusively on the injected `StorageProvider` for all persistence operations.
-
-**Impact:** The class is now fully decoupled from concrete storage and logging implementations, adhering to the project's dependency injection pattern. This improves testability and modularity.
-
-#### ✅ Composition Root (Server Entry Point) (Completed)
-**File:** `src/server/index.ts`
-
-**Changes:**
-- **Simplified `startMcpServer`:** Replaced the complex implementation of `startMcpServer` with a streamlined version that follows the dependency injection pattern.
-- **Removed Adapter Logic:** Eliminated all the adapter code, type guards, and helper functions that were previously needed to make the Neo4j storage provider compatible with the embedding job manager.
-- **Centralized Initialization:** The server now relies on the `initializeStorageProvider` function from `src/config.ts` and the `EmbeddingServiceFactory` to create and wire up the necessary services.
-
-**Impact:** The server entry point is now much cleaner, easier to understand, and more maintainable. It clearly shows how the different parts of the application are composed together.
-
-### Priority 2: Bug Fixes
-
-#### ✅ Fix #utils/fs.ts Import in KnowledgeGraphManager (Completed)
-**Issue:** Import path was incorrect or file didn't exist
-**Location:** `src/knowledge-graph-manager.ts:11`
-**Fix:** This issue was resolved by the comprehensive refactoring of the `KnowledgeGraphManager`. All file-based storage logic, including the import of `#utils/fs.ts`, was removed, making this task obsolete.
-
-#### ✅ Neo4j CLI Missing Flags (Completed)
-**Issue:** CLI commands missing required flags for vector operations
-**Location:** `src/cli/neo4j.ts:180`
-**Fix:** Added the `vectorIndex`, `dimensions`, and `similarity` flags to the `test` command definition.
-
-#### ✅ CliContext Type Incompatibility (Completed)
-**Issue:** `CliContext` not compatible with `StricliDynamicCommandContext<CliContext>`
-**Locations:**
-- `src/cli/bash-complete.ts:22`
-- `src/cli/index.ts:10`
-**Fix:** Refactored the `CliContext` in `src/cli/app.ts` to separate the application-specific context from the `stricli` context. This resolved the type incompatibility.
-
-#### ✅ Neo4jConnectionManager Missing Methods (Completed)
-**Issue:** Methods `verifyConnectivity()` and `getDriver()` don't exist
-**Location:** `src/cli/neo4j.ts:72,78`
-**Fix:** Added the `verifyConnectivity()` and `getDriver()` methods to the `Neo4jConnectionManager` class.
-
-#### ✅ Neo4jSchemaManager Constructor Signature (Completed)
-**Issue:** Wrong number of arguments (expects 1-2, getting 3)
-**Location:** `src/cli/neo4j.ts:114`
-**Fix:** Updated the call to use an options object.
-
-### Priority 2.5: ✅ Logging Cleanup (Completed)
-
-**Issue:** Multiple files used `process.stderr.write()` and `process.stdout.write()` instead of the proper logger
-**Impact:** Inconsistent logging, no structured logging, difficult to debug
-
-**Commit:** 364802f
-
-**Changes Made:**
-- ✅ Added logger parameter to `handleCallToolRequest()` function
-- ✅ Passed logger from server setup through to handlers
-- ✅ Replaced all 31+ `process.stderr.write()` calls in `call-tool-handler.ts` with structured logger methods
-- ✅ Added logger parameter to `handleAddObservations()` function with proper typing
-- ✅ Replaced all `process.stderr.write()` calls in `add-observations.ts` with logger methods
-- ✅ Verified CLI files correctly use `cliLogger` (consola) instead of Winston logger
-- ✅ Confirmed `bash-complete.ts` correctly uses `process.stdout.write()` for completion output
-
-**Results:**
-- All MCP server handlers now use Winston logger (file-based, structured logging)
-- All CLI commands use Consola logger (user-friendly, colorized output)
-- Bash completions correctly write to stdout (required for shell integration)
-- Consistent logging with metadata and proper log levels throughout
-
-**Note:** Some linter issues remain and will be addressed in comprehensive code review phase.
-
-### Priority 3: Comprehensive Code Review & Error Elimination (CURRENT PHASE)
-
-**Goal:** Systematically review every file in the codebase, fix all TypeScript errors, linter issues, and code quality problems. By completion, the codebase should have zero errors and follow all best practices.
-
-**Current Status:** ~155 TypeScript errors, ~39 linter errors
-
-**Approach:**
-1. **File-by-File Review** - Review each file systematically, not randomly
-2. **Simultaneous Fixes** - Fix errors as we review, not in separate passes
-3. **Update CLAUDE.md** - Mark files as reviewed/completed as we finish them
-4. **Multi-Session Work** - This will take multiple sessions; track progress carefully
-
-**Review Categories:**
-- ✅ Type safety (remove `any`, add proper types, fix type errors)
-- ✅ Linter compliance (Biome/Ultracite rules)
-- ✅ Error handling (proper catch clauses with `unknown`)
-- ✅ Code complexity (break down complex functions)
-- ✅ Magic numbers/strings (extract to named constants)
-- ✅ Documentation (JSDoc for public APIs)
-- ✅ Unused code (remove dead code)
-- ✅ Best practices (following Ultracite rules from .claude/CLAUDE.md)
-
-**Files to Review (in order):**
-
-#### Core Entry Points
-- [ ] `src/index.ts` - MCP server entry point
-- [ ] `src/server/index.ts` - Server setup and composition root
-- [ ] `src/server/setup.ts` - MCP server configuration
-
-#### Handlers (MCP Tools)
-- [ ] `src/server/handlers/call-tool-handler.ts` - Main tool dispatcher
-- [ ] `src/server/handlers/tool-handlers/index.ts` - Tool handler exports
-- [ ] `src/server/handlers/tool-handlers/add-observations.ts`
-- [ ] `src/server/handlers/tool-handlers/create-entities.ts`
-- [ ] `src/server/handlers/tool-handlers/create-relations.ts`
-- [ ] `src/server/handlers/tool-handlers/delete-entities.ts`
-- [ ] `src/server/handlers/tool-handlers/read-graph.ts`
-
-#### Core Business Logic
-- [ ] `src/knowledge-graph-manager.ts` - Core orchestrator (1500+ lines)
-- [ ] `src/knowledge-graph-manager.test.ts` - Unit tests
-
-#### Storage Layer
-- [ ] `src/storage/storage-provider.ts` - Storage interface
-- [ ] `src/storage/file-storage-provider.ts` - Legacy file storage
-- [ ] `src/storage/vector-store-factory.ts` - Vector store factory
-- [ ] `src/storage/neo4j/neo4j-config.ts`
-- [ ] `src/storage/neo4j/neo4j-connection-manager.ts`
-- [ ] `src/storage/neo4j/neo4j-schema-manager.ts`
-- [ ] `src/storage/neo4j/neo4j-vector-store.ts` - CRITICAL for semantic search
-- [ ] `src/storage/neo4j/neo4j-storage-provider.ts` - Main storage (2450+ lines)
-
-#### Embedding Services
-- [ ] `src/embeddings/embedding-service.ts` - Base class
-- [ ] `src/embeddings/default-embedding-service.ts` - Mock service
-- [ ] `src/embeddings/openai-embedding-service.ts` - Production service
-- [ ] `src/embeddings/embedding-service-factory.ts`
-- [ ] `src/embeddings/embedding-job-manager.ts`
-
-#### CLI Commands
-- [ ] `src/cli/app.ts` - CLI application definition
-- [ ] `src/cli/index.ts` - CLI entry point
-- [ ] `src/cli/bash-complete.ts` - Shell completion
-- [ ] `src/cli/mcp.ts` - MCP command
-- [ ] `src/cli/neo4j.ts` - Neo4j commands
-
-#### Types & Configuration
-- [ ] `src/types/index.ts` - Type barrel exports
-- [ ] `src/types/logger.ts` - Logger interface
-- [ ] `src/types/entity.ts` - Entity types
-- [ ] `src/types/relation.ts` - Relation types
-- [ ] `src/types/entity-embedding.ts`
-- [ ] `src/types/observation.ts`
-- [ ] `src/types/vector-store.ts`
-- [ ] `src/types/arktype.ts` - Runtime validated types
-- [ ] `src/config.ts` - Configuration and environment
-
-#### Utilities
-- [ ] `src/logger.ts` - Logger implementations (Winston + Consola)
-
-**Review Process for Each File:**
-1. Read the entire file carefully
-2. Identify all issues:
-   - TypeScript errors (from `npx tsc --noEmit`)
-   - Linter errors (from `npx ultracite check`)
-   - Code quality issues (complexity, magic numbers, etc.)
-   - Missing documentation
-   - Unused/dead code
-3. Discuss issues with user
-4. Fix all issues in the file
-5. Run type check and linter to verify
-6. Mark file as ✅ completed in this list
-7. Commit changes for that file
-8. Update CLAUDE.md with completion status
-
-**Note:** We'll work through this systematically. Some files may require multiple review sessions.
-
-### Priority 4: Type Safety Improvements (DEFERRED - will be done in Priority 3)
-
-#### ✅ Union Types with arktype (Completed)
-**Goal:** Replace string literals with validated union types
-**What Was Done:**
-- Created `src/types/arktype.ts` with validated union types for EntityType and RelationType
-- Updated `Entity` interface in `src/types/entity.ts` to use `EntityType`
-- Updated `Relation` interface in `src/types/relation.ts` to use `RelationType`
-- Imported `RelationType` in `neo4j-storage-provider.ts` to use validated types internally
-- Removed `relationTypes` parameter from StorageProvider interface methods (types are now centralized)
-
-#### 2. Remove Remaining `any` Types
-**Approach:**
-- Remove ALL `eslint-disable` comments (we use Biome/Ultracite, not ESLint)
-- Create proper types for all `any` usages
-- Use arktype for types that need runtime validation
-- Replace `catch (error: any)` with `catch (error: unknown)` and narrow with type guards
-
-**Locations:**
-- `src/storage/storage-provider.ts` - `createEntities` returns `any[]` (needs proper temporal entity type)
-- `src/storage/neo4j/neo4j-storage-provider.ts` - `createEntities` and internal variables
-- `src/server/handlers/call-tool-handler.ts` - `knowledgeGraphManager: any` parameter and error catches
-
-**Actions:**
-1. Create `TemporalEntity` type with arktype for entities with temporal metadata
-2. Update `StorageProvider.createEntities` signature
-3. Replace all `error: any` with `error: unknown` and proper type narrowing
-4. Remove all `eslint-disable-next-line @typescript-eslint/no-explicit-any` comments
-
-#### 3. Add Type Guards for Record Access
-**Pattern:**
+**Type Guard Pattern:**
 ```typescript
 const record = result.records[0]
 if (!record) {
@@ -652,56 +476,6 @@ if (!record) {
 }
 // Now safe to use record
 ```
-
-### Priority 4: Testing & Documentation
-
-#### 1. Test Logging Infrastructure
-- Create test with mock logger
-- Verify logger is called appropriately
-- Test no-op logger behavior
-
-#### 2. Test CLI Commands
-- Test Neo4j connection verification
-- Test schema initialization
-- Test vector index creation
-
-#### 3. Update Documentation
-- Add JSDoc comments to all public methods
-- Document Neo4j best practices
-- Create developer guide for adding new tools
-
-#### 4. Integration Tests
-- Test full MCP workflow
-- Test semantic search end-to-end
-- Test temporal queries
-
-### Priority 5: Code Quality
-
-#### 1. Reduce Function Complexity
-**Files with High Complexity:**
-- `src/storage/neo4j/neo4j-storage-provider.ts`:
-  - `saveGraph()` - complexity 24 (max 15)
-  - `createEntities()` - complexity 23
-  - `createRelations()` - complexity 21
-  - `addObservations()` - complexity 35
-  - `deleteObservations()` - complexity 16
-  - `semanticSearch()` - complexity 50+
-
-**Fix:** Break into smaller helper methods
-
-#### 2. Extract Magic Numbers
-**Examples:**
-- `30` (halfLifeDays default)
-- `0.1` (minConfidence default)
-- `0.9`, `0.95` (default strength/confidence)
-- `1536` (embedding dimensions)
-
-**Fix:** Create constants at module level
-
-#### 3. Improve Error Messages
-- Add context to all thrown errors
-- Include relevant IDs and names
-- Provide actionable error messages
 
 ## Development Workflow
 
@@ -720,8 +494,11 @@ cp .env.example .env
 # Start Neo4j (if using Docker)
 docker-compose up -d neo4j
 
-# Initialize schema
-pnpm run cli neo4j init
+# Or use Neo4j Desktop (recommended)
+# Download from https://neo4j.com/download/
+
+# Initialize schema (automatic on first run, but can do manually)
+pnpm run neo4j:init
 
 # Run tests
 pnpm test
@@ -730,284 +507,377 @@ pnpm test
 pnpm run dev
 ```
 
-### Common Tasks
+### Common Commands
 
 ```bash
-# TypeScript type checking
-npx tsc --noEmit
-
-# Lint and format
-npx ultracite check src/
-npx ultracite fix src/
-
-# Run specific test
-pnpm test src/knowledge-graph-manager.test.ts
-
-# Build for production
-pnpm run build
-
-# Start server
-pnpm start
-```
-
-### Git Workflow
-
-```bash
-# Pre-commit hooks run automatically via lefthook:
-# 1. ls-lint - checks file naming conventions
-# 2. ultracite - lints and formats staged files
-
-# To skip hooks (use sparingly):
-git commit --no-verify -m "message"
-
-# Check git hooks
-lefthook run pre-commit
-```
-
-## Key Principles & Best Practices
-
-### 1. Type Safety
-- No `any` types (use `unknown` and narrow with type guards)
-- Always handle array[0] as possibly undefined
-- Use type predicates for validation
-- Prefer `type` over `interface` for consistency
-
-### 2. Error Handling
-- Always log errors with context
-- Re-throw after logging (let caller decide recovery)
-- Use typed error objects where appropriate
-- Provide actionable error messages
-
-### 3. Testing
-- 100% coverage for business logic
-- Mock external dependencies (DB, APIs)
-- Test error paths, not just happy paths
-- Use descriptive test names
-
-### 4. Logging
-- Log at appropriate levels:
-  - **ERROR**: Failures requiring attention
-  - **WARN**: Unexpected but handled situations
-  - **INFO**: Important state changes
-  - **DEBUG**: Detailed execution information
-- Include metadata for context
-- Never log sensitive data (API keys, passwords)
-
-### 5. Database Operations
-- Use transactions for multi-step operations
-- Always close sessions in finally blocks
-- Handle connection failures gracefully
-- Validate data before DB operations
-
-### 6. Vector Search
-- Always normalize vectors before storage
-- Validate vector dimensions match index
-- Check index is ONLINE before queries
-- Use appropriate similarity thresholds (0.6+ for cosine)
-
-## Useful Commands Reference
-
-```bash
-# Package Management
-pnpm install                  # Install dependencies
-pnpm add <package>           # Add dependency
-pnpm add -D <package>        # Add dev dependency
+# Development
+pnpm run dev              # Start in development mode (tsx watch)
+pnpm run build            # Build for production (tsdown)
+pnpm start                # Start production server
 
 # Testing
-pnpm test                    # Run all tests
-pnpm test <file>            # Run specific test file
-NODE_OPTIONS='--experimental-strip-types' node --test  # Direct test run
+pnpm test                 # Run all tests
+pnpm run test:watch       # Run tests in watch mode
+pnpm run test:coverage    # Generate coverage report
+pnpm run test:verbose     # Run with verbose output
 
-# TypeScript
-npx tsc --noEmit            # Type check all files
-npx tsc --noEmit <file>     # Type check specific file
-
-# Linting & Formatting
-npx ultracite check src/    # Check all files
-npx ultracite fix src/      # Fix all files
-npx ultracite check <file>  # Check specific file
-npx ultracite fix <file>    # Fix specific file
-
-# Git
-git status                   # Check status
-git diff                     # View changes
-git add -A                   # Stage all changes
-git commit -m "message"      # Commit with message
-git commit --no-verify       # Skip pre-commit hooks
+# Type Checking & Linting
+npx tsc --noEmit          # Type check (no emit)
+pnpm typecheck            # Type check (alias)
+pnpm run check            # Run ultracite linter
+pnpm run lint             # Lint (alias)
+pnpm run fix              # Auto-fix linting issues
+pnpm run doctor           # Check for common issues
 
 # Neo4j CLI
-pnpm run cli neo4j init                    # Initialize schema
-pnpm run cli neo4j test-connection         # Test connection
-pnpm run cli neo4j create-vector-index     # Create vector index
-pnpm run cli neo4j test-vector-search      # Test vector search
+pnpm run neo4j:test       # Test Neo4j connection
+pnpm run neo4j:init       # Initialize schema
+dfm neo4j test --help     # See all options
+dfm neo4j init --help     # See all options
 
-# Development
-pnpm run dev                # Start in development mode
-pnpm run build             # Build for production
-pnpm start                 # Start production server
+# Git Hooks (automatic via lefthook)
+# Pre-commit: runs ultracite on staged files
 ```
 
-## Important File Locations
+### Build Process
 
-### Core Application
-- `src/index.ts` - MCP server entry point
-- `src/knowledge-graph-manager.ts` - Core business logic (1500+ lines)
-- `src/server/index.ts` - Server startup and composition root
-- `src/server/handlers/call-tool-handler.ts` - MCP tool implementations
+**Development:**
+```bash
+pnpm run dev
+# Uses: tsx watch src/index.ts
+# No build step, instant reload
+```
 
-### Storage Layer
-- `src/storage/neo4j/neo4j-storage-provider.ts` - Main storage (2450+ lines, 40+ methods)
-- `src/storage/neo4j/neo4j-vector-store.ts` - Vector search (CRITICAL, 732 lines)
-- `src/storage/neo4j/neo4j-schema-manager.ts` - Schema management
-- `src/storage/neo4j/neo4j-connection-manager.ts` - Connection pooling
+**Production:**
+```bash
+pnpm run build
+# Uses: tsdown (ESM bundler)
+# Output: dist/ directory
+# Entry points:
+#   - dist/index.js (MCP server)
+#   - dist/cli/index.js (CLI - bin: dfm)
+#   - dist/cli/bash-complete.js (Shell completion)
+```
 
-### Services
-- `src/embeddings/openai-embedding-service.ts` - Production embeddings
-- `src/embeddings/default-embedding-service.ts` - Mock embeddings
-- `src/embeddings/embedding-service-factory.ts` - Service creation
+**Testing:**
+```bash
+pnpm test
+# Uses: tsx --test src/**/*.test.ts
+# Native Node.js test runner
+# No separate test build needed
+```
 
-### Configuration & Types
-- `tsconfig.json` - TypeScript configuration (strict mode)
-- `package.json` - Dependencies and scripts
-- `biome.json` - Linter configuration
-- `lefthook.yml` - Git hooks
-- `src/types/` - Type definitions
+## Neo4j Best Practices
 
-### CLI
-- `src/cli/index.ts` - CLI entry point
-- `src/cli/neo4j.ts` - Neo4j management commands
+### Vector Search Implementation
 
-### Testing
-- `src/index.test.ts` - Main entry point tests
-- `src/knowledge-graph-manager.test.ts` - Core logic tests
-- `src/utils/test-teardown.js` - Test cleanup utilities
+Based on Neo4j v5 documentation, we implement:
+
+#### 1. Vector Normalization
+```typescript
+private normalizeVector(vector: number[]): number[] {
+  // Calculate l2-norm (Euclidean length)
+  const norm = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0))
+  // Normalize to unit length (magnitude = 1)
+  return vector.map(v => v / norm)
+}
+```
+**Why:** Required for accurate cosine similarity in Neo4j.
+
+#### 2. Vector Validation
+```typescript
+private isValidVector(vector: number[]): boolean {
+  // Check for finite values
+  if (!vector.every(v => Number.isFinite(v))) return false
+  // Verify non-zero l2-norm
+  const norm = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0))
+  return norm > 0
+}
+```
+
+#### 3. Index State Verification
+- Ensure vector index is ONLINE before queries
+- Check with: `SHOW VECTOR INDEXES`
+- Wait for index population if POPULATING
+
+#### 4. Proper Query Pattern
+```cypher
+CALL db.index.vector.queryNodes(
+  'entity_embeddings',  -- index name
+  $limit,               -- max results
+  $embedding            -- normalized query vector
+)
+YIELD node, score
+WHERE score >= $minScore
+RETURN node, score
+ORDER BY score DESC
+```
+
+#### 5. Index Configuration
+```cypher
+CREATE VECTOR INDEX entity_embeddings IF NOT EXISTS
+FOR (n:Entity)
+ON (n.embedding)
+OPTIONS {
+  indexConfig: {
+    `vector.dimensions`: 1536,
+    `vector.similarity_function`: 'cosine'
+  }
+}
+```
+
+## Testing Strategy
+
+### Test Files
+- `src/index.test.ts` - MCP server entry point tests
+- `src/knowledge-graph-manager.test.ts` - Core business logic tests
+- `src/server/handlers/call-tool-handler.test.ts` - Tool handler tests
+
+### Test Patterns
+
+**Mock Logger:**
+```typescript
+const mockLogger: Logger = {
+  info: () => {},
+  error: () => {},
+  warn: () => {},
+  debug: () => {},
+}
+```
+
+**Mock Storage Provider:**
+```typescript
+const mockStorageProvider: StorageProvider = {
+  loadGraph: async () => ({ entities: [], relations: [] }),
+  saveGraph: async () => {},
+  // ... other methods
+}
+```
+
+**Running Tests:**
+```bash
+# All tests
+pnpm test
+
+# Watch mode
+pnpm run test:watch
+
+# With coverage
+pnpm run test:coverage
+
+# Single file
+pnpm test src/knowledge-graph-manager.test.ts
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### 1. TypeScript Errors on Array Access
+#### 1. Module Resolution Errors
+**Error:** `Cannot find module '#types/...`
+**Cause:** Path mappings not configured correctly
+**Fix:** Check both `tsconfig.json` paths and `package.json` imports
+
+#### 2. Neo4j Connection Failed
+**Error:** `Failed to connect to Neo4j`
+**Fix:**
+```bash
+# Test connection
+pnpm run neo4j:test
+
+# Check Neo4j is running
+docker ps  # or check Neo4j Desktop
+
+# Verify credentials in .env
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=your_password
+```
+
+#### 3. Vector Index Not Found
+**Error:** `Vector index 'entity_embeddings' not found`
+**Fix:**
+```bash
+# Initialize schema
+pnpm run neo4j:init
+
+# Verify index exists
+# In Neo4j Browser: SHOW VECTOR INDEXES
+```
+
+#### 4. TypeScript Errors on Array Access
 **Error:** `Object is possibly 'undefined'`
 **Cause:** `noUncheckedIndexedAccess` is enabled
 **Fix:** Add type guard:
 ```typescript
-const record = result.records[0]
-if (!record) {
-  throw new Error("No record found")
+const item = array[0]
+if (!item) {
+  throw new Error("Item not found")
 }
-// Now safe to use
+// Now safe to use item
 ```
 
-#### 2. Import Resolution Errors
-**Error:** `Cannot find module '#storage/...'`
-**Cause:** Path mapping not configured
-**Fix:** Ensure both `tsconfig.json` and `package.json` have path mappings
+## Current Work & Next Steps
 
-#### 3. Neo4j Vector Index Not Found
-**Error:** `Vector index 'entity_embeddings' not found`
-**Cause:** Index not created or not ONLINE
-**Fix:**
-```bash
-pnpm run cli neo4j init
-# Wait for index to be ONLINE (check with SHOW VECTOR INDEXES)
+### ✅ Completed - SemanticSearchOptions Type Issue RESOLVED
+
+**Problem**: During type consolidation (commit `1a1e897`), `SemanticSearchOptions` was lost when `entity-embedding.ts` was consolidated into `index.ts`.
+
+**Solution Implemented**:
+1. ✅ Created minimal `SemanticSearchOptions` in `src/types/storage.ts` with only 3 vector-specific properties:
+   - `queryVector?: number[]` - Pre-computed query vector
+   - `minSimilarity?: number` - Minimum similarity threshold (0.0-1.0)
+   - `threshold?: number` - Alias for minSimilarity
+2. ✅ Exported both type and validator from `src/types/index.ts`
+3. ✅ Removed circular import from `src/types/storage.ts`
+4. ✅ Removed duplicate `SearchOptions` definition in `src/storage/storage-provider.ts`
+5. ✅ Fixed import in `src/knowledge-graph-manager.test.ts` to import from `#types` instead of `#knowledge-graph-manager`
+
+**Architecture**: `SemanticSearchOptions` is used via intersection type with `SearchOptions`:
+```typescript
+// In implementations:
+function semanticSearch(
+  query: string,
+  options: SearchOptions & SemanticSearchOptions
+): Promise<KnowledgeGraph>
 ```
 
-#### 4. Embedding Dimension Mismatch
-**Error:** `Vector dimensions don't match index`
-**Cause:** Embedding model changed or index misconfigured
-**Fix:** Recreate index with correct dimensions
+This provides clean separation:
+- `SearchOptions` = general search options (limit, entityTypes, caseSensitive)
+- `SemanticSearchOptions` = vector-specific options (queryVector, minSimilarity, threshold)
 
-#### 5. Test Failures with Mocking
-**Error:** Mock calls undefined
-**Cause:** Need optional chaining with strict TypeScript
-**Fix:** Use `mock.mock.calls[0]?.arguments[0]`
+### ✅ Completed - KnowledgeGraphManagerOptions Type Issue RESOLVED
 
-## Next Steps
+**Problem**: `KnowledgeGraphManagerOptions` was defined with arktype using all `"unknown"` types, which caused the inferred TypeScript type to also be `unknown`. This led to type errors in the constructor:
+- `Type 'unknown' is not assignable to type 'StorageProvider'`
+- `Type '{}' is missing properties from type 'Logger'`
+- `Type 'unknown' is not assignable to type 'EmbeddingJobManager | undefined'`
 
-### ✅ Completed
-1. ✅ Refactored KnowledgeGraphManager with dependency injection
-2. ✅ Updated server composition root to wire dependencies
-3. ✅ Fixed #utils/fs.ts import issue (removed file-based storage)
-4. ✅ Fixed all CLI-related bugs
-5. ✅ Added comprehensive logging throughout (Winston + Consola)
+**Root Cause**: Arktype cannot validate complex interfaces with methods at runtime, so attempting to use arktype for this options type was both useless (everything was `unknown`) and harmful (broke TypeScript inference).
 
-### Immediate (Current Phase - Multiple Sessions Expected)
-**Comprehensive Code Review & Error Elimination**
-1. Systematically review all ~50 source files
-2. Fix all TypeScript errors (~155 total)
-3. Fix all linter errors (~39 total)
-4. Improve code quality (complexity, magic numbers, documentation)
-5. Update CLAUDE.md after each file/group is completed
-6. Commit changes incrementally as files are reviewed
+**Solution**: Changed from arktype schema to plain TypeScript type:
+```typescript
+// Before (arktype - BAD):
+export const KnowledgeGraphManagerOptions = type({
+  storageProvider: "unknown",
+  "embeddingJobManager?": "unknown",
+  "vectorStoreOptions?": "unknown",
+  "logger?": "unknown",
+})
+export type KnowledgeGraphManagerOptions = typeof KnowledgeGraphManagerOptions.infer
 
-**Files to review:** See Priority 3 section above for complete list
+// After (plain TypeScript - GOOD):
+export type KnowledgeGraphManagerOptions = {
+  storageProvider: StorageProvider
+  embeddingJobManager?: EmbeddingJobManager
+  vectorStoreOptions?: VectorStoreFactoryOptions
+  logger?: Logger
+}
+```
 
-### Short Term (After Code Review Complete)
-1. Complete integration tests for full MCP workflow
-2. Add semantic search end-to-end tests
-3. Performance optimization for large graphs
-4. Benchmark embedding generation and storage
+**Files Modified**:
+1. ✅ `src/types/knowledge-graph.ts` - Converted to plain TypeScript type with proper type references
+2. ✅ `src/types/knowledge-graph.ts` - Added necessary imports for the types
+3. ✅ `src/types/index.ts` - Removed validator export (no longer exists)
 
-### Medium Term (Next Phase)
-1. Add caching layer for embeddings
-2. Support multiple embedding models
-3. Graph analytics and insights tools
-4. Batch operation optimizations
+### 🔄 Next Steps
+1. **Run type check** - `npx tsc --noEmit` to verify zero TypeScript errors
+2. **Run tests** - `pnpm test` to verify all tests pass
+3. **Continue fixing remaining TypeScript errors** - Work through the error list systematically
+4. **Continue code review** - Resume comprehensive review of remaining files
 
-### Long Term (Future)
-1. Graph visualization tools
-2. Support for other vector databases (Qdrant, Pinecone)
-3. Web UI for knowledge graph exploration
-4. Multi-user support and access control
+### Future Work
+- Complete comprehensive code review of remaining files
+- Document all MCP tools with examples
+- Add integration tests for full workflow
+- Performance optimization for large graphs
+- Consider adding more embedding providers (local models)
 
-## Success Criteria
+## Important Notes for Future Sessions
 
-### Phase 1: Dependency Injection (COMPLETE ✅)
-- ✅ All services use dependency injection
-- ✅ No direct logger imports (except composition root)
-- ✅ Vector search works correctly with normalized vectors
-- ✅ Semantic search returns relevant results
-- ✅ CLI commands work without errors
-- ✅ MCP server starts and responds to tools
-- ✅ Knowledge graph persists correctly in Neo4j
-- ✅ Comprehensive logging with Winston (server) and Consola (CLI)
+### What You Need to Know
 
-### Phase 2: Comprehensive Code Review (IN PROGRESS 🚧)
-- ⬜ TypeScript compiles with zero errors
-- ⬜ Linter passes on all files
-- ⬜ All tests pass
-- ⬜ No `any` types in codebase
-- ⬜ All public APIs have JSDoc documentation
-- ⬜ Function complexity within acceptable limits
-- ⬜ All magic numbers/strings extracted to named constants
-- ⬜ Proper error handling with `unknown` type
-- ⬜ All files reviewed and marked complete in CLAUDE.md
+1. **We removed features that didn't work** - The original Memento MCP documented features that were never implemented. We removed dead code to provide an honest API.
 
-## Resources
+2. **We use arktype for everything** - All types that need runtime validation use arktype. Pattern is always:
+   ```typescript
+   export const MyType = type({ /* schema */ })
+   export type MyType = typeof MyType.infer
+   ```
 
-### Documentation
-- [Neo4j Vector Index Docs](https://neo4j.com/docs/cypher-manual/current/indexes-for-vector-search/)
-- [MCP Protocol Spec](https://modelcontextprotocol.io/)
-- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
-- [Stricli CLI Framework](https://stricli.js.org/)
+3. **We have two loggers** - Winston for server (file logs), Consola for CLI (stdout). Both implement same `Logger` interface.
 
-### Related Files
-- `.github/copilot-instructions.md` - AI coding guidelines
-- `docs/PRD.md` - Product requirements (if exists)
+4. **Dependency injection everywhere** - All services accept dependencies via constructor. No global state, no direct imports of utilities.
+
+5. **Current issue** - `SemanticSearchOptions` type was lost during consolidation. We're recreating it with only actually-used properties.
+
+6. **No npm** - This project uses **pnpm**. Always use `pnpm install`, `pnpm test`, etc.
+
+7. **Path aliases** - Use `#types`, `#storage`, etc. for imports. Defined in `tsconfig.json` paths and `package.json` imports.
+
+8. **Environment variables** - App-specific vars use `DFM_` prefix (e.g., `DFM_OPENAI_API_KEY`). Neo4j vars don't have prefix.
+
+## Key Files Reference
+
+### Must-Read Files
 - `README.md` - User-facing documentation
+- `package.json` - Dependencies, scripts, project metadata
+- `tsconfig.json` - TypeScript configuration
+- `.env.example` - Environment variable template
+- `src/config.ts` - Configuration and env validation
+- `src/types/index.ts` - Type barrel exports
+- `src/knowledge-graph-manager.ts` - Core business logic
+
+### Critical Implementation Files
+- `src/storage/neo4j/neo4j-storage-provider.ts` - Main storage (2450+ lines)
+- `src/storage/neo4j/neo4j-vector-store.ts` - Vector search (CRITICAL)
+- `src/server/handlers/call-tool-handler.ts` - MCP tool dispatcher
+- `src/embeddings/embedding-job-manager.ts` - Embedding queue
+
+### Configuration Files
+- `biome.json` - Linter/formatter config (via ultracite)
+- `lefthook.yml` - Git hooks
+- `tsdown.config.ts` - Production build config
+- `docker-compose.yml` - Neo4j container setup
+
+## Useful Commands Quick Reference
+
+```bash
+# Development
+pnpm run dev                    # Start dev server
+pnpm run build                  # Build production
+pnpm test                       # Run tests
+
+# Type Checking
+npx tsc --noEmit               # Check types
+pnpm run check                 # Run linter
+
+# Neo4j
+pnpm run neo4j:test            # Test connection
+pnpm run neo4j:init            # Initialize schema
+dfm neo4j test --uri bolt://localhost:7687
+
+# Git
+git log --oneline -20          # Recent commits
+git show <commit>              # Show commit details
+git diff HEAD~5..HEAD          # Recent changes
+
+# Search Codebase
+grep -r "pattern" src/         # Search files
+grep -n "pattern" file.ts      # With line numbers
+```
 
 ## Contact & Support
 
 For questions or issues:
 1. Check this CLAUDE.md file first
-2. Review error logs in `logs/devflow-mcp.log`
-3. Check TypeScript output: `npx tsc --noEmit`
-4. Review Neo4j schema: `pnpm run cli neo4j init`
+2. Review error logs in `~/.local/state/devflow-mcp/log/`
+3. Run diagnostics: `pnpm run neo4j:test`, `npx tsc --noEmit`
+4. Check Neo4j schema: `SHOW VECTOR INDEXES` in Neo4j Browser
 
 ---
 
-**Last Updated:** 2025-01-13 (Session: Logging Cleanup Complete)
-**Current Phase:** Comprehensive Code Review & Error Elimination (Priority 3)
-**Next Priority:** Begin file-by-file code review starting with core entry points
-**TypeScript Errors:** ~155 total
-**Linter Errors:** ~39 total
+**Last Updated:** 2025-10-14
+**Current Session Focus:** Fixing `SemanticSearchOptions` type that was lost during consolidation
+**Status:** Type definition created but needs verification
+**Next Action:** Fix type design issue identified by user
