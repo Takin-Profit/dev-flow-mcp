@@ -12,12 +12,11 @@
  * - Accepts logger via constructor injection (dependency inversion)
  */
 
+import { type } from "arktype"
 import axios from "axios"
-import {
-  type EmbeddingModelInfo,
-  EmbeddingService,
-} from "#embeddings/embedding-service"
-import type { Logger } from "#types"
+import { EmbeddingService } from "#embeddings/embedding-service"
+import type { EmbeddingModel, EmbeddingModelInfo, Logger } from "#types"
+import { OpenAIEmbeddingModelValidator } from "#types"
 
 /**
  * Configuration for OpenAI embedding service
@@ -26,7 +25,7 @@ export type OpenAIEmbeddingConfig = {
   /** OpenAI API key (required) */
   apiKey: string
   /** Model name (default: text-embedding-3-small) */
-  model?: string
+  model?: EmbeddingModel
   /** Embedding dimensions (default: 1536) */
   dimensions?: number
   /** Model version string (default: 3.0.0) */
@@ -64,7 +63,7 @@ type OpenAIEmbeddingResponse = {
  */
 export class OpenAIEmbeddingService extends EmbeddingService {
   private readonly apiKey: string
-  private readonly model: string
+  private readonly model: EmbeddingModel
   private readonly dimensions: number
   private readonly version: string
   private readonly apiEndpoint: string
@@ -92,10 +91,30 @@ export class OpenAIEmbeddingService extends EmbeddingService {
     }
 
     this.apiKey = apiKey
-    this.model =
+
+    // Validate and set model, defaulting to text-embedding-3-small if invalid
+    const modelCandidate =
       config.model ||
       process.env.DFM_OPENAI_EMBEDDING_MODEL ||
       "text-embedding-3-small"
+
+    const modelValidation = OpenAIEmbeddingModelValidator(modelCandidate)
+    if (modelValidation instanceof type.errors) {
+      // Invalid model, use default and log warning
+      this.model = "text-embedding-3-small"
+      const logger = config.logger ?? {
+        info: () => {},
+        error: () => {},
+        warn: () => {},
+        debug: () => {},
+      }
+      logger.warn(
+        `Invalid OpenAI embedding model "${modelCandidate}", using default: text-embedding-3-small`
+      )
+    } else {
+      this.model = modelValidation
+    }
+
     this.dimensions = config.dimensions || 1536 // text-embedding-3-small default
     this.version = config.version || "3.0.0"
     this.apiEndpoint = "https://api.openai.com/v1/embeddings"

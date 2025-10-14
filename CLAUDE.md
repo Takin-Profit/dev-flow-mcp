@@ -9,6 +9,19 @@
 **TypeScript:** 5.8.2 with strict configuration
 **Primary Language:** TypeScript (ESNext)
 
+### Recent Work (Latest Session)
+
+**Embedding Type System Refactor** - Completed comprehensive type safety improvements for embedding services:
+- Created strongly-typed `EmbeddingModel` and `EmbeddingProvider` types using arktype
+- Moved `EmbeddingProviderInfo` and `EmbeddingModelInfo` from local files to centralized `src/types/embedding.ts`
+- Added runtime validation for OpenAI embedding models with proper fallback handling
+- Updated all embedding services (`default`, `openai`, `factory`) to use the new typed system
+- Eliminated all type casting in favor of proper arktype validation
+- Models are now constrained to actual OpenAI models: `text-embedding-3-small`, `text-embedding-3-large`, `text-embedding-ada-002`
+- Mock models properly typed: `dfm-mcp-mock`, `text-embedding-3-small-mock`
+
+This creates a foundation for easily adding new embedding providers and models in the future.
+
 ### What Is DevFlow MCP?
 
 DevFlow MCP is a **knowledge graph memory layer** specifically designed for AI-driven software development workflows. It provides persistent, queryable memory for AI agents working on software projects, enabling context-aware decision making, code review, and project planning.

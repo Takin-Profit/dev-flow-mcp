@@ -14,15 +14,15 @@
 import { DefaultEmbeddingService } from "#embeddings/default-embedding-service"
 import type { EmbeddingService } from "#embeddings/embedding-service"
 import { OpenAIEmbeddingService } from "#embeddings/openai-embedding-service"
-import type { Logger } from "#types"
+import type { EmbeddingModel, EmbeddingProvider, Logger } from "#types"
 import { createNoOpLogger } from "#types"
 
 /**
  * Configuration options for embedding services
  */
 export type EmbeddingServiceConfig = {
-  provider?: string
-  model?: string
+  provider?: EmbeddingProvider
+  model?: EmbeddingModel
   dimensions?: number
   apiKey?: string
   logger?: Logger
@@ -37,6 +37,11 @@ type EmbeddingServiceProvider = (
 ) => EmbeddingService
 
 /**
+ * Registry of embedding service providers (mutable)
+ */
+const providers: Record<string, EmbeddingServiceProvider> = {}
+
+/**
  * Factory for creating embedding services with dependency injection
  *
  * This factory:
@@ -46,40 +51,34 @@ type EmbeddingServiceProvider = (
  * - Provides convenient environment-based creation
  * - Uses DFM_ prefixed environment variables
  */
-export class EmbeddingServiceFactory {
-  /**
-   * Registry of embedding service providers
-   */
-  private static providers: Record<string, EmbeddingServiceProvider> = {}
-
+export const EmbeddingServiceFactory = {
   /**
    * Register a new embedding service provider
    *
    * @param name - Provider name
    * @param provider - Provider factory function
    */
-  static registerProvider(
-    name: string,
-    provider: EmbeddingServiceProvider
-  ): void {
-    EmbeddingServiceFactory.providers[name.toLowerCase()] = provider
-  }
+  registerProvider(name: string, provider: EmbeddingServiceProvider): void {
+    providers[name.toLowerCase()] = provider
+  },
 
   /**
    * Reset the provider registry - used primarily for testing
    */
-  static resetRegistry(): void {
-    EmbeddingServiceFactory.providers = {}
-  }
+  resetRegistry(): void {
+    for (const key of Object.keys(providers)) {
+      delete providers[key]
+    }
+  },
 
   /**
    * Get a list of available provider names
    *
    * @returns Array of provider names
    */
-  static getAvailableProviders(): string[] {
-    return Object.keys(EmbeddingServiceFactory.providers)
-  }
+  getAvailableProviders(): string[] {
+    return Object.keys(providers)
+  },
 
   /**
    * Create a service using a registered provider
@@ -88,7 +87,7 @@ export class EmbeddingServiceFactory {
    * @returns The created embedding service
    * @throws {Error} if the provider is not registered
    */
-  static createService(config: EmbeddingServiceConfig = {}): EmbeddingService {
+  createService(config: EmbeddingServiceConfig = {}): EmbeddingService {
     const providerName = (config.provider || "default").toLowerCase()
     const logger = config.logger || createNoOpLogger()
 
@@ -96,7 +95,7 @@ export class EmbeddingServiceFactory {
       `EmbeddingServiceFactory: Creating service with provider "${providerName}"`
     )
 
-    const providerFn = EmbeddingServiceFactory.providers[providerName]
+    const providerFn = providers[providerName]
 
     if (providerFn) {
       try {
@@ -122,7 +121,7 @@ export class EmbeddingServiceFactory {
       `EmbeddingServiceFactory: Provider "${providerName}" is not registered`
     )
     throw new Error(`Provider "${providerName}" is not registered`)
-  }
+  },
 
   /**
    * Create an embedding service from environment variables
@@ -138,7 +137,7 @@ export class EmbeddingServiceFactory {
    * @param logger - Logger instance for dependency injection
    * @returns An embedding service implementation
    */
-  static createFromEnvironment(logger?: Logger): EmbeddingService {
+  createFromEnvironment(logger?: Logger): EmbeddingService {
     const effectiveLogger = logger || createNoOpLogger()
 
     // Check if we should use mock embeddings (for testing)
@@ -161,8 +160,9 @@ export class EmbeddingServiceFactory {
     }
 
     const openaiApiKey = process.env.DFM_OPENAI_API_KEY
-    const embeddingModel =
-      process.env.DFM_OPENAI_EMBEDDING_MODEL || "text-embedding-3-small"
+    const embeddingModel: EmbeddingModel =
+      (process.env.DFM_OPENAI_EMBEDDING_MODEL as EmbeddingModel) ||
+      "text-embedding-3-small"
 
     if (openaiApiKey) {
       try {
@@ -203,7 +203,7 @@ export class EmbeddingServiceFactory {
       "EmbeddingServiceFactory: No OpenAI API key found, using default embedding service"
     )
     return new DefaultEmbeddingService({ logger: effectiveLogger })
-  }
+  },
 
   /**
    * Create an OpenAI embedding service
@@ -214,9 +214,9 @@ export class EmbeddingServiceFactory {
    * @param logger - Optional logger instance
    * @returns OpenAI embedding service
    */
-  static createOpenAIService(
+  createOpenAIService(
     apiKey: string,
-    model?: string,
+    model?: EmbeddingModel,
     dimensions?: number,
     logger?: Logger
   ): EmbeddingService {
@@ -226,7 +226,7 @@ export class EmbeddingServiceFactory {
       dimensions,
       logger,
     })
-  }
+  },
 
   /**
    * Create a default embedding service that generates deterministic vectors
@@ -235,12 +235,9 @@ export class EmbeddingServiceFactory {
    * @param logger - Optional logger instance
    * @returns Default embedding service
    */
-  static createDefaultService(
-    dimensions?: number,
-    logger?: Logger
-  ): EmbeddingService {
+  createDefaultService(dimensions?: number, logger?: Logger): EmbeddingService {
     return new DefaultEmbeddingService({ dimensions, logger })
-  }
+  },
 }
 
 // ============================================================================

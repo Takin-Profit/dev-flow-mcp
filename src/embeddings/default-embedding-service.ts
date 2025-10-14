@@ -11,11 +11,8 @@
  * - Accepts logger via constructor injection (dependency inversion)
  */
 
-import {
-  type EmbeddingModelInfo,
-  EmbeddingService,
-} from "#embeddings/embedding-service"
-import type { Logger } from "#types"
+import { EmbeddingService } from "#embeddings/embedding-service"
+import type { EmbeddingModel, EmbeddingModelInfo, Logger } from "#types"
 import { createNoOpLogger } from "#types"
 
 // ============================================================================
@@ -59,7 +56,7 @@ export type DefaultEmbeddingConfig = {
   /** Embedding vector dimensions (default: 1536 for OpenAI compatibility) */
   dimensions?: number
   /** Model name for identification (default: text-embedding-3-small-mock) */
-  model?: string
+  model?: EmbeddingModel
   /** Model version string (default: 1.0.0) */
   version?: string
   /** Logger instance for dependency injection */
@@ -77,7 +74,7 @@ export type DefaultEmbeddingConfig = {
  */
 export class DefaultEmbeddingService extends EmbeddingService {
   private readonly dimensions: number
-  private readonly modelName: string
+  private readonly modelName: EmbeddingModel
   private readonly modelVersion: string
   private readonly logger: Logger
 
@@ -96,7 +93,7 @@ export class DefaultEmbeddingService extends EmbeddingService {
     const defaultDimensions = isMockMode
       ? OPENAI_SMALL_DIMENSIONS
       : DFM_MOCK_DIMENSIONS
-    const defaultModel = isMockMode
+    const defaultModel: EmbeddingModel = isMockMode
       ? "text-embedding-3-small-mock"
       : "dfm-mcp-mock"
 

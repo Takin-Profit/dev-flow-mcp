@@ -143,6 +143,72 @@ export const CachedEmbedding = type({
 })
 export type CachedEmbedding = typeof CachedEmbedding.infer
 
+// ============================================================================
+// Provider and Model Information
+// ============================================================================
+
+/**
+ * Supported embedding providers
+ * 
+ * - openai: OpenAI's embedding API
+ * - default: Mock/deterministic embeddings for testing
+ */
+export const EmbeddingProvider = type("'openai' | 'default'")
+export type EmbeddingProvider = typeof EmbeddingProvider.infer
+
+/**
+ * OpenAI embedding model names
+ * 
+ * Based on OpenAI's available models:
+ * - text-embedding-3-small: Most efficient, 1536 dimensions
+ * - text-embedding-3-large: Highest quality, 3072 dimensions
+ * - text-embedding-ada-002: Legacy model, 1536 dimensions
+ */
+export const OpenAIEmbeddingModel = type(
+  "'text-embedding-3-small' | 'text-embedding-3-large' | 'text-embedding-ada-002'"
+)
+export type OpenAIEmbeddingModel = typeof OpenAIEmbeddingModel.infer
+
+/**
+ * Mock/default embedding model names
+ */
+export const DefaultEmbeddingModel = type(
+  "'dfm-mcp-mock' | 'text-embedding-3-small-mock'"
+)
+export type DefaultEmbeddingModel = typeof DefaultEmbeddingModel.infer
+
+/**
+ * All supported embedding model names
+ */
+export const EmbeddingModel = type(
+  "'text-embedding-3-small' | 'text-embedding-3-large' | 'text-embedding-ada-002' | 'dfm-mcp-mock' | 'text-embedding-3-small-mock'"
+)
+export type EmbeddingModel = typeof EmbeddingModel.infer
+
+/**
+ * Model information for embedding models
+ * 
+ * Contains metadata about the embedding model being used
+ */
+export const EmbeddingModelInfo = type({
+  name: EmbeddingModel,
+  "dimensions": "number.integer > 0",
+  version: "string",
+})
+export type EmbeddingModelInfo = typeof EmbeddingModelInfo.infer
+
+/**
+ * Provider information for embedding services
+ * 
+ * Combines provider type with model information
+ */
+export const EmbeddingProviderInfo = type({
+  provider: EmbeddingProvider,
+  model: EmbeddingModel,
+  "dimensions": "number.integer > 0",
+})
+export type EmbeddingProviderInfo = typeof EmbeddingProviderInfo.infer
+
 /**
  * Configuration for the LRU cache used for embeddings
  *

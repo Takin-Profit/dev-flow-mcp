@@ -1,47 +1,9 @@
-/**
- * Provider information for embedding services
- */
-export interface EmbeddingProviderInfo {
-  /**
-   * Name of the embedding provider
-   */
-  provider: string
-
-  /**
-   * Name of the embedding model
-   */
-  model: string
-
-  /**
-   * Number of dimensions in the embedding vectors
-   */
-  dimensions: number
-}
-
-/**
- * Model information for embedding models
- */
-export interface EmbeddingModelInfo {
-  /**
-   * Name of the embedding model
-   */
-  name: string
-
-  /**
-   * Number of dimensions in the embedding vectors
-   */
-  dimensions: number
-
-  /**
-   * Version of the model
-   */
-  version: string
-}
+import type { EmbeddingModelInfo, EmbeddingProviderInfo } from "#types"
 
 /**
  * Interface for text embedding services
  */
-export interface IEmbeddingService {
+export type IEmbeddingService = {
   /**
    * Generate embedding vector for text
    *
@@ -83,7 +45,7 @@ export class EmbeddingService implements IEmbeddingService {
    * @param text - Text to embed
    * @returns Embedding vector
    */
-  async generateEmbedding(_text: string): Promise<number[]> {
+  generateEmbedding(_text: string): Promise<number[]> {
     throw new Error("Method not implemented")
   }
 
@@ -93,7 +55,7 @@ export class EmbeddingService implements IEmbeddingService {
    * @param texts - Array of texts to embed
    * @returns Array of embedding vectors
    */
-  async generateEmbeddings(_texts: string[]): Promise<number[][]> {
+  generateEmbeddings(_texts: string[]): Promise<number[][]> {
     throw new Error("Method not implemented")
   }
 
