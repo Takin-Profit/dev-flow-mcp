@@ -12,7 +12,12 @@ import type {
   Relation,
   VectorStore,
 } from "#types"
-import { createNoOpLogger } from "#types"
+import {
+  DEFAULT_SEARCH_LIMIT,
+  KG_MANAGER_FALLBACK_THRESHOLD,
+  KG_MANAGER_MIN_SIMILARITY,
+  createNoOpLogger,
+} from "#types"
 
 // Extended storage provider interfaces for optional methods
 interface StorageProviderWithSearchVectors extends StorageProvider {
@@ -65,10 +70,7 @@ function hasUpdateRelation(provider: StorageProvider): boolean {
   )
 }
 
-// Constants for semantic search defaults
-const DEFAULT_SEARCH_LIMIT = 10
-const DEFAULT_MIN_SIMILARITY = 0.7
-const DEFAULT_FALLBACK_THRESHOLD = 0.5
+// Constants for semantic search defaults are imported from #types
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
 export class KnowledgeGraphManager {
@@ -387,7 +389,7 @@ export class KnowledgeGraphManager {
 
       if (vectorStore) {
         const limit = options.limit || DEFAULT_SEARCH_LIMIT
-        const minSimilarity = options.threshold || DEFAULT_MIN_SIMILARITY
+        const minSimilarity = options.threshold || KG_MANAGER_MIN_SIMILARITY
 
         // Search the vector store
         const results = await vectorStore.search(embedding, {
@@ -411,7 +413,7 @@ export class KnowledgeGraphManager {
       return this.storageProvider.searchVectors(
         embedding,
         options.limit || DEFAULT_SEARCH_LIMIT,
-        options.threshold || DEFAULT_MIN_SIMILARITY
+        options.threshold || KG_MANAGER_MIN_SIMILARITY
       )
     }
 
@@ -492,7 +494,7 @@ export class KnowledgeGraphManager {
         threshold:
           effectiveOptions.threshold ||
           effectiveOptions.minSimilarity ||
-          DEFAULT_FALLBACK_THRESHOLD,
+          KG_MANAGER_FALLBACK_THRESHOLD,
         entityTypes: effectiveOptions.entityTypes || [],
         facets: effectiveOptions.facets || [],
         offset: effectiveOptions.offset || 0,
@@ -594,7 +596,7 @@ export class KnowledgeGraphManager {
     // Find similar entities using vector similarity
     const similarEntities = await this.findSimilarEntities(query, {
       limit: options.limit || DEFAULT_SEARCH_LIMIT,
-      threshold: options.threshold || DEFAULT_FALLBACK_THRESHOLD,
+      threshold: options.threshold || KG_MANAGER_FALLBACK_THRESHOLD,
     })
 
     if (!similarEntities.length) {

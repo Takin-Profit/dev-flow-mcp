@@ -25,58 +25,26 @@ import type {
   TemporalEntityType,
 } from "#types"
 import {
-  createNoOpLogger,
+  DEFAULT_HALF_LIFE_DAYS,
+  DEFAULT_MIN_CONFIDENCE,
+  DEFAULT_MIN_SIMILARITY,
+  DEFAULT_RELATION_CONFIDENCE,
+  DEFAULT_RELATION_STRENGTH,
+  DIAGNOSTIC_SAMPLE_SIZE,
+  HALF_LIFE_DECAY_CONSTANT,
+  HOURS_PER_DAY,
+  MILLISECONDS_PER_SECOND,
+  MINUTES_PER_HOUR,
+  SECONDS_PER_MINUTE,
   Neo4jNodeValidator,
   Neo4jRelationshipValidator,
+  createNoOpLogger,
 } from "#types"
 import type { Relation } from "#types/relation"
 
 // ============================================================================
 // Constants
 // ============================================================================
-
-/**
- * Default number of days for confidence to decay by half
- */
-const DEFAULT_HALF_LIFE_DAYS = 30
-
-/**
- * Default minimum confidence threshold for relations
- */
-const DEFAULT_MIN_CONFIDENCE = 0.1
-
-/**
- * Default strength value for relations when not specified
- */
-const DEFAULT_RELATION_STRENGTH = 0.9
-
-/**
- * Default confidence value for relations when not specified
- */
-const DEFAULT_RELATION_CONFIDENCE = 0.95
-
-/**
- * Default minimum similarity threshold for vector search
- */
-const DEFAULT_MIN_SIMILARITY = 0.6
-
-/**
- * Number of sample vector values to include in diagnostics
- */
-const DIAGNOSTIC_SAMPLE_SIZE = 3
-
-/**
- * Half-life decay constant (0.5 represents 50% decay at half-life)
- */
-const HALF_LIFE_DECAY_CONSTANT = 0.5
-
-/**
- * Time conversion constants
- */
-const HOURS_PER_DAY = 24
-const MINUTES_PER_HOUR = 60
-const SECONDS_PER_MINUTE = 60
-const MILLISECONDS_PER_SECOND = 1000
 
 // ============================================================================
 // Types
@@ -181,7 +149,7 @@ export class Neo4jStorageProvider implements StorageProvider {
     this.vectorStore = new Neo4jVectorStore({
       connectionManager: this.connectionManager,
       indexName: this.config.vectorIndexName,
-      dimensions: 1536,
+      dimensions: DEFAULT_VECTOR_DIMENSIONS,
       similarityFunction: "cosine",
       entityNodeLabel: "Entity",
       logger: this.logger,

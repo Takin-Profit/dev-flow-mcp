@@ -20,16 +20,11 @@ import neo4j from "neo4j-driver"
 import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
 import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager"
 import type { Logger, VectorSearchResult, VectorStore } from "#types"
-import { createNoOpLogger } from "#types"
+import { DEFAULT_VECTOR_DIMENSIONS, createNoOpLogger } from "#types"
 
 // ============================================================================
 // Constants
 // ============================================================================
-
-/**
- * Default vector dimensions for OpenAI text-embedding-3-small model
- */
-const DEFAULT_VECTOR_DIMENSIONS = 1536
 
 /**
  * Default maximum number of results for vector search

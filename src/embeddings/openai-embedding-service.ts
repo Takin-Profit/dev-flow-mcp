@@ -16,7 +16,12 @@ import { type } from "arktype"
 import axios from "axios"
 import { EmbeddingService } from "#embeddings/embedding-service"
 import type { EmbeddingModel, EmbeddingModelInfo, Logger } from "#types"
-import { OpenAIEmbeddingModelValidator } from "#types"
+import {
+  createNoOpLogger,
+  DEFAULT_VECTOR_DIMENSIONS,
+  OpenAIEmbeddingModelValidator,
+  TEXT_PREVIEW_LENGTH,
+} from "#types"
 
 /**
  * Configuration for OpenAI embedding service
@@ -102,12 +107,7 @@ export class OpenAIEmbeddingService extends EmbeddingService {
     if (modelValidation instanceof type.errors) {
       // Invalid model, use default and log warning
       this.model = "text-embedding-3-small"
-      const logger = config.logger ?? {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-      }
+      const logger = config.logger ?? createNoOpLogger()
       logger.warn(
         `Invalid OpenAI embedding model "${modelCandidate}", using default: text-embedding-3-small`
       )
@@ -115,15 +115,10 @@ export class OpenAIEmbeddingService extends EmbeddingService {
       this.model = modelValidation
     }
 
-    this.dimensions = config.dimensions || 1536 // text-embedding-3-small default
+    this.dimensions = config.dimensions || DEFAULT_VECTOR_DIMENSIONS
     this.version = config.version || "3.0.0"
     this.apiEndpoint = "https://api.openai.com/v1/embeddings"
-    this.logger = config.logger ?? {
-      info: () => {},
-      error: () => {},
-      warn: () => {},
-      debug: () => {},
-    }
+    this.logger = config.logger ?? createNoOpLogger()
 
     this.logger.info("OpenAIEmbeddingService initialized", {
       model: this.model,
@@ -148,7 +143,7 @@ export class OpenAIEmbeddingService extends EmbeddingService {
 
     this.logger.debug("Generating OpenAI embedding", {
       textLength: text.length,
-      textPreview: text.substring(0, 50),
+      textPreview: text.substring(0, TEXT_PREVIEW_LENGTH),
       model: this.model,
     })
 

@@ -11,15 +11,15 @@ import xdgAppPaths from "xdg-app-paths"
 import { logger } from "#logger"
 import { StorageProviderFactory } from "#storage/storage-provider-factory"
 import type { VectorStoreFactoryOptions } from "#storage/vector-store-factory"
+import {
+  DEFAULT_RATE_LIMIT_INTERVAL,
+  DEFAULT_RATE_LIMIT_TOKENS,
+  DEFAULT_VECTOR_DIMENSIONS,
+} from "#types"
 
 // ============================================================================
 // Environment Variables
 // ============================================================================
-
-// Default constants for embedding rate limiting
-const DEFAULT_RATE_LIMIT_TOKENS = 150_000 // 150k tokens per interval
-const DEFAULT_RATE_LIMIT_INTERVAL = 60_000 // 60 seconds in milliseconds
-const DEFAULT_VECTOR_DIMENSIONS = 1536 // OpenAI text-embedding-3-small dimensions
 
 /**
  * Environment variable schema

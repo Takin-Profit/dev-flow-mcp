@@ -13,41 +13,23 @@
 
 import { EmbeddingService } from "#embeddings/embedding-service"
 import type { EmbeddingModel, EmbeddingModelInfo, Logger } from "#types"
-import { createNoOpLogger } from "#types"
+import {
+  DEFAULT_VECTOR_DIMENSIONS as OPENAI_SMALL_DIMENSIONS,
+  DFM_MOCK_DIMENSIONS,
+  HASH_BIT_SHIFT,
+  RANDOM_SEED_MULTIPLIER,
+  TEXT_PREVIEW_LENGTH,
+  createNoOpLogger,
+} from "#types"
 
 // ============================================================================
 // Constants
 // ============================================================================
 
 /**
- * Default dimensions for OpenAI text-embedding-3-small compatibility
- */
-const OPENAI_SMALL_DIMENSIONS = 1536
-
-/**
- * Default dimensions for DFM mock embeddings
- */
-const DFM_MOCK_DIMENSIONS = 384
-
-/**
  * Default model version
  */
 const DEFAULT_MODEL_VERSION = "1.0.0"
-
-/**
- * Length of text preview in debug logs
- */
-const TEXT_PREVIEW_LENGTH = 50
-
-/**
- * Seed multiplier for random number generation
- */
-const RANDOM_SEED_MULTIPLIER = 10_000
-
-/**
- * Bit shift for hash calculation
- */
-const HASH_BIT_SHIFT = 5
 
 /**
  * Configuration for default embedding service

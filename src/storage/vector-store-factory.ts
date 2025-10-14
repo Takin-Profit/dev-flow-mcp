@@ -14,7 +14,7 @@
 import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
 import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store"
 import type { Logger, VectorStore } from "#types"
-import { createNoOpLogger } from "#types"
+import { DEFAULT_VECTOR_DIMENSIONS, createNoOpLogger } from "#types"
 import type { VectorStoreFactoryOptions } from "#types/storage"
 
 // Re-export for backward compatibility
@@ -23,11 +23,6 @@ export type { VectorStoreFactoryOptions } from "#types/storage"
 // ============================================================================
 // Constants
 // ============================================================================
-
-/**
- * Default vector dimensions for OpenAI text-embedding-3-small model
- */
-const DEFAULT_VECTOR_DIMENSIONS = 1536
 
 /**
  * Default vector index name in Neo4j

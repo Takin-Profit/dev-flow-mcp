@@ -17,35 +17,34 @@ import type {
   RateLimiterStatus,
   TemporalEntityType,
 } from "#types"
-import { createNoOpLogger } from "#types"
+import {
+  CACHE_KEY_PREVIEW_LENGTH,
+  DAYS_PER_WEEK,
+  DEFAULT_CACHE_SIZE,
+  DEFAULT_INITIAL_ATTEMPTS,
+  DEFAULT_JOB_RATE_LIMIT_TOKENS,
+  DEFAULT_MAX_ATTEMPTS,
+  HOURS_PER_DAY,
+  MILLISECONDS_PER_SECOND,
+  MINUTES_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  createNoOpLogger,
+} from "#types"
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const MILLISECONDS_PER_SECOND = 1000
-const SECONDS_PER_MINUTE = 60
-const MINUTES_PER_HOUR = 60
-const HOURS_PER_DAY = 24
-const DAYS_PER_WEEK = 7
 const SECONDS_PER_HOUR = SECONDS_PER_MINUTE * MINUTES_PER_HOUR
 const MILLISECONDS_PER_HOUR = SECONDS_PER_HOUR * MILLISECONDS_PER_SECOND
 const MILLISECONDS_PER_DAY =
-  HOURS_PER_DAY *
-  MINUTES_PER_HOUR *
-  SECONDS_PER_MINUTE *
-  MILLISECONDS_PER_SECOND
+  HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
 const MILLISECONDS_PER_WEEK = DAYS_PER_WEEK * MILLISECONDS_PER_DAY
 
-const DEFAULT_CACHE_SIZE = 1000
 const DEFAULT_CACHE_TTL_MS = MILLISECONDS_PER_HOUR
-const DEFAULT_RATE_LIMIT_TOKENS = 60
 const DEFAULT_RATE_LIMIT_INTERVAL_MS =
   SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
-const DEFAULT_MAX_ATTEMPTS = 3
-const DEFAULT_INITIAL_ATTEMPTS = 0
 const DEFAULT_CLEANUP_THRESHOLD_MS = MILLISECONDS_PER_WEEK
-const CACHE_KEY_PREVIEW_LENGTH = 8
 
 /**
  * Interface for embedding storage provider, extending the base provider
@@ -108,7 +107,7 @@ export class EmbeddingJobManager {
 
     // Setup rate limiter with defaults
     const defaultRateLimiter = {
-      tokensPerInterval: DEFAULT_RATE_LIMIT_TOKENS,
+      tokensPerInterval: DEFAULT_JOB_RATE_LIMIT_TOKENS,
       interval: DEFAULT_RATE_LIMIT_INTERVAL_MS,
     }
 

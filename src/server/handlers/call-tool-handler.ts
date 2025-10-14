@@ -7,6 +7,7 @@ import {
   handleReadGraph,
 } from "#server/handlers/tool-handlers"
 import type { Entity, Logger, Relation, TemporalEntityType } from "#types"
+import { DEFAULT_MIN_SIMILARITY, DEFAULT_SEARCH_LIMIT } from "#types"
 
 // ============================================================================
 // Type Guard Validation Functions
@@ -72,8 +73,6 @@ function validateObject(
 // Constants
 // ============================================================================
 
-const DEFAULT_SEARCH_LIMIT = 10
-const DEFAULT_MIN_SIMILARITY = 0.6
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -680,7 +679,9 @@ export async function handleCallToolRequest(
             : "not configured",
           database: process.env.NEO4J_DATABASE || "neo4j",
           vectorIndex: process.env.NEO4J_VECTOR_INDEX || "entity_embeddings",
-          vectorDimensions: process.env.NEO4J_VECTOR_DIMENSIONS || "1536",
+          vectorDimensions:
+            process.env.NEO4J_VECTOR_DIMENSIONS ||
+            String(DEFAULT_VECTOR_DIMENSIONS),
           similarityFunction: process.env.NEO4J_SIMILARITY_FUNCTION || "cosine",
           connectionStatus: "unknown",
         }
