@@ -91,7 +91,7 @@ export {
 } from "#types/knowledge-graph"
 export type {
   Relation as RelationType,
-  RelationMetadata as RelationMetadataType,
+  RelationMetadata as RelationMetadataType,RelationType as RelationTypeType 
 } from "#types/relation"
 // Relation schemas and types
 export {
@@ -100,7 +100,6 @@ export {
   RelationType as RelationTypeValidator,
   RelationValidator,
 } from "#types/relation"
-export type { RelationType as RelationTypeType } from "#types/relation"
 export type {
   EntityName as EntityNameType,
   Observation as ObservationType,
@@ -123,6 +122,37 @@ import type { default as TemporalEntity } from "#types/temporal"
 export type TemporalEntityType = TemporalEntity
 
 
+
+// Embedding types with defaults
+export type {
+  CachedEmbedding,
+  CacheOptions,
+  CountResult,
+  EmbeddingCacheOptions,
+  EmbeddingJob,
+  EmbeddingJobProcessingOptions,
+  EmbeddingJobStatus,
+  JobProcessResults,
+  RateLimiterOptions,
+  RateLimiterStatus,
+} from "#types/embedding"
+export {
+  CachedEmbedding as CachedEmbeddingValidator,
+  CacheOptions as CacheOptionsValidator,
+  CountResult as CountResultValidator,
+  DEFAULT_EMBEDDING_SETTINGS,
+  EmbeddingCacheOptions as EmbeddingCacheOptionsValidator,
+  EmbeddingConfigValidator,
+  EmbeddingJob as EmbeddingJobValidator,
+  EmbeddingJobProcessingOptions as EmbeddingJobProcessingOptionsValidator,
+  EmbeddingJobStatus as EmbeddingJobStatusValidator,
+  getEmbeddingCacheConfig,
+  getJobProcessingConfig,
+  JOB_STATUS,
+  JobProcessResults as JobProcessResultsValidator,
+  RateLimiterOptions as RateLimiterOptionsValidator,
+  RateLimiterStatus as RateLimiterStatusValidator,
+} from "#types/embedding"
 // Neo4j-specific types
 export type {
   ExtendedEntity,

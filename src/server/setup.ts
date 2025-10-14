@@ -38,26 +38,18 @@ export function setupServer(
   )
 
   // Register request handlers
-  server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
-    try {
-      const result = await handleListToolsRequest()
-      return result
-    } catch (error: unknown) {
-      throw error
-    }
+  server.setRequestHandler(ListToolsRequestSchema, (_request) => {
+    const result = handleListToolsRequest()
+    return result
   })
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    try {
-      const result = await handleCallToolRequest(
-        request,
-        knowledgeGraphManager,
-        logger
-      )
-      return result
-    } catch (error: unknown) {
-      throw error
-    }
+    const result = await handleCallToolRequest(
+      request,
+      knowledgeGraphManager,
+      logger
+    )
+    return result
   })
 
   return server

@@ -1,93 +1,51 @@
-import crypto from "crypto"
+/** biome-ignore-all lint/suspicious/useAwait: functions need to return promises */
+import crypto from "node:crypto"
 import { LRUCache } from "lru-cache"
 import { v4 as uuidv4 } from "uuid"
 import type { EmbeddingService } from "#embeddings/embedding-service"
-import type { Entity } from "#knowledge-graph-manager"
 import type { StorageProvider } from "#storage/storage-provider"
-import type { EntityEmbedding } from "#types/entity-embedding"
+import type {
+  CachedEmbedding,
+  CacheOptions,
+  CountResult,
+  EmbeddingJob,
+  EmbeddingJobStatus,
+  Entity,
+  JobProcessResults,
+  Logger,
+  RateLimiterOptions,
+  RateLimiterStatus,
+  TemporalEntityType,
+} from "#types"
+import { createNoOpLogger } from "#types"
 
-/**
- * Job status type
- */
-type JobStatus = "pending" | "processing" | "completed" | "failed"
+// ============================================================================
+// Constants
+// ============================================================================
 
-/**
- * Interface for a job record from the database
- */
-interface EmbeddingJob {
-  id: string
-  entity_name: string
-  status: JobStatus
-  priority: number
-  created_at: number
-  processed_at?: number
-  error?: string
-  attempts: number
-  max_attempts: number
-}
+const MILLISECONDS_PER_SECOND = 1000
+const SECONDS_PER_MINUTE = 60
+const MINUTES_PER_HOUR = 60
+const HOURS_PER_DAY = 24
+const DAYS_PER_WEEK = 7
+const SECONDS_PER_HOUR = SECONDS_PER_MINUTE * MINUTES_PER_HOUR
+const MILLISECONDS_PER_HOUR = SECONDS_PER_HOUR * MILLISECONDS_PER_SECOND
+const MILLISECONDS_PER_DAY =
+  HOURS_PER_DAY *
+  MINUTES_PER_HOUR *
+  SECONDS_PER_MINUTE *
+  MILLISECONDS_PER_SECOND
+const MILLISECONDS_PER_WEEK = DAYS_PER_WEEK * MILLISECONDS_PER_DAY
 
-/**
- * Interface for count results from database
- */
-interface CountResult {
-  count: number
-}
-
-/**
- * Interface for embedding cache options
- */
-interface CacheOptions {
-  size: number
-  ttl: number
-  // For test compatibility
-  maxItems?: number
-  ttlHours?: number
-}
-
-/**
- * Interface for rate limiting options
- */
-interface RateLimiterOptions {
-  tokensPerInterval: number
-  interval: number
-}
-
-/**
- * Interface for job processing results
- */
-interface JobProcessResults {
-  processed: number
-  successful: number
-  failed: number
-}
-
-/**
- * Interface for the rate limiter status
- */
-interface RateLimiterStatus {
-  availableTokens: number
-  maxTokens: number
-  resetInMs: number
-}
-
-/**
- * Interface for a cached embedding entry
- */
-interface CachedEmbedding {
-  embedding: number[]
-  timestamp: number
-  model: string
-}
-
-/**
- * Interface for a logger
- */
-interface Logger {
-  debug: (message: string, meta?: Record<string, unknown>) => void
-  info: (message: string, meta?: Record<string, unknown>) => void
-  warn: (message: string, meta?: Record<string, unknown>) => void
-  error: (message: string, meta?: Record<string, unknown>) => void
-}
+const DEFAULT_CACHE_SIZE = 1000
+const DEFAULT_CACHE_TTL_MS = MILLISECONDS_PER_HOUR
+const DEFAULT_RATE_LIMIT_TOKENS = 60
+const DEFAULT_RATE_LIMIT_INTERVAL_MS =
+  SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
+const DEFAULT_MAX_ATTEMPTS = 3
+const DEFAULT_INITIAL_ATTEMPTS = 0
+const DEFAULT_CLEANUP_THRESHOLD_MS = MILLISECONDS_PER_WEEK
+const CACHE_KEY_PREVIEW_LENGTH = 8
 
 /**
  * Interface for embedding storage provider, extending the base provider
@@ -96,27 +54,19 @@ interface EmbeddingStorageProvider extends StorageProvider {
   /**
    * Access to the underlying database
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any // Using any to avoid the Database namespace issue
+  // biome-ignore lint/suspicious/noExplicitAny: database type varies by implementation
+  db: any
 
   /**
-   * Get an entity by name
+   * Get an entity by name (returns TemporalEntity for compatibility)
    */
-  getEntity(entityName: string): Promise<Entity | null>
-
-  /**
-   * Store an entity vector embedding
-   */
-  storeEntityVector(
-    entityName: string,
-    embedding: EntityEmbedding
-  ): Promise<void>
+  getEntity(entityName: string): Promise<TemporalEntityType | null>
 }
 
 /**
  * Return structure for queue status
  */
-interface QueueStatus {
+type QueueStatus = {
   pending: number
   processing: number
   completed: number
@@ -125,58 +75,44 @@ interface QueueStatus {
 }
 
 /**
- * Default logger implementation
- */
-const nullLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-}
-
-/**
  * Manages embedding jobs for semantic search
  */
 export class EmbeddingJobManager {
-  private storageProvider: EmbeddingStorageProvider
-  private embeddingService: EmbeddingService
-  public rateLimiter: {
+  private readonly storageProvider: EmbeddingStorageProvider
+  private readonly embeddingService: EmbeddingService
+  rateLimiter: {
     tokens: number
     lastRefill: number
     tokensPerInterval: number
     interval: number
   }
-  public cache: LRUCache<string, CachedEmbedding>
-  private cacheOptions: CacheOptions = { size: 1000, ttl: 3_600_000 }
-  private logger: Logger
+  cache: LRUCache<string, CachedEmbedding>
+  private readonly cacheOptions: CacheOptions = { size: 1000, ttl: 3_600_000 }
+  private readonly logger: Logger
 
   /**
    * Creates a new embedding job manager
    *
-   * @param storageProvider - Provider for entity storage
-   * @param embeddingService - Service to generate embeddings
-   * @param rateLimiterOptions - Optional configuration for rate limiting
-   * @param cacheOptions - Optional configuration for caching
-   * @param logger - Optional logger for operation logging
+   * @param options - Configuration options object
    */
-  constructor(
-    storageProvider: EmbeddingStorageProvider,
-    embeddingService: EmbeddingService,
-    rateLimiterOptions?: RateLimiterOptions | null,
-    cacheOptions?: CacheOptions | null,
+  constructor(options: {
+    storageProvider: EmbeddingStorageProvider
+    embeddingService: EmbeddingService
+    rateLimiterOptions?: RateLimiterOptions | null
+    cacheOptions?: CacheOptions | null
     logger?: Logger | null
-  ) {
-    this.storageProvider = storageProvider
-    this.embeddingService = embeddingService
-    this.logger = logger || nullLogger
+  }) {
+    this.storageProvider = options.storageProvider
+    this.embeddingService = options.embeddingService
+    this.logger = options.logger || createNoOpLogger()
 
     // Setup rate limiter with defaults
     const defaultRateLimiter = {
-      tokensPerInterval: 60,
-      interval: 60 * 1000,
+      tokensPerInterval: DEFAULT_RATE_LIMIT_TOKENS,
+      interval: DEFAULT_RATE_LIMIT_INTERVAL_MS,
     }
 
-    const rateOptions = rateLimiterOptions || defaultRateLimiter
+    const rateOptions = options.rateLimiterOptions || defaultRateLimiter
 
     this.rateLimiter = {
       tokens: rateOptions.tokensPerInterval,
@@ -186,15 +122,22 @@ export class EmbeddingJobManager {
     }
 
     // Setup LRU cache
-    if (cacheOptions) {
+    if (options.cacheOptions) {
       // Support both API styles (tests use maxItems/ttlHours)
       this.cacheOptions = {
-        size: cacheOptions.size || cacheOptions.maxItems || 1000,
+        size:
+          options.cacheOptions.size ||
+          options.cacheOptions.maxItems ||
+          DEFAULT_CACHE_SIZE,
         ttl:
-          cacheOptions.ttl ||
-          (cacheOptions.ttlHours
-            ? Math.round(cacheOptions.ttlHours * 60 * 60 * 1000)
-            : 3_600_000),
+          options.cacheOptions.ttl ||
+          (options.cacheOptions.ttlHours
+            ? Math.round(
+                options.cacheOptions.ttlHours *
+                  SECONDS_PER_HOUR *
+                  MILLISECONDS_PER_SECOND
+              )
+            : DEFAULT_CACHE_TTL_MS),
       }
     }
 
@@ -300,7 +243,15 @@ export class EmbeddingJobManager {
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
 
-    stmt.run(jobId, entityName, "pending", priority, Date.now(), 0, 3)
+    stmt.run(
+      jobId,
+      entityName,
+      "pending",
+      priority,
+      Date.now(),
+      DEFAULT_INITIAL_ATTEMPTS,
+      DEFAULT_MAX_ATTEMPTS
+    )
 
     this.logger.info("Scheduled embedding job", {
       jobId,
@@ -317,6 +268,8 @@ export class EmbeddingJobManager {
    * @param batchSize - Maximum number of jobs to process
    * @returns Result statistics
    */
+
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: will fix on next refactor
   async processJobs(batchSize = 10): Promise<JobProcessResults> {
     this.logger.info("Starting job processing", { batchSize })
 
@@ -400,11 +353,14 @@ export class EmbeddingJobManager {
           model: modelInfo.name,
         })
 
-        await this.storageProvider.storeEntityVector(job.entity_name, {
-          vector: embedding,
-          model: modelInfo.name,
-          lastUpdated: Date.now(),
-        })
+        // Store the embedding vector
+        // Base StorageProvider.storeEntityVector expects just the vector array
+        if (this.storageProvider.storeEntityVector) {
+          await this.storageProvider.storeEntityVector(
+            job.entity_name,
+            embedding
+          )
+        }
 
         // Update job status to completed
         this._updateJobStatus(job.id, "completed")
@@ -472,6 +428,7 @@ export class EmbeddingJobManager {
    *
    * @returns Queue statistics
    */
+
   async getQueueStatus(): Promise<QueueStatus> {
     const getCountForStatus = (status?: string): number => {
       let sql = "SELECT COUNT(*) as count FROM embedding_jobs"
@@ -534,7 +491,7 @@ export class EmbeddingJobManager {
    * @returns Number of jobs cleaned up
    */
   async cleanupJobs(threshold?: number): Promise<number> {
-    const cleanupThreshold = threshold || 7 * 24 * 60 * 60 * 1000 // Default: 7 days
+    const cleanupThreshold = threshold || DEFAULT_CLEANUP_THRESHOLD_MS
     const cutoffTime = Date.now() - cleanupThreshold
 
     const stmt = this.storageProvider.db.prepare(`
@@ -567,7 +524,7 @@ export class EmbeddingJobManager {
    */
   private _updateJobStatus(
     jobId: string,
-    status: JobStatus,
+    status: EmbeddingJobStatus,
     attempts?: number,
     error?: string
   ): Record<string, unknown> {
@@ -695,13 +652,15 @@ export class EmbeddingJobManager {
 
     if (cachedValue) {
       this.logger.debug("Cache hit", {
-        textHash: cacheKey.substring(0, 8),
+        textHash: cacheKey.substring(0, CACHE_KEY_PREVIEW_LENGTH),
         age: Date.now() - cachedValue.timestamp,
       })
       return cachedValue.embedding
     }
 
-    this.logger.debug("Cache miss", { textHash: cacheKey.substring(0, 8) })
+    this.logger.debug("Cache miss", {
+      textHash: cacheKey.substring(0, CACHE_KEY_PREVIEW_LENGTH),
+    })
 
     try {
       // Generate new embedding
@@ -738,7 +697,7 @@ export class EmbeddingJobManager {
     })
 
     this.logger.debug("Cached embedding", {
-      textHash: cacheKey.substring(0, 8),
+      textHash: cacheKey.substring(0, CACHE_KEY_PREVIEW_LENGTH),
       model: modelInfo.name,
       dimensions: embedding.length,
     })

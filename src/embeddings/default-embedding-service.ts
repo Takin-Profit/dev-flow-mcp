@@ -16,6 +16,41 @@ import {
   EmbeddingService,
 } from "#embeddings/embedding-service"
 import type { Logger } from "#types"
+import { createNoOpLogger } from "#types"
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Default dimensions for OpenAI text-embedding-3-small compatibility
+ */
+const OPENAI_SMALL_DIMENSIONS = 1536
+
+/**
+ * Default dimensions for DFM mock embeddings
+ */
+const DFM_MOCK_DIMENSIONS = 384
+
+/**
+ * Default model version
+ */
+const DEFAULT_MODEL_VERSION = "1.0.0"
+
+/**
+ * Length of text preview in debug logs
+ */
+const TEXT_PREVIEW_LENGTH = 50
+
+/**
+ * Seed multiplier for random number generation
+ */
+const RANDOM_SEED_MULTIPLIER = 10_000
+
+/**
+ * Bit shift for hash calculation
+ */
+const HASH_BIT_SHIFT = 5
 
 /**
  * Configuration for default embedding service
@@ -58,20 +93,17 @@ export class DefaultEmbeddingService extends EmbeddingService {
     const isMockMode = process.env.DFM_MOCK_EMBEDDINGS === "true"
 
     // Set defaults based on mode
-    const defaultDimensions = isMockMode ? 1536 : 384
+    const defaultDimensions = isMockMode
+      ? OPENAI_SMALL_DIMENSIONS
+      : DFM_MOCK_DIMENSIONS
     const defaultModel = isMockMode
       ? "text-embedding-3-small-mock"
-      : "memento-mcp-mock"
+      : "dfm-mcp-mock"
 
     this.dimensions = config.dimensions ?? defaultDimensions
     this.modelName = config.model ?? defaultModel
-    this.modelVersion = config.version ?? "1.0.0"
-    this.logger = config.logger ?? {
-      info: () => {},
-      error: () => {},
-      warn: () => {},
-      debug: () => {},
-    }
+    this.modelVersion = config.version ?? DEFAULT_MODEL_VERSION
+    this.logger = config.logger ?? createNoOpLogger()
 
     if (isMockMode) {
       this.logger.info("DefaultEmbeddingService initialized in mock mode", {
@@ -95,10 +127,10 @@ export class DefaultEmbeddingService extends EmbeddingService {
    * @param text - Text to generate embedding for
    * @returns Promise resolving to normalized embedding vector
    */
-  override async generateEmbedding(text: string): Promise<number[]> {
+  override generateEmbedding(text: string): Promise<number[]> {
     this.logger.debug("Generating embedding", {
       textLength: text.length,
-      textPreview: text.substring(0, 50),
+      textPreview: text.substring(0, TEXT_PREVIEW_LENGTH),
     })
 
     // Generate deterministic embedding based on text hash
@@ -113,7 +145,7 @@ export class DefaultEmbeddingService extends EmbeddingService {
     // Normalize to unit length for cosine similarity
     this.normalizeVector(vector)
 
-    return vector
+    return Promise.resolve(vector)
   }
 
   /**
@@ -164,12 +196,16 @@ export class DefaultEmbeddingService extends EmbeddingService {
   private hashString(text: string): number {
     let hash = 0
 
-    if (text.length === 0) return hash
+    if (text.length === 0) {
+      return hash
+    }
 
     for (let i = 0; i < text.length; i++) {
       const char = text.charCodeAt(i)
-      hash = (hash << 5) - hash + char
-      hash = hash & hash // Convert to 32bit integer
+      // biome-ignore lint/suspicious/noBitwiseOperators: bitwise operations required for hash algorithm
+      hash = (hash << HASH_BIT_SHIFT) - hash + char
+      // biome-ignore lint/suspicious/noBitwiseOperators: bitwise AND converts to 32bit integer
+      hash &= hash // Convert to 32bit integer
     }
 
     return hash
@@ -185,7 +221,7 @@ export class DefaultEmbeddingService extends EmbeddingService {
    * @returns Random value between 0 and 1
    */
   private seededRandom(seed: number): number {
-    const x = Math.sin(seed) * 10_000
+    const x = Math.sin(seed) * RANDOM_SEED_MULTIPLIER
     return x - Math.floor(x)
   }
 
@@ -200,8 +236,7 @@ export class DefaultEmbeddingService extends EmbeddingService {
   private normalizeVector(vector: number[]): void {
     // Calculate magnitude (Euclidean norm)
     let magnitude = 0
-    for (let i = 0; i < vector.length; i++) {
-      const value = vector[i]
+    for (const value of vector) {
       if (value !== undefined) {
         magnitude += value * value
       }
@@ -217,12 +252,10 @@ export class DefaultEmbeddingService extends EmbeddingService {
           vector[i] = value / magnitude
         }
       }
-    } else {
+    } else if (vector.length > 0) {
       // If magnitude is 0, create a valid unit vector
       // Set first element to 1
-      if (vector.length > 0) {
-        vector[0] = 1
-      }
+      vector[0] = 1
     }
   }
 }
