@@ -22,7 +22,7 @@ startCommand:
         description: Neo4j username
       neo4jPassword:
         type: string
-        default: memento_password
+        default: dfm_password
         description: Neo4j password
       neo4jDatabase:
         type: string
@@ -55,6 +55,6 @@ startCommand:
   exampleConfig:
     neo4jUri: bolt://127.0.0.1:7687
     neo4jUsername: neo4j
-    neo4jPassword: memento_password
+    neo4jPassword: dfm_password
     neo4jDatabase: neo4j
     openAiApiKey: your-openai-api-key

@@ -22,10 +22,10 @@ export function setupServer(
   // Create server instance
   const server = new Server(
     {
-      name: "memento-mcp",
+      name: "devflow-mcp",
       version: "1.0.0",
-      description: "Memento MCP: Your persistent knowledge graph memory system",
-      publisher: "gannonh",
+      description: "DevFlow MCP: Your persistent knowledge graph memory system",
+      publisher: "Takin-Profit",
     },
     {
       capabilities: {

@@ -1,6 +1,6 @@
 ## Neo4j Storage Backend
 
-Memento MCP provides a Neo4j storage backend that offers a unified solution for both graph storage and vector search capabilities. This integration leverages Neo4j's native graph database features and vector search functionality to deliver efficient knowledge graph operations.
+DevFlow MCP provides a Neo4j storage backend that offers a unified solution for both graph storage and vector search capabilities. This integration leverages Neo4j's native graph database features and vector search functionality to deliver efficient knowledge graph operations.
 
 ### Why Neo4j?
 
@@ -34,11 +34,11 @@ The Neo4j database will be available at:
 
 - **Bolt URI**: `bolt://localhost:7687` (for driver connections)
 - **HTTP**: `http://localhost:7474` (for Neo4j Browser UI)
-- **Default credentials**: username: `neo4j`, password: `memento_password`
+- **Default credentials**: username: `neo4j`, password: `dfm_password`
 
 ### Neo4j CLI Utilities
 
-Memento MCP provides command-line utilities for managing Neo4j operations:
+DevFlow MCP provides command-line utilities for managing Neo4j operations:
 
 #### Testing Connection
 
@@ -78,7 +78,7 @@ Neo4j support can be configured with these environment variables:
 # Neo4j Connection Settings
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=memento_password
+NEO4J_PASSWORD=dfm_password
 NEO4J_DATABASE=neo4j
 
 # Vector Search Configuration
@@ -107,7 +107,7 @@ Or directly in the Claude Desktop configuration:
         "MEMORY_STORAGE_TYPE": "neo4j",
         "NEO4J_URI": "bolt://localhost:7687",
         "NEO4J_USERNAME": "neo4j",
-        "NEO4J_PASSWORD": "memento_password",
+        "NEO4J_PASSWORD": "dfm_password",
         "NEO4J_DATABASE": "neo4j",
         "NEO4J_VECTOR_INDEX": "entity_embeddings",
         "NEO4J_VECTOR_DIMENSIONS": "1536",
@@ -128,7 +128,7 @@ The Neo4j CLI tools support the following options:
 ```
 --uri <uri>              Neo4j server URI (default: bolt://localhost:7687)
 --username <username>    Neo4j username (default: neo4j)
---password <password>    Neo4j password (default: memento_password)
+--password <password>    Neo4j password (default: dfm_password)
 --database <name>        Neo4j database name (default: neo4j)
 --vector-index <name>    Vector index name (default: entity_embeddings)
 --dimensions <number>    Vector dimensions (default: 1536)
@@ -151,7 +151,7 @@ For vector search functionality, an embedding service is required:
 
 ### Vector Search Implementation
 
-Memento MCP implements vector search using Neo4j's built-in vector index capabilities:
+DevFlow MCP implements vector search using Neo4j's built-in vector index capabilities:
 
 1. **Entity Embeddings**: Each entity in the knowledge graph can have an associated vector embedding generated from its observations using OpenAI's embedding models
 2. **Vector Index**: The system creates and maintains a vector index over entity embeddings for efficient similarity search

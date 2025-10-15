@@ -22,9 +22,9 @@ DevFlow MCP is a significant fork of [Memento MCP](https://github.com/gannonh/me
 
 **Honest Documentation**: README accurately reflects what the code actually does, not aspirational features.
 
-### Key Differences from Memento MCP
+### Key Differences from DevFlow MCP
 
-| Feature | Memento MCP | DevFlow MCP |
+| Feature | DevFlow MCP | DevFlow MCP |
 |---------|-------------|-------------|
 | Observation strength/confidence | Documented but not implemented | Removed (use relations for this) |
 | Type safety | Extensive use of `any` types | Strict TypeScript, zero `any` |
@@ -34,7 +34,7 @@ DevFlow MCP is a significant fork of [Memento MCP](https://github.com/gannonh/me
 | Testing | Basic coverage | Comprehensive with proper mocks |
 | CLI tools | Basic | Enhanced with better diagnostics |
 
-**Bottom Line**: If you want a clean, well-architected, type-safe knowledge graph with honest APIs that actually work as documented, DevFlow MCP is the choice. If you need the original Memento MCP features and ecosystem, use the upstream project.
+**Bottom Line**: If you want a clean, well-architected, type-safe knowledge graph with honest APIs that actually work as documented, DevFlow MCP is the choice. If you need the original DevFlow MCP features and ecosystem, use the upstream project.
 
 ### Credits
 
@@ -92,7 +92,7 @@ Example:
 
 ## Storage Backend
 
-Memento MCP uses Neo4j as its storage backend, providing a unified solution for both graph storage and vector search capabilities.
+DevFlow MCP uses Neo4j as its storage backend, providing a unified solution for both graph storage and vector search capabilities.
 
 ### Why Neo4j?
 
@@ -141,7 +141,7 @@ When using Docker, the Neo4j database will be available at:
 
 - **Bolt URI**: `bolt://127.0.0.1:7687` (for driver connections)
 - **HTTP**: `http://127.0.0.1:7474` (for Neo4j Browser UI)
-- **Default credentials**: username: `neo4j`, password: `memento_password`
+- **Default credentials**: username: `neo4j`, password: `dfm_password`
 
 #### Data Persistence and Management
 
@@ -204,7 +204,7 @@ cp -r ./neo4j-data ./neo4j-data-backup-$(date +%Y%m%d)
 
 ### Neo4j CLI Utilities
 
-Memento MCP includes command-line utilities for managing Neo4j operations:
+DevFlow MCP includes command-line utilities for managing Neo4j operations:
 
 #### Testing Connection
 
@@ -220,7 +220,7 @@ npm run neo4j:test -- --uri bolt://127.0.0.1:7687 --username myuser --password m
 
 #### Initializing Schema
 
-For normal operation, Neo4j schema initialization happens automatically when Memento MCP connects to the database. You don't need to run any manual commands for regular usage.
+For normal operation, Neo4j schema initialization happens automatically when DevFlow MCP connects to the database. You don't need to run any manual commands for regular usage.
 
 The following commands are only necessary for development, testing, or advanced customization scenarios:
 
@@ -439,13 +439,13 @@ The following tools are available to LLM client hosts through the Model Context 
 
 ### Environment Variables
 
-Configure Memento MCP with these environment variables:
+Configure DevFlow MCP with these environment variables:
 
 ```bash
 # Neo4j Connection Settings
 NEO4J_URI=bolt://127.0.0.1:7687
 NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=memento_password
+NEO4J_PASSWORD=dfm_password
 NEO4J_DATABASE=neo4j
 
 # Vector Search Configuration
@@ -469,7 +469,7 @@ The Neo4j CLI tools support the following options:
 ```
 --uri <uri>              Neo4j server URI (default: bolt://127.0.0.1:7687)
 --username <username>    Neo4j username (default: neo4j)
---password <password>    Neo4j password (default: memento_password)
+--password <password>    Neo4j password (default: dfm_password)
 --database <n>           Neo4j database name (default: neo4j)
 --vector-index <n>       Vector index name (default: entity_embeddings)
 --dimensions <number>    Vector dimensions (default: 1536)

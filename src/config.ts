@@ -48,7 +48,7 @@ export const env = arkenv({
   // Neo4j Configuration
   NEO4J_URI: t("string").default("bolt://localhost:7687"),
   NEO4J_USERNAME: t("string").default("neo4j"),
-  NEO4J_PASSWORD: t("string").default("memento_password"),
+  NEO4J_PASSWORD: t("string").default("dfm_password"),
   NEO4J_DATABASE: t("string").default("neo4j"),
   NEO4J_VECTOR_INDEX: t("string").default("entity_embeddings"),
   NEO4J_VECTOR_DIMENSIONS: t("number").default(DEFAULT_VECTOR_DIMENSIONS),

@@ -1,11 +1,11 @@
 services:
   neo4j:
     image: neo4j:2025.03.0-enterprise
-    container_name: memento-neo4j
+    container_name: dfm-neo4j
     platform: linux/amd64
     user: "${UID:-1000}:${GID:-1000}"
     environment:
-      - NEO4J_AUTH=neo4j/memento_password
+      - NEO4J_AUTH=neo4j/dfm_password
       - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
       - NEO4J_apoc_export_file_enabled=true
       - NEO4J_apoc_import_file_enabled=true
