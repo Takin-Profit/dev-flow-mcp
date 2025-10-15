@@ -25,20 +25,21 @@ import type {
   TemporalEntityType,
 } from "#types"
 import {
+  createNoOpLogger,
   DEFAULT_HALF_LIFE_DAYS,
   DEFAULT_MIN_CONFIDENCE,
   DEFAULT_MIN_SIMILARITY,
   DEFAULT_RELATION_CONFIDENCE,
   DEFAULT_RELATION_STRENGTH,
+  DEFAULT_VECTOR_DIMENSIONS,
   DIAGNOSTIC_SAMPLE_SIZE,
   HALF_LIFE_DECAY_CONSTANT,
   HOURS_PER_DAY,
   MILLISECONDS_PER_SECOND,
   MINUTES_PER_HOUR,
-  SECONDS_PER_MINUTE,
   Neo4jNodeValidator,
   Neo4jRelationshipValidator,
-  createNoOpLogger,
+  SECONDS_PER_MINUTE,
 } from "#types"
 import type { Relation } from "#types/relation"
 

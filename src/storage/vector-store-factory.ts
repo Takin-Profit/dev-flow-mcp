@@ -14,7 +14,7 @@
 import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
 import { Neo4jVectorStore } from "#storage/neo4j/neo4j-vector-store"
 import type { Logger, VectorStore } from "#types"
-import { DEFAULT_VECTOR_DIMENSIONS, createNoOpLogger } from "#types"
+import { createNoOpLogger, DEFAULT_VECTOR_DIMENSIONS } from "#types"
 import type { VectorStoreFactoryOptions } from "#types/storage"
 
 // Re-export for backward compatibility

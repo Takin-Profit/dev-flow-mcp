@@ -10,58 +10,9 @@
 // Logger Types
 // ============================================================================
 
-/**
- * Metadata object for structured logging
- */
-export type LogMetadata = Record<string, unknown>
-
-/**
- * Logger type for application-wide logging
- *
- * All logging operations should go through this type to enable:
- * - Dependency injection
- * - Testing with mock loggers
- * - Swapping implementations without changing business logic
- */
-export type Logger = {
-  /**
-   * Log informational messages
-   * Use for: normal operations, state changes, milestones
-   */
-  info(message: string, meta?: LogMetadata): void
-
-  /**
-   * Log error messages
-   * Use for: exceptions, failures, critical issues
-   */
-  error(message: string, error?: Error | unknown, meta?: LogMetadata): void
-
-  /**
-   * Log warning messages
-   * Use for: deprecated features, recoverable issues, potential problems
-   */
-  warn(message: string, meta?: LogMetadata): void
-
-  /**
-   * Log debug messages
-   * Use for: detailed diagnostic information, troubleshooting
-   */
-  debug(message: string, meta?: LogMetadata): void
-}
-
-/**
- * No-op logger for testing or when logging is disabled
- */
-export const createNoOpLogger = (): Logger => ({
-  info: (_message: string, _meta?: LogMetadata): void => {},
-  error: (
-    _message: string,
-    _error?: Error | unknown,
-    _meta?: LogMetadata
-  ): void => {},
-  warn: (_message: string, _meta?: LogMetadata): void => {},
-  debug: (_message: string, _meta?: LogMetadata): void => {},
-})
+export type { Logger, LogMetadata } from "#types/logger"
+// biome-ignore lint/performance/noBarrelFile: node
+export { createNoOpLogger } from "#types/logger"
 
 // ============================================================================
 // ArkType Schemas and Types (Runtime Validation)
@@ -72,7 +23,6 @@ export type {
   EntityEmbedding as EntityEmbeddingType,
 } from "#types/entity"
 // Entity schemas and types
-// biome-ignore lint/performance/noBarrelFile: node
 export { Entity, EntityEmbedding, EntityValidator } from "#types/entity"
 export type {
   KnowledgeGraph as KnowledgeGraphType,
@@ -91,7 +41,8 @@ export {
 } from "#types/knowledge-graph"
 export type {
   Relation as RelationType,
-  RelationMetadata as RelationMetadataType,RelationType as RelationTypeType 
+  RelationMetadata as RelationMetadataType,
+  RelationType as RelationTypeType,
 } from "#types/relation"
 // Relation schemas and types
 export {
@@ -121,8 +72,8 @@ export {
 import type { default as TemporalEntity } from "#types/temporal"
 export type TemporalEntityType = TemporalEntity
 
-
-
+// Application constants
+export * from "#types/constants"
 // Embedding types with defaults
 export type {
   CachedEmbedding,
@@ -138,7 +89,11 @@ export type {
   EmbeddingProvider,
   EmbeddingProviderInfo,
   JobProcessResults,
+  OpenAIEmbeddingConfig,
+  OpenAIEmbeddingData,
   OpenAIEmbeddingModel,
+  OpenAIEmbeddingResponse,
+  OpenAIUsage,
   RateLimiterOptions,
   RateLimiterStatus,
 } from "#types/embedding"
@@ -161,7 +116,10 @@ export {
   getJobProcessingConfig,
   JOB_STATUS,
   JobProcessResults as JobProcessResultsValidator,
+  OpenAIEmbeddingData as OpenAIEmbeddingDataValidator,
   OpenAIEmbeddingModel as OpenAIEmbeddingModelValidator,
+  OpenAIEmbeddingResponse as OpenAIEmbeddingResponseValidator,
+  OpenAIUsage as OpenAIUsageValidator,
   RateLimiterOptions as RateLimiterOptionsValidator,
   RateLimiterStatus as RateLimiterStatusValidator,
 } from "#types/embedding"
@@ -191,5 +149,3 @@ export type {
   VectorSearchResult,
   VectorStore,
 } from "#types/vector"
-// Application constants
-export * from "#types/constants"

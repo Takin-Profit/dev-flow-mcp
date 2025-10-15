@@ -38,7 +38,9 @@ import { EntityName } from "#types/shared"
 /**
  * Valid relation types in the knowledge graph
  */
-export const RelationType = type("'implements' | 'depends_on' | 'relates_to' | 'part_of'")
+export const RelationType = type(
+  "'implements' | 'depends_on' | 'relates_to' | 'part_of'"
+)
 export type RelationType = typeof RelationType.infer
 
 /**

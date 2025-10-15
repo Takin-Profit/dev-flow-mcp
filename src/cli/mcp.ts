@@ -23,6 +23,7 @@ async function mcpCommandImpl(this: CliContext): Promise<void> {
     // Start the MCP server
     // Note: This will block and run until the server is terminated
     await startMcpServer()
+    // biome-ignore lint/correctness/noUnusedVariables: TODO: Consider what we want to do with this error
   } catch (error) {
     // Error logging is handled in startMcpServer
     // Exit with error code

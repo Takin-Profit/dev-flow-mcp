@@ -14,12 +14,12 @@
 import { EmbeddingService } from "#embeddings/embedding-service"
 import type { EmbeddingModel, EmbeddingModelInfo, Logger } from "#types"
 import {
-  DEFAULT_VECTOR_DIMENSIONS as OPENAI_SMALL_DIMENSIONS,
+  createNoOpLogger,
   DFM_MOCK_DIMENSIONS,
   HASH_BIT_SHIFT,
+  DEFAULT_VECTOR_DIMENSIONS as OPENAI_SMALL_DIMENSIONS,
   RANDOM_SEED_MULTIPLIER,
   TEXT_PREVIEW_LENGTH,
-  createNoOpLogger,
 } from "#types"
 
 // ============================================================================

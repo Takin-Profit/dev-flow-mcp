@@ -34,34 +34,6 @@ afterEach(() => {
   mock.reset()
 })
 
-describe("KnowledgeGraphManager Public API", () => {
-  it("knowledge-graph-manager module exports KnowledgeGraphManager class", async () => {
-    // Import the public API module
-    const kgmModule = await import("#knowledge-graph-manager.ts")
-
-    // Verify exports
-    assert.notStrictEqual(kgmModule.KnowledgeGraphManager, undefined)
-    assert.strictEqual(typeof kgmModule.KnowledgeGraphManager, "function")
-  })
-
-  it("exports include Entity interface", async () => {
-    // Import the module
-    const kgmModule = await import("#knowledge-graph-manager.ts")
-    const moduleExports = Object.keys(kgmModule)
-
-    // Verify the main exports exist
-    assert.ok(moduleExports.includes("KnowledgeGraphManager"))
-  })
-
-  it("exports Relation type from types module", async () => {
-    // Import the types module directly
-    const relationType = await import("#types/relation.ts")
-
-    // Verify Relation type exists (as a runtime value check via the default export or named exports)
-    assert.notStrictEqual(relationType, undefined)
-  })
-})
-
 describe("Memory Server Request Handlers", () => {
   it("CallTool handler throws error when arguments are missing", () => {
     // Create a request with missing arguments

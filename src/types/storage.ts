@@ -79,6 +79,9 @@ export type SearchOptions = typeof SearchOptions.infer
  * Properties like hybridSearch were removed as they are only logged but don't change results.
  */
 export const SemanticSearchOptions = type({
+  //** Whether to use semantic search or not.
+  "semanticSearch?": "boolean",
+
   /** Pre-computed query vector for vector similarity search */
   "queryVector?": "number[]",
 
@@ -87,6 +90,8 @@ export const SemanticSearchOptions = type({
 
   /** Alias for minSimilarity - minimum similarity threshold (0.0-1.0) */
   "threshold?": "0 <= number <= 1",
+
+  "limit?": "0 <= number <= 1",
 })
 export type SemanticSearchOptions = typeof SemanticSearchOptions.infer
 
@@ -204,7 +209,11 @@ export type StorageProvider = {
    * @param relationType Relation type
    * @returns Promise resolving to the relation or null if not found
    */
-  getRelation?(from: string, to: string, relationType: string): Promise<Relation | null>
+  getRelation?(
+    from: string,
+    to: string,
+    relationType: string
+  ): Promise<Relation | null>
 
   /**
    * Update an existing relation with new properties

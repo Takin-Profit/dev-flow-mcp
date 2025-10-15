@@ -133,14 +133,14 @@ async function initSchemaImpl(
     await schemaManager.createEntityConstraints(recreate)
 
     cliLogger.info(`Creating vector index "${config.vectorIndexName}"...`)
-    await schemaManager.createVectorIndex(
-      config.vectorIndexName,
-      "Entity",
-      "embedding",
-      config.vectorDimensions,
-      config.similarityFunction,
-      recreate
-    )
+    await schemaManager.createVectorIndex({
+      indexName: config.vectorIndexName,
+      nodeLabel: "Entity",
+      propertyName: "embedding",
+      dimensions: config.vectorDimensions,
+      similarityFunction: config.similarityFunction,
+      recreate,
+    })
 
     if (debug) {
       cliLogger.debug("Verifying schema was created...")

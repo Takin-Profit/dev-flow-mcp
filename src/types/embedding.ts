@@ -10,6 +10,7 @@
 /** biome-ignore-all lint/style/noMagicNumbers: over zealous */
 
 import { type } from "arktype"
+import type { Logger } from "#types/logger"
 
 // ============================================================================
 // Constants
@@ -92,7 +93,7 @@ export type CountResult = typeof CountResult.infer
 
 /**
  * Cache options for embedding cache
- * 
+ *
  * Supports both new format (size, ttl) and legacy format (maxItems, ttlHours)
  */
 export const CacheOptions = type({
@@ -149,7 +150,7 @@ export type CachedEmbedding = typeof CachedEmbedding.infer
 
 /**
  * Supported embedding providers
- * 
+ *
  * - openai: OpenAI's embedding API
  * - default: Mock/deterministic embeddings for testing
  */
@@ -158,7 +159,7 @@ export type EmbeddingProvider = typeof EmbeddingProvider.infer
 
 /**
  * OpenAI embedding model names
- * 
+ *
  * Based on OpenAI's available models:
  * - text-embedding-3-small: Most efficient, 1536 dimensions
  * - text-embedding-3-large: Highest quality, 3072 dimensions
@@ -187,25 +188,25 @@ export type EmbeddingModel = typeof EmbeddingModel.infer
 
 /**
  * Model information for embedding models
- * 
+ *
  * Contains metadata about the embedding model being used
  */
 export const EmbeddingModelInfo = type({
   name: EmbeddingModel,
-  "dimensions": "number.integer > 0",
+  dimensions: "number.integer > 0",
   version: "string",
 })
 export type EmbeddingModelInfo = typeof EmbeddingModelInfo.infer
 
 /**
  * Provider information for embedding services
- * 
+ *
  * Combines provider type with model information
  */
 export const EmbeddingProviderInfo = type({
   provider: EmbeddingProvider,
   model: EmbeddingModel,
-  "dimensions": "number.integer > 0",
+  dimensions: "number.integer > 0",
 })
 export type EmbeddingProviderInfo = typeof EmbeddingProviderInfo.infer
 
@@ -247,6 +248,65 @@ export const EmbeddingJobProcessingOptions = type({
 
 export type EmbeddingJobProcessingOptions =
   typeof EmbeddingJobProcessingOptions.infer
+
+// ============================================================================
+// OpenAI Configuration and Response Types
+// ============================================================================
+
+/**
+ * OpenAI embedding service configuration (without logger)
+ *
+ * The logger is excluded from the ArkType schema since it's a complex object
+ * and is added via type intersection in the exported type
+ */
+const OpenAIEmbeddingConfigBase = type({
+  /** OpenAI API key (required) */
+  apiKey: "string",
+  /** Model name (defaults to text-embedding-3-small) - accepts any EmbeddingModel and validates internally */
+  "model?": EmbeddingModel,
+  /** Embedding dimensions (defaults to 1536) */
+  "dimensions?": "number.integer > 0",
+  /** Model version string (defaults to 3.0.0) */
+  "version?": "string",
+})
+
+/**
+ * Full OpenAI embedding configuration including optional logger
+ */
+export type OpenAIEmbeddingConfig = typeof OpenAIEmbeddingConfigBase.infer & {
+  /** Logger instance for dependency injection */
+  logger?: Logger
+}
+
+/**
+ * OpenAI embedding API response data item
+ */
+export const OpenAIEmbeddingData = type({
+  embedding: "number[]",
+  index: "number.integer >= 0",
+  object: "string",
+})
+export type OpenAIEmbeddingData = typeof OpenAIEmbeddingData.infer
+
+/**
+ * OpenAI API usage information
+ */
+export const OpenAIUsage = type({
+  prompt_tokens: "number.integer >= 0",
+  total_tokens: "number.integer >= 0",
+})
+export type OpenAIUsage = typeof OpenAIUsage.infer
+
+/**
+ * OpenAI API response structure for embedding requests
+ */
+export const OpenAIEmbeddingResponse = type({
+  data: OpenAIEmbeddingData.array(),
+  model: "string",
+  object: "string",
+  usage: OpenAIUsage,
+})
+export type OpenAIEmbeddingResponse = typeof OpenAIEmbeddingResponse.infer
 
 // ============================================================================
 // Validators

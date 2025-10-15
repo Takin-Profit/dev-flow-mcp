@@ -5,7 +5,7 @@
  * Generates high-quality semantic embeddings for text using models like text-embedding-3-small.
  *
  * Design Notes:
- * - Communicates with OpenAI API via axios
+ * - Communicates with OpenAI API via type-safe fetch utility
  * - Supports batch embedding generation
  * - Handles API errors gracefully with logging
  * - Normalizes vectors for cosine similarity
@@ -13,48 +13,23 @@
  */
 
 import { type } from "arktype"
-import axios from "axios"
 import { EmbeddingService } from "#embeddings/embedding-service"
-import type { EmbeddingModel, EmbeddingModelInfo, Logger } from "#types"
+import type {
+  EmbeddingModel,
+  EmbeddingModelInfo,
+  Logger,
+  OpenAIEmbeddingConfig,
+} from "#types"
 import {
   createNoOpLogger,
   DEFAULT_VECTOR_DIMENSIONS,
+  EMBEDDING_BATCH_TIMEOUT_MS,
+  EMBEDDING_REQUEST_TIMEOUT_MS,
   OpenAIEmbeddingModelValidator,
+  OpenAIEmbeddingResponseValidator,
   TEXT_PREVIEW_LENGTH,
 } from "#types"
-
-/**
- * Configuration for OpenAI embedding service
- */
-export type OpenAIEmbeddingConfig = {
-  /** OpenAI API key (required) */
-  apiKey: string
-  /** Model name (default: text-embedding-3-small) */
-  model?: EmbeddingModel
-  /** Embedding dimensions (default: 1536) */
-  dimensions?: number
-  /** Model version string (default: 3.0.0) */
-  version?: string
-  /** Logger instance for dependency injection */
-  logger?: Logger
-}
-
-/**
- * OpenAI API response structure
- */
-type OpenAIEmbeddingResponse = {
-  data: Array<{
-    embedding: number[]
-    index: number
-    object: string
-  }>
-  model: string
-  object: string
-  usage: {
-    prompt_tokens: number
-    total_tokens: number
-  }
-}
+import { fetchData } from "#utils"
 
 /**
  * OpenAI embedding service implementation
@@ -147,52 +122,64 @@ export class OpenAIEmbeddingService extends EmbeddingService {
       model: this.model,
     })
 
-    try {
-      const response = await axios.post<OpenAIEmbeddingResponse>(
-        this.apiEndpoint,
-        {
+    const result = await fetchData(
+      this.apiEndpoint,
+      OpenAIEmbeddingResponseValidator,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: {
           input: text,
           model: this.model,
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${this.apiKey}`,
-          },
-          timeout: 30_000, // 30 second timeout
-        }
-      )
-
-      const embedding = response.data.data[0]?.embedding
-      if (!embedding) {
-        const error = new Error("No embedding returned from OpenAI API")
-        this.logger.error("Invalid API response", error, {
-          responseData: response.data,
-        })
-        throw error
+        timeout: EMBEDDING_REQUEST_TIMEOUT_MS,
       }
+    )
 
-      this.logger.debug("OpenAI embedding generated successfully", {
-        dimensions: embedding.length,
-        tokensUsed: response.data.usage.total_tokens,
+    if (result.error) {
+      const error = new Error(result.error.message)
+      this.logger.error("OpenAI API request failed", error, {
+        status: result.error.status,
       })
-
-      // Normalize the vector
-      this.normalizeVector(embedding)
-
-      return embedding
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        this.logger.error("OpenAI API request failed", error, {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-        })
-      } else {
-        this.logger.error("Unexpected error generating embedding", error)
-      }
       throw error
     }
+
+    if (!result.data) {
+      const error = new Error("No data returned from OpenAI API")
+      this.logger.error("Invalid API response", error)
+      throw error
+    }
+
+    const firstItem = result.data.data[0]
+    if (!firstItem) {
+      const error = new Error("No embedding data in response")
+      this.logger.error("Invalid API response", error, {
+        responseData: result.data,
+      })
+      throw error
+    }
+
+    const embedding = firstItem.embedding
+    if (!embedding) {
+      const error = new Error("No embedding returned from OpenAI API")
+      this.logger.error("Invalid API response", error, {
+        responseData: result.data,
+      })
+      throw error
+    }
+
+    this.logger.debug("OpenAI embedding generated successfully", {
+      dimensions: embedding.length,
+      tokensUsed: result.data.usage.total_tokens,
+    })
+
+    // Normalize the vector
+    this.normalizeVector(embedding)
+
+    return embedding
   }
 
   /**
@@ -221,61 +208,62 @@ export class OpenAIEmbeddingService extends EmbeddingService {
       model: this.model,
     })
 
-    try {
-      const response = await axios.post<OpenAIEmbeddingResponse>(
-        this.apiEndpoint,
-        {
+    const result = await fetchData(
+      this.apiEndpoint,
+      OpenAIEmbeddingResponseValidator,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: {
           input: texts,
           model: this.model,
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${this.apiKey}`,
-          },
-          timeout: 60_000, // 60 second timeout for batch requests
-        }
-      )
-
-      if (!response.data.data || response.data.data.length === 0) {
-        const error = new Error("No embeddings returned from OpenAI API")
-        this.logger.error("Invalid batch API response", error, {
-          responseData: response.data,
-        })
-        throw error
+        timeout: EMBEDDING_BATCH_TIMEOUT_MS,
       }
+    )
 
-      // Sort by index to ensure correct order
-      const sortedData = [...response.data.data].sort(
-        (a, b) => a.index - b.index
-      )
-
-      const embeddings = sortedData.map((item) => item.embedding)
-
-      this.logger.debug("Batch OpenAI embeddings generated successfully", {
-        count: embeddings.length,
-        tokensUsed: response.data.usage.total_tokens,
+    if (result.error) {
+      const error = new Error(result.error.message)
+      this.logger.error("OpenAI batch API request failed", error, {
+        status: result.error.status,
+        textsCount: texts.length,
       })
-
-      // Normalize all vectors
-      for (const embedding of embeddings) {
-        this.normalizeVector(embedding)
-      }
-
-      return embeddings
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        this.logger.error("OpenAI batch API request failed", error, {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          textsCount: texts.length,
-        })
-      } else {
-        this.logger.error("Unexpected error generating batch embeddings", error)
-      }
       throw error
     }
+
+    if (!result.data) {
+      const error = new Error("No data returned from OpenAI API")
+      this.logger.error("Invalid batch API response", error)
+      throw error
+    }
+
+    if (!result.data.data || result.data.data.length === 0) {
+      const error = new Error("No embeddings returned from OpenAI API")
+      this.logger.error("Invalid batch API response", error, {
+        responseData: result.data,
+      })
+      throw error
+    }
+
+    // Sort by index to ensure correct order
+    const sortedData = [...result.data.data].sort((a, b) => a.index - b.index)
+
+    const embeddings = sortedData.map((item) => item.embedding)
+
+    this.logger.debug("Batch OpenAI embeddings generated successfully", {
+      count: embeddings.length,
+      tokensUsed: result.data.usage.total_tokens,
+    })
+
+    // Normalize all vectors
+    for (const embedding of embeddings) {
+      this.normalizeVector(embedding)
+    }
+
+    return embeddings
   }
 
   /**

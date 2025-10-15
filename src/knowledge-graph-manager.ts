@@ -13,10 +13,10 @@ import type {
   VectorStore,
 } from "#types"
 import {
+  createNoOpLogger,
   DEFAULT_SEARCH_LIMIT,
   KG_MANAGER_FALLBACK_THRESHOLD,
   KG_MANAGER_MIN_SIMILARITY,
-  createNoOpLogger,
 } from "#types"
 
 // Extended storage provider interfaces for optional methods

@@ -24,9 +24,13 @@ const description = "DevFlow MCP - Development workflow knowledge graph"
 /**
  * CLI Context
  * Provides access to Node.js APIs for commands
+ *
+ * Note: We need to exclude null from process.exitCode to match Stricli's ApplicationContext type
  */
-export interface AppContext {
-  readonly process: NodeJS.Process
+export type AppContext = {
+  readonly process: Omit<NodeJS.Process, "exitCode"> & {
+    exitCode: string | number | undefined
+  }
   readonly os: typeof os
   readonly fs: typeof fs
   readonly path: typeof path
@@ -38,10 +42,20 @@ export type CliContext = CommandContext &
 
 /**
  * Build CLI context
+ * Wraps the process object to ensure exitCode is never null
  */
 export function buildCliContext(process: NodeJS.Process): AppContext {
   return {
-    process,
+    process: {
+      ...process,
+      // Ensure exitCode is never null to match Stricli's ApplicationContext type
+      get exitCode() {
+        return process.exitCode ?? undefined
+      },
+      set exitCode(value: string | number | undefined) {
+        process.exitCode = value
+      },
+    } as AppContext["process"],
     os,
     fs,
     path,

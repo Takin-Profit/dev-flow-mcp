@@ -36,11 +36,16 @@ export const DAYS_PER_WEEK = 7
  * Milliseconds per day (24 * 60 * 60 * 1000)
  */
 export const MILLISECONDS_PER_DAY =
-  HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
+  HOURS_PER_DAY *
+  MINUTES_PER_HOUR *
+  SECONDS_PER_MINUTE *
+  MILLISECONDS_PER_SECOND
 
 /**
  * Thirty days in milliseconds
  */
+
+// biome-ignore lint/style/noMagicNumbers: this is fine
 export const THIRTY_DAYS_MS = 30 * MILLISECONDS_PER_DAY
 
 // ============================================================================
@@ -196,6 +201,20 @@ export const DIAGNOSTIC_SAMPLE_SIZE = 3
  * Half-life decay constant (ln(2) / half-life)
  */
 export const HALF_LIFE_DECAY_CONSTANT = 0.5
+
+// ============================================================================
+// HTTP Timeout Constants
+// ============================================================================
+
+/**
+ * Default timeout for single embedding API requests (30 seconds)
+ */
+export const EMBEDDING_REQUEST_TIMEOUT_MS = 30_000
+
+/**
+ * Default timeout for batch embedding API requests (60 seconds)
+ */
+export const EMBEDDING_BATCH_TIMEOUT_MS = 60_000
 
 // ============================================================================
 // CLI Constants

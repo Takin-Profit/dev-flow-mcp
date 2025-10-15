@@ -20,7 +20,7 @@ import neo4j from "neo4j-driver"
 import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
 import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager"
 import type { Logger, VectorSearchResult, VectorStore } from "#types"
-import { DEFAULT_VECTOR_DIMENSIONS, createNoOpLogger } from "#types"
+import { createNoOpLogger, DEFAULT_VECTOR_DIMENSIONS } from "#types"
 
 // ============================================================================
 // Constants

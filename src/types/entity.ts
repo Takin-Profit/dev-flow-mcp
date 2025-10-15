@@ -83,7 +83,7 @@ export type EntityEmbedding = typeof EntityEmbedding.infer
  */
 export const Entity = type({
   name: EntityName,
-  entityType: "'feature' | 'task' | 'decision' | 'component'",
+  entityType: "'feature' | 'task' | 'decision' | 'component' | 'test'",
   observations: Observation.array(),
   "embedding?": EntityEmbedding,
 })

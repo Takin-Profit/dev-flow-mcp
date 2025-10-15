@@ -7,7 +7,11 @@ import {
   handleReadGraph,
 } from "#server/handlers/tool-handlers"
 import type { Entity, Logger, Relation, TemporalEntityType } from "#types"
-import { DEFAULT_MIN_SIMILARITY, DEFAULT_SEARCH_LIMIT } from "#types"
+import {
+  DEFAULT_MIN_SIMILARITY,
+  DEFAULT_SEARCH_LIMIT,
+  DEFAULT_VECTOR_DIMENSIONS,
+} from "#types"
 
 // ============================================================================
 // Type Guard Validation Functions

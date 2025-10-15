@@ -19,7 +19,7 @@ import type { SemanticSearchOptions } from "#types/storage"
 
 /**
  * Raw Neo4j node data as it comes from database queries
- * 
+ *
  * Note: observations is stored as a JSON string in Neo4j
  * Note: version, createdAt, updatedAt are required in the database
  */
@@ -63,10 +63,10 @@ export type Neo4jRelationship = typeof Neo4jRelationship.infer
 
 /**
  * Entity extended with temporal and versioning properties for Neo4j
- * 
+ *
  * This combines the base Entity with Neo4j-specific metadata like
  * timestamps, versions, and validity periods.
- * 
+ *
  * Note: This type is compatible with TemporalEntity interface
  */
 export type ExtendedEntity = Entity & {
@@ -81,7 +81,7 @@ export type ExtendedEntity = Entity & {
 
 /**
  * Relation extended with temporal and versioning properties for Neo4j
- * 
+ *
  * Note: This doesn't extend Relation to avoid type conflicts with strength/confidence
  * which can be null in the database but not in the Relation type.
  */
@@ -107,7 +107,7 @@ export type ExtendedRelation = {
 
 /**
  * Extended SemanticSearchOptions with Neo4j-specific additions
- * 
+ *
  * Adds queryVector for pre-computed embedding vectors
  */
 export type Neo4jSemanticSearchOptions = SemanticSearchOptions & {
