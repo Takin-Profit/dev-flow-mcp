@@ -293,13 +293,27 @@ export class Neo4jStorageProvider implements StorageProvider {
     fromNode: string,
     toNode: string
   ): Relation {
+    // Parse metadata if it's a JSON string (from database storage)
+    const parsedRel = { ...rel }
+    if (typeof parsedRel.metadata === "string") {
+      try {
+        parsedRel.metadata = JSON.parse(parsedRel.metadata)
+      } catch (error) {
+        this.logger.warn("Failed to parse metadata JSON, ignoring metadata", {
+          error,
+          metadata: parsedRel.metadata,
+        })
+        parsedRel.metadata = null
+      }
+    }
+
     // Validate the relationship data using arktype
-    const validationResult = Neo4jRelationshipValidator(rel)
+    const validationResult = Neo4jRelationshipValidator(parsedRel)
 
     if (validationResult instanceof type.errors) {
       this.logger.error("Invalid Neo4j relationship data", undefined, {
         errors: validationResult.summary,
-        rel,
+        rel: parsedRel,
         fromNode,
         toNode,
       })
@@ -373,15 +387,15 @@ export class Neo4jStorageProvider implements StorageProvider {
 
       // Load relations query
       const relationQuery = `
-        MATCH (from:Entity)-[r]->(to:Entity)
-        WHERE type(r) IN $relationTypes AND r.validTo IS NULL
+        MATCH (from:Entity)-[r:RELATES_TO]->(to:Entity)
+        WHERE r.validTo IS NULL
         RETURN from.name AS fromName, to.name AS toName, r
       `
 
       // Execute query to get all current relations
       const relationResult = await this.connectionManager.executeQuery(
         relationQuery,
-        { relationTypes: ["implements", "depends_on", "relates_to", "part_of"] }
+        {}
       )
 
       // Process relation results
@@ -889,25 +903,53 @@ export class Neo4jStorageProvider implements StorageProvider {
               changedBy: extendedRelation.changedBy || null,
             }
 
-            // Create relation query
-            const createQuery = `
-              MATCH (from:Entity {name: $fromName})
-              MATCH (to:Entity {name: $toName})
-              CREATE (from)-[r:RELATES_TO {
-                id: $id,
-                relationType: $relationType,
-                strength: $strength,
-                confidence: $confidence,
-                metadata: $metadata,
-                version: $version,
-                createdAt: $createdAt,
-                updatedAt: $updatedAt,
-                validFrom: $validFrom,
-                validTo: $validTo,
-                changedBy: $changedBy
-              }]->(to)
-              RETURN r, from, to
+            // Check if relation already exists
+            const existingQuery = `
+              MATCH (from:Entity {name: $fromName})-[r:RELATES_TO]->(to:Entity {name: $toName})
+              WHERE r.relationType = $relationType AND r.validTo IS NULL
+              RETURN r
             `
+
+            const existingResult = await txc.run(existingQuery, {
+              fromName: relation.from,
+              toName: relation.to,
+              relationType: relation.relationType,
+            })
+
+            let createQuery: string
+            if (existingResult.records.length > 0) {
+              // Update existing relation
+              createQuery = `
+                MATCH (from:Entity {name: $fromName})-[r:RELATES_TO]->(to:Entity {name: $toName})
+                WHERE r.relationType = $relationType AND r.validTo IS NULL
+                SET r.strength = $strength,
+                    r.confidence = $confidence,
+                    r.metadata = $metadata,
+                    r.updatedAt = $updatedAt,
+                    r.version = r.version + 1
+                RETURN r, from, to
+              `
+            } else {
+              // Create new relation
+              createQuery = `
+                MATCH (from:Entity {name: $fromName})
+                MATCH (to:Entity {name: $toName})
+                CREATE (from)-[r:RELATES_TO {
+                  id: $id,
+                  relationType: $relationType,
+                  strength: $strength,
+                  confidence: $confidence,
+                  metadata: $metadata,
+                  version: $version,
+                  createdAt: $createdAt,
+                  updatedAt: $updatedAt,
+                  validFrom: $validFrom,
+                  validTo: $validTo,
+                  changedBy: $changedBy
+                }]->(to)
+                RETURN r, from, to
+              `
+            }
 
             // Execute query
             const result = await txc.run(createQuery, params)
