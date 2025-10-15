@@ -50,7 +50,8 @@
     "uuid": "^13.0.0",
     "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0",
-    "xdg-app-paths": "^8.3.0"
+    "xdg-app-paths": "^8.3.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.6",
