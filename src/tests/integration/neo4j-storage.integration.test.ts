@@ -169,14 +169,15 @@ describe("Neo4j Storage Provider - Integration Tests", () => {
       ])
 
       // Verify metadata was saved
-      ok(createdRelation.metadata, "Metadata should exist")
+      ok(createdRelation, "Relation should be created")
+      ok(createdRelation?.metadata, "Metadata should exist")
       deepStrictEqual(
-        createdRelation.metadata?.inferredFrom,
+        createdRelation?.metadata?.inferredFrom,
         ["code_analysis"],
         "inferredFrom should be saved"
       )
       strictEqual(
-        createdRelation.metadata?.lastAccessed,
+        createdRelation?.metadata?.lastAccessed,
         now,
         "lastAccessed should be saved"
       )
@@ -250,7 +251,8 @@ describe("Neo4j Storage Provider - Integration Tests", () => {
 
       // Create
       const [created] = await storageProvider.createEntities([entity])
-      strictEqual(created.name, entity.name, "Entity should be created")
+      ok(created, "Entity should be created")
+      strictEqual(created?.name, entity.name, "Entity name should match")
 
       // Read via loadGraph
       const graph = await storageProvider.loadGraph()
@@ -359,16 +361,19 @@ describe("Neo4j Storage Provider - Integration Tests", () => {
         },
       ])
 
-      // Get all relations for hub
-      const relations = await storageProvider.getRelations(hub.name)
+      // Get all relations for hub using loadGraph
+      const graph = await storageProvider.loadGraph()
+      const relations = graph.relations.filter(
+        (r: Relation) => r.from === hub.name
+      )
 
       strictEqual(relations.length, 2, "Hub should have 2 relations")
       ok(
-        relations.some((r) => r.to === spoke1.name),
+        relations.some((r: Relation) => r.to === spoke1.name),
         "Should have relation to Spoke1"
       )
       ok(
-        relations.some((r) => r.to === spoke2.name),
+        relations.some((r: Relation) => r.to === spoke2.name),
         "Should have relation to Spoke2"
       )
     })

@@ -28,7 +28,7 @@ export default defineConfig({
   entry: {
     // Main MCP server entry point
     "server/index": "src/server/index.ts",
-    
+
     // CLI tools (marked as executables via bin in package.json)
     "cli/index": "src/cli/index.ts",
     "cli/bash-complete": "src/cli/bash-complete.ts",
@@ -70,7 +70,7 @@ export default defineConfig({
   /**
    * Compilation target - automatically determined from engines.node in package.json
    * Currently set to node >= 20.0.0
-   * 
+   *
    * Set to false to preserve modern JavaScript syntax without downleveling.
    * Since we're targeting Node.js 20+, we can use all modern features.
    */

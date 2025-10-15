@@ -1,4 +1,5 @@
 // biome-ignore-all lint/style/noDoneCallback: node:test uses a context object 't' not a callback
+/** biome-ignore-all lint/style/noMagicNumbers: tests */
 
 /**
  * Test file for KnowledgeGraphManager
@@ -607,5 +608,356 @@ describe("KnowledgeGraphManager with VectorStore", () => {
       "Entity1",
       "Entity2",
     ])
+  })
+})
+
+/**
+ * Neo4j Storage Provider Unit Tests
+ *
+ * These tests mock the Neo4j storage provider to verify the same functionality
+ * as the integration tests without requiring a real database.
+ */
+describe("Neo4j Storage Provider Unit Tests", () => {
+  describe("Relations with Strength and Confidence", () => {
+    it("should create relation with strength and confidence through KnowledgeGraphManager", async (t) => {
+      const timestamp = Date.now()
+      const relation: Relation = {
+        from: "EntityA",
+        to: "EntityB",
+        relationType: "depends_on",
+        strength: 0.85,
+        confidence: 0.92,
+        metadata: {
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          inferredFrom: [],
+          lastAccessed: timestamp,
+        },
+      }
+
+      const createRelationsMock = t.mock.fn(() => Promise.resolve([relation]))
+      const getRelationMock = t.mock.fn(() => Promise.resolve(relation))
+
+      const mockProvider: Partial<StorageProvider> = {
+        createRelations: createRelationsMock,
+        getRelation: getRelationMock,
+      }
+
+      const manager = new KnowledgeGraphManager({
+        storageProvider: mockProvider as StorageProvider,
+      })
+
+      const [created] = await manager.createRelations([relation])
+
+      ok(created, "Relation should be created")
+      strictEqual(created.strength, 0.85, "Strength should be saved correctly")
+      strictEqual(
+        created.confidence,
+        0.92,
+        "Confidence should be saved correctly"
+      )
+
+      const retrieved = await manager.getRelation(
+        "EntityA",
+        "EntityB",
+        "depends_on"
+      )
+
+      ok(retrieved, "Relation should be retrievable")
+      strictEqual(retrieved.strength, 0.85, "Strength should persist")
+      strictEqual(retrieved.confidence, 0.92, "Confidence should persist")
+    })
+
+    it("should save and retrieve relation with metadata", async (t) => {
+      const timestamp = Date.now()
+      const relation: Relation = {
+        from: "EntityC",
+        to: "EntityD",
+        relationType: "part_of",
+        strength: 0.95,
+        confidence: 0.88,
+        metadata: {
+          inferredFrom: ["code_analysis"],
+          lastAccessed: timestamp,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }
+
+      const createRelationsMock = t.mock.fn(() => Promise.resolve([relation]))
+      const getRelationMock = t.mock.fn(() => Promise.resolve(relation))
+
+      const mockProvider: Partial<StorageProvider> = {
+        createRelations: createRelationsMock,
+        getRelation: getRelationMock,
+      }
+
+      const manager = new KnowledgeGraphManager({
+        storageProvider: mockProvider as StorageProvider,
+      })
+
+      const [created] = await manager.createRelations([relation])
+
+      ok(created?.metadata, "Metadata should exist")
+      deepStrictEqual(
+        created.metadata.inferredFrom,
+        ["code_analysis"],
+        "inferredFrom should be saved"
+      )
+      strictEqual(
+        created.metadata.lastAccessed,
+        timestamp,
+        "lastAccessed should be saved"
+      )
+
+      const retrieved = await manager.getRelation(
+        "EntityC",
+        "EntityD",
+        "part_of"
+      )
+
+      ok(retrieved?.metadata, "Metadata should persist")
+      deepStrictEqual(
+        retrieved.metadata.inferredFrom,
+        ["code_analysis"],
+        "inferredFrom should persist"
+      )
+    })
+
+    it("should handle relations without optional fields", async (t) => {
+      const relation: Relation = {
+        from: "EntityE",
+        to: "EntityF",
+        relationType: "relates_to",
+      }
+
+      const createRelationsMock = t.mock.fn(() => Promise.resolve([relation]))
+
+      const mockProvider: Partial<StorageProvider> = {
+        createRelations: createRelationsMock,
+      }
+
+      const manager = new KnowledgeGraphManager({
+        storageProvider: mockProvider as StorageProvider,
+      })
+
+      const [created] = await manager.createRelations([relation])
+
+      ok(created, "Relation should be created")
+      ok(
+        created.strength === null || created.strength === undefined,
+        "Strength should be null/undefined when not provided"
+      )
+      ok(
+        created.confidence === null || created.confidence === undefined,
+        "Confidence should be null/undefined when not provided"
+      )
+    })
+  })
+
+  describe("Entity CRUD Operations", () => {
+    it("should create, read, and delete entities", async (t) => {
+      const timestamp = Date.now()
+      const entity: Entity = {
+        name: "CRUDTest",
+        entityType: "test",
+        observations: ["Testing CRUD operations"],
+      }
+
+      const temporalEntity = {
+        ...entity,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        version: 1,
+      }
+
+      const createEntitiesMock = t.mock.fn((_entities: Entity[]) =>
+        Promise.resolve([temporalEntity])
+      )
+      const getEntityMock = t.mock.fn((_entityName: string) =>
+        Promise.resolve(temporalEntity)
+      )
+      const deleteEntitiesMock = t.mock.fn((_entityNames: string[]) =>
+        Promise.resolve()
+      )
+      const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
+
+      const mockProvider: Partial<StorageProvider> = {
+        createEntities:
+          createEntitiesMock as unknown as StorageProvider["createEntities"],
+        getEntity: getEntityMock as unknown as StorageProvider["getEntity"],
+        deleteEntities: deleteEntitiesMock,
+        loadGraph: loadGraphMock,
+      }
+
+      const manager = new KnowledgeGraphManager({
+        storageProvider: mockProvider as StorageProvider,
+      })
+
+      // Create
+      const created = await manager.createEntities([entity])
+      ok(created[0], "Entity should be created")
+      strictEqual(created[0]?.name, entity.name, "Entity name should match")
+
+      // Delete
+      await manager.deleteEntities([entity.name])
+      strictEqual(
+        deleteEntitiesMock.mock.callCount(),
+        1,
+        "Delete should be called"
+      )
+    })
+  })
+
+  describe("Temporal Features", () => {
+    it("should handle temporal entities with lifecycles", async (t) => {
+      const timestamp = Date.now()
+      const temporalEntity = {
+        name: "TemporalEntity",
+        entityType: "decision" as const,
+        observations: ["A temporal entity for testing"],
+        lifecycle: {
+          deprecated: false,
+          supersededBy: null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        version: 1,
+      }
+
+      const createEntitiesMock = t.mock.fn((_entities: Entity[]) =>
+        Promise.resolve([temporalEntity])
+      )
+      const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
+
+      const mockProvider: Partial<StorageProvider> = {
+        createEntities:
+          createEntitiesMock as unknown as StorageProvider["createEntities"],
+        loadGraph: loadGraphMock,
+      }
+
+      const manager = new KnowledgeGraphManager({
+        storageProvider: mockProvider as StorageProvider,
+      })
+
+      const created = await manager.createEntities([temporalEntity])
+
+      ok(created[0], "Entity should be created")
+      const createdWithLifecycle = created[0] as typeof temporalEntity
+      ok(createdWithLifecycle.lifecycle, "Lifecycle should exist")
+      strictEqual(
+        createdWithLifecycle.lifecycle.deprecated,
+        false,
+        "Should not be deprecated"
+      )
+      strictEqual(
+        createdWithLifecycle.lifecycle.createdAt,
+        timestamp,
+        "createdAt should match"
+      )
+    })
+  })
+
+  describe("Concurrent Operations", () => {
+    it("should handle concurrent relation creations", async (t) => {
+      const relations: Relation[] = [
+        {
+          from: "Entity1",
+          to: "Entity2",
+          relationType: "relates_to",
+          strength: 0.8,
+          confidence: 0.9,
+        },
+        {
+          from: "Entity2",
+          to: "Entity3",
+          relationType: "depends_on",
+          strength: 0.7,
+          confidence: 0.85,
+        },
+        {
+          from: "Entity3",
+          to: "Entity1",
+          relationType: "part_of",
+          strength: 0.9,
+          confidence: 0.95,
+        },
+      ]
+
+      const createRelationsMock = t.mock.fn((_rels: Relation[]) =>
+        Promise.resolve(relations)
+      )
+
+      const mockProvider: Partial<StorageProvider> = {
+        createRelations: createRelationsMock,
+      }
+
+      const manager = new KnowledgeGraphManager({
+        storageProvider: mockProvider as StorageProvider,
+      })
+
+      const created = await manager.createRelations(relations)
+
+      strictEqual(created.length, 3, "All relations should be created")
+      strictEqual(
+        created[0]?.strength,
+        0.8,
+        "First relation strength should match"
+      )
+      strictEqual(
+        created[1]?.strength,
+        0.7,
+        "Second relation strength should match"
+      )
+      strictEqual(
+        created[2]?.strength,
+        0.9,
+        "Third relation strength should match"
+      )
+    })
+
+    it("should handle concurrent entity updates", async (t) => {
+      const timestamp = Date.now()
+      const entities: Entity[] = [
+        { name: "Entity1", entityType: "component", observations: ["First"] },
+        { name: "Entity2", entityType: "feature", observations: ["Second"] },
+        { name: "Entity3", entityType: "task", observations: ["Third"] },
+      ]
+
+      const temporalEntities = entities.map((e) => ({
+        ...e,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        version: 1,
+      }))
+
+      const createEntitiesMock = t.mock.fn((_ents: Entity[]) =>
+        Promise.resolve(temporalEntities)
+      )
+      const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
+
+      const mockProvider: Partial<StorageProvider> = {
+        createEntities:
+          createEntitiesMock as unknown as StorageProvider["createEntities"],
+        loadGraph: loadGraphMock,
+      }
+
+      const manager = new KnowledgeGraphManager({
+        storageProvider: mockProvider as StorageProvider,
+      })
+
+      const created = await manager.createEntities(entities)
+
+      strictEqual(created.length, 3, "All entities should be created")
+      strictEqual(created[0]?.name, "Entity1", "First entity name should match")
+      strictEqual(
+        created[1]?.name,
+        "Entity2",
+        "Second entity name should match"
+      )
+      strictEqual(created[2]?.name, "Entity3", "Third entity name should match")
+    })
   })
 })

@@ -1,9 +1,9 @@
 /**
  * Zod Schemas for Prompt Arguments
- * 
+ *
  * These define the arguments that each prompt accepts,
  * with completable fields for better UX in AI clients.
- * 
+ *
  * Note: We use Zod here (not ArkType) because MCP SDK's Completable
  * feature is tightly coupled with Zod's type system.
  */
@@ -85,9 +85,7 @@ export const RememberWorkArgsSchema = z.object({
   name: z
     .string()
     .describe("Name/title of the work (e.g., 'UserAuth', 'LoginEndpoint')"),
-  description: z
-    .string()
-    .describe("What did you do? (stored as observations)"),
+  description: z.string().describe("What did you do? (stored as observations)"),
   implementsTask: z
     .string()
     .optional()
