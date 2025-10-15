@@ -90,6 +90,139 @@ Example:
 }
 ```
 
+### Prompts (Workflow Guidance)
+
+DevFlow MCP includes **workflow-aware prompts** that teach AI agents how to use the knowledge graph effectively in a cascading development workflow (planner → task creator → coder → reviewer).
+
+**What are prompts?** Prompts are instructional messages that guide AI agents on which tools to call and when. They appear as slash commands in Claude Desktop (e.g., `/init-project`) and provide context-aware documentation.
+
+**Important:** Prompts don't save data themselves—they return guidance text that tells the AI which tools to call. The AI then calls those tools (like `create_entities`, `semantic_search`) which actually interact with the database.
+
+#### Available Prompts
+
+##### 1. `/init-project` - Start New Projects
+
+Guides planners on creating initial feature entities and structuring planning information.
+
+**Arguments:**
+- `projectName` (required): Name of the project or feature
+- `description` (required): High-level description
+- `goals` (optional): Specific goals or requirements
+
+**What it teaches:**
+- How to create "feature" entities for high-level projects
+- How to document decisions early
+- How to plan tasks and link them to features
+- Best practices for structuring project information
+
+**Example usage in Claude Desktop:**
+```
+/init-project projectName="UserAuthentication" description="Implement secure user login system" goals="Support OAuth, 2FA, and password reset"
+```
+
+##### 2. `/get-context` - Retrieve Relevant Information
+
+Helps any agent search the knowledge graph for relevant history, dependencies, and context before starting work.
+
+**Arguments:**
+- `query` (required): What are you working on? (used for semantic search)
+- `entityTypes` (optional): Filter by types (feature, task, decision, component, test)
+- `includeHistory` (optional): Include version history (default: false)
+
+**What it teaches:**
+- How to use semantic search to find related work
+- How to check dependencies via relations
+- How to review design decisions
+- How to understand entity version history
+
+**Example usage:**
+```
+/get-context query="authentication implementation" entityTypes=["component","decision"] includeHistory=true
+```
+
+##### 3. `/remember-work` - Store Completed Work
+
+Guides agents on saving their work with appropriate entity types and relations.
+
+**Arguments:**
+- `workType` (required): Type of work (feature, task, decision, component, test)
+- `name` (required): Name/title of the work
+- `description` (required): What did you do? (stored as observations)
+- `implementsTask` (optional): Task this work implements (creates "implements" relation)
+- `partOfFeature` (optional): Feature this is part of (creates "part_of" relation)
+- `dependsOn` (optional): Components this depends on (creates "depends_on" relations)
+- `keyDecisions` (optional): Important decisions made
+
+**What it teaches:**
+- How to create entities with correct types
+- How to set up relations between entities
+- How to document decisions separately
+- How to maintain the knowledge graph structure
+
+**Example usage:**
+```
+/remember-work workType="component" name="AuthService" description="Implemented OAuth login flow with JWT tokens" implementsTask="UserAuth" partOfFeature="Authentication" dependsOn=["TokenManager","UserDB"]
+```
+
+##### 4. `/review-context` - Get Full Review Context
+
+Helps reviewers gather all relevant information about a piece of work before providing feedback.
+
+**Arguments:**
+- `entityName` (required): Name of the entity to review
+- `includeRelated` (optional): Include related entities (default: true)
+- `includeDecisions` (optional): Include decision history (default: true)
+
+**What it teaches:**
+- How to get the entity being reviewed
+- How to find related work (dependencies, implementations)
+- How to review design decisions
+- How to check test coverage
+- How to add review feedback as observations
+
+**Example usage:**
+```
+/review-context entityName="AuthService" includeRelated=true includeDecisions=true
+```
+
+#### Cascading Workflow Example
+
+Here's how prompts guide a complete development workflow:
+
+**1. Planner Agent:**
+```
+/init-project projectName="UserDashboard" description="Create user analytics dashboard"
+# AI learns to create feature entity, plan tasks
+```
+
+**2. Task Creator Agent:**
+```
+/get-context query="dashboard features"
+# AI learns to search for related work, then creates task entities
+```
+
+**3. Developer Agent:**
+```
+/get-context query="dashboard UI components"
+# AI learns to find relevant components and decisions
+/remember-work workType="component" name="DashboardWidget" description="Created widget framework"
+# AI learns to store work with proper relations
+```
+
+**4. Reviewer Agent:**
+```
+/review-context entityName="DashboardWidget"
+# AI learns to get full context, check tests, add feedback
+```
+
+#### Why Prompts Matter
+
+- **Consistency**: All agents use the same structured approach
+- **Context preservation**: Work is stored with proper metadata and relations
+- **Discoverability**: Future agents can find relevant history via semantic search
+- **Workflow awareness**: Each prompt knows its place in the development cycle
+- **Self-documenting**: Prompts teach agents best practices
+
 ## Storage Backend
 
 DevFlow MCP uses Neo4j as its storage backend, providing a unified solution for both graph storage and vector search capabilities.
