@@ -8,274 +8,311 @@
 
 ## Overview
 
-This roadmap outlines the concrete steps to complete the Neo4j → SQLite migration. Each phase includes specific files to modify, code changes to make, and tests to run.
+This roadmap outlines the concrete steps to complete the Neo4j → SQLite migration with a **SQLite-only architecture**. DevFlow MCP is 100% committed to SQLite with no plans for other storage backends. This allows us to remove all abstraction layers and simplify the codebase significantly.
+
+Each phase includes specific files to modify, code changes to make, and tests to run.
 
 ---
 
-## Phase 1: Configuration Migration
+## Phase 1: Architecture Simplification
 
-**Duration:** 2-4 hours
+**Duration:** 3-5 hours
 **Priority:** 🔴 **CRITICAL** (Blocks all other work)
 **Status:** ❌ Not Started
 
 ### Objectives
 
-1. Make SQLite the default storage backend
-2. Add SQLite configuration schema
-3. Update factories to support both backends (for transition period)
-4. Make storage type configurable via environment variable
+1. **Extreme Simplification** - Remove ALL abstraction layers
+2. **Directory restructure** - `src/storage/` → `src/db/` (we're dealing with a database)
+3. **Clear naming** - No generic names, use explicit `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager`
+4. **Delete factories** - Direct instantiation only
+5. **Minimal configuration** - One option: database file location
 
 ---
 
-### Task 1.1: Update Main Configuration
+### Task 1.1: Restructure to `src/db/` with Clear SQLite Names
+
+**Objective:** Move from `src/storage/` to `src/db/` with explicit SQLite class names
+
+**Commands:**
+```bash
+# Rename directory
+mv src/storage src/db
+
+# Rename files (from src/db/sqlite/ to src/db/)
+mv src/db/sqlite/sqlite-storage-provider.ts src/db/sqlite-db.ts
+mv src/db/sqlite/sqlite-vector-store.ts src/db/sqlite-vector-store.ts
+mv src/db/sqlite/sqlite-schema-manager.ts src/db/sqlite-schema-manager.ts
+
+# Delete empty nested directory
+rmdir src/db/sqlite/
+
+# Delete factory files
+rm src/db/storage-provider-factory.ts
+rm src/db/vector-store-factory.ts
+```
+
+**Update Class Names:**
+In the renamed files:
+- `class SqliteStorageProvider` → `class SqliteDb`
+- `class SqliteVectorStore` → `class SqliteVectorStore` (already clear)
+- `class SqliteSchemaManager` → `class SqliteSchemaManager` (already clear)
+
+**Update Imports:** Global find/replace across codebase
+- Find: `from "#storage/sqlite/sqlite-storage-provider"`
+- Replace: `from "#db/sqlite-db"`
+- Find: `from "#storage/sqlite/sqlite-vector-store"`
+- Replace: `from "#db/sqlite-vector-store"`
+- Find: `from "#storage/sqlite/sqlite-schema-manager"`
+- Replace: `from "#db/sqlite-schema-manager"`
+- Find: `#storage/` (path alias)
+- Replace: `#db/` (new path alias)
+
+**Update tsconfig.json paths:**
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "#db/*": ["./src/db/*"]  // was "#storage/*"
+    }
+  }
+}
+```
+
+**Validation:**
+- [ ] Directory renamed to `src/db/`
+- [ ] All files in `src/db/` (not nested)
+- [ ] Class names are explicit: `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager`
+- [ ] Factory files deleted
+- [ ] All imports updated
+- [ ] TypeScript compiles
+- [ ] Tests still pass
+
+---
+
+### Task 1.2: Simplify Configuration
 
 **File:** `src/config.ts`
 
-**Changes:**
-
+**Remove:**
 ```typescript
-// BEFORE:
-const storageType = "neo4j" // Hardcoded
-
-// AFTER:
-const storageType = z.enum(["sqlite", "neo4j"]).default("sqlite")
+// DELETE these lines:
+DFM_STORAGE_TYPE: z.enum(["neo4j", "sqlite"])
+Neo4jConfig (entire schema)
+NEO4J_* environment variables (all of them)
 ```
 
-**Add SQLite Config Schema:**
-
+**Simplify to:**
 ```typescript
-const sqliteConfig = z.object({
-  location: z.string().default("./devflow.db"),
-  vectorDimensions: z.number().int().positive().default(1536),
-  allowExtension: z.boolean().default(true),
+// SQLite Configuration (minimal, user-facing)
+const config = z.object({
+  // Database location (only user-configurable option)
+  sqliteLocation: z.string().default("./devflow.db"),
+
+  // All other SQLite settings are INTERNAL (not exposed to users)
+  // - Vector dimensions: hardcoded to 1536
+  // - WAL mode: enabled by default
+  // - Cache size: optimized internally
+  // - Busy timeout: set internally
+  // - Extensions: automatically loaded
+})
+
+// Environment variable mapping
+export const getConfig = () => ({
+  sqliteLocation: process.env.DFM_SQLITE_LOCATION ?? "./devflow.db",
+
+  // Internal optimizations (not exposed)
+  _internal: {
+    vectorDimensions: 1536,
+    walMode: true,
+    cacheSize: -64000, // 64MB
+    busyTimeout: 5000,
+  }
 })
 ```
 
-**Environment Variables:**
-
-```typescript
-DFM_STORAGE_TYPE: storageType.parse(process.env.DFM_STORAGE_TYPE),
-DFM_SQLITE_LOCATION: z.string().default("./devflow.db").parse(process.env.DFM_SQLITE_LOCATION),
-DFM_SQLITE_VECTOR_DIMENSIONS: z.coerce.number().default(1536).parse(process.env.DFM_SQLITE_VECTOR_DIMENSIONS),
-```
-
 **Validation:**
+- [ ] Only one user-facing config option (`DFM_SQLITE_LOCATION`)
+- [ ] All Neo4j config removed
+- [ ] No storage type selection
 - [ ] TypeScript compiles
-- [ ] Config loads with defaults
-- [ ] Environment variables override defaults
 
 ---
 
-### Task 1.2: Update Storage Provider Factory
+### Task 1.3: Update Server Initialization - Direct SQLite Instantiation
 
-**File:** `src/storage/storage-provider-factory.ts`
+**Objective:** Remove factory pattern, use direct SQLite class instantiation
 
-**Changes:**
+**File to UPDATE:** `src/server/index.ts`
+
+**BEFORE (with factories):**
+```typescript
+import { createStorageProvider } from "#storage/storage-provider-factory"
+import { createVectorStore } from "#storage/vector-store-factory"
+
+const storage = await createStorageProvider(config, logger)
+const vectorStore = await createVectorStore(config, logger)
+```
+
+**AFTER (direct SQLite):**
+```typescript
+import { DB } from "@takinprofit/sqlite-x"
+import { load as loadSqliteVec } from "sqlite-vec"
+import { SqliteDb } from "#db/sqlite-db"
+import { SqliteVectorStore } from "#db/sqlite-vector-store"
+import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
+
+// Direct SQLite initialization
+const db = new DB({
+  location: config.sqliteLocation,
+  logger: logger as any,
+  allowExtension: true,
+})
+
+// Load sqlite-vec extension
+loadSqliteVec(db.nativeDb)
+
+// Apply internal optimizations (not exposed to users)
+db.exec("PRAGMA journal_mode = WAL")
+db.exec("PRAGMA cache_size = -64000") // 64MB
+db.exec("PRAGMA busy_timeout = 5000")
+db.exec("PRAGMA synchronous = NORMAL") // Faster writes
+db.exec("PRAGMA temp_store = MEMORY") // Use memory for temp tables
+
+// Initialize schema
+const schemaManager = new SqliteSchemaManager(db, logger)
+await schemaManager.initializeSchema()
+
+// Create database instances (explicit SQLite classes)
+const sqliteDb = new SqliteDb(db, logger)
+const vectorStore = new SqliteVectorStore({ db, logger })
+```
+
+**Validation:**
+- [ ] No factory imports
+- [ ] Direct SQLite class instantiation
+- [ ] Internal optimizations applied (not configurable)
+- [ ] Clear naming: `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager`
+- [ ] Server starts successfully
+- [ ] TypeScript compiles
+- [ ] Tests pass
+
+---
+
+### Task 1.4: Simplify CLI Commands
+
+**Objective:** Remove Neo4j CLI, use direct SQLite classes in CLI
+
+**File to DELETE:**
+```bash
+rm src/cli/neo4j.ts
+```
+
+**File to UPDATE:** `src/cli/index.ts`
+
+**Remove:**
+```typescript
+// DELETE import:
+import { createNeo4jCommand } from "./neo4j"
+
+// DELETE registration:
+program.addCommand(createNeo4jCommand())
+```
+
+**Update database commands** (use direct SQLite classes):
 
 ```typescript
 import { DB } from "@takinprofit/sqlite-x"
 import { load as loadSqliteVec } from "sqlite-vec"
-import { SqliteStorageProvider } from "./sqlite/sqlite-storage-provider"
-import { SqliteSchemaManager } from "./sqlite/sqlite-schema-manager"
+import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
+import { getConfig } from "#config"
 
-export async function createStorageProvider(
-  config: StorageConfig,
-  logger: Logger
-): Promise<StorageProvider> {
-  switch (config.type) {
-    case "sqlite": {
-      // Create SQLite database instance
-      const db = new DB({
-        location: config.sqlite.location,
-        logger: logger as any,
-        allowExtension: true,
-      })
+// Rename "sqlite" command to just "db" (it's the only database)
+export function createDbCommand(): Command {
+  const db = new Command("db")
+    .description("SQLite database management")
 
-      // Load sqlite-vec extension
-      loadSqliteVec(db.nativeDb)
-
-      // Initialize schema
-      const schemaManager = new SqliteSchemaManager(
-        db,
-        logger,
-        config.sqlite.vectorDimensions
-      )
-      await schemaManager.initializeSchema()
-
-      // Create storage provider
-      return new SqliteStorageProvider(db, logger, {
-        vectorDimensions: config.sqlite.vectorDimensions,
-      })
-    }
-
-    case "neo4j": {
-      // Existing Neo4j code...
-      return new Neo4jStorageProvider(/* ... */)
-    }
-
-    default:
-      throw new Error(`Unknown storage type: ${config.type}`)
-  }
-}
-```
-
-**Validation:**
-- [ ] Creates SQLite provider correctly
-- [ ] Loads sqlite-vec extension
-- [ ] Initializes schema on startup
-- [ ] Falls back to Neo4j if configured
-
----
-
-### Task 1.3: Update Vector Store Factory
-
-**File:** `src/storage/vector-store-factory.ts`
-
-**Changes:**
-
-```typescript
-import { SqliteVectorStore } from "./sqlite/sqlite-vector-store"
-
-export async function createVectorStore(
-  config: StorageConfig,
-  logger: Logger
-): Promise<VectorStore> {
-  switch (config.type) {
-    case "sqlite": {
-      const db = new DB({
-        location: config.sqlite.location,
-        logger: logger as any,
-        allowExtension: true,
-      })
-
-      loadSqliteVec(db.nativeDb)
-
-      return new SqliteVectorStore({
-        db,
-        dimensions: config.sqlite.vectorDimensions,
-        logger,
-      })
-    }
-
-    case "neo4j": {
-      // Existing Neo4j code...
-    }
-
-    default:
-      throw new Error(`Unknown storage type: ${config.type}`)
-  }
-}
-```
-
-**Validation:**
-- [ ] Creates SQLite vector store
-- [ ] Uses correct dimensions
-- [ ] Shares same DB instance as storage provider (or opens same file)
-
----
-
-### Task 1.4: Add SQLite CLI Commands
-
-**File:** `src/cli/sqlite.ts` (NEW FILE)
-
-**Create:**
-
-```typescript
-import { Command } from "commander"
-import { DB } from "@takinprofit/sqlite-x"
-import { load as loadSqliteVec } from "sqlite-vec"
-import { SqliteSchemaManager } from "../storage/sqlite/sqlite-schema-manager"
-import { logger } from "../logger"
-import { getConfig } from "../config"
-
-export function createSqliteCommand(): Command {
-  const sqlite = new Command("sqlite")
-    .description("SQLite database management commands")
-
-  sqlite
-    .command("init")
-    .description("Initialize SQLite schema (tables, indexes, triggers)")
-    .option("--recreate", "Drop and recreate all tables (WARNING: destructive)")
+  db.command("init")
+    .description("Initialize database schema")
+    .option("--reset", "Reset database (destructive)")
     .action(async (options) => {
       const config = getConfig()
-      const db = new DB({
-        location: config.sqlite.location,
-        logger: logger as any,
+
+      // Direct SQLite instantiation
+      const database = new DB({
+        location: config.sqliteLocation,
         allowExtension: true,
       })
 
-      loadSqliteVec(db.nativeDb)
+      loadSqliteVec(database.nativeDb)
 
-      const schemaManager = new SqliteSchemaManager(
-        db,
-        logger,
-        config.sqlite.vectorDimensions
-      )
+      // Explicit SQLite class
+      const schemaManager = new SqliteSchemaManager(database, logger)
 
-      if (options.recreate) {
-        logger.warn("Recreating schema - all data will be lost!")
-        schemaManager.resetSchema()
+      if (options.reset) {
+        await schemaManager.resetSchema()
       } else {
         await schemaManager.initializeSchema()
       }
 
-      logger.info("SQLite schema initialized successfully")
-      db.close()
+      database.close()
     })
 
-  sqlite
-    .command("info")
+  db.command("info")
     .description("Show SQLite database information")
     .action(async () => {
-      const config = getConfig()
-      const db = new DB({
-        location: config.sqlite.location,
-        logger: logger as any,
-        allowExtension: true,
-      })
-
-      loadSqliteVec(db.nativeDb)
-
-      // Get database stats
-      const stats = {
-        location: config.sqlite.location,
-        exists: db.isOpen(),
-        sqliteVersion: db.sql`SELECT sqlite_version() as version`.get(),
-        vecVersion: db.sql`SELECT vec_version() as version`.get(),
-        entityCount: db.sql`SELECT COUNT(*) as count FROM entities WHERE valid_to IS NULL`.get(),
-        relationCount: db.sql`SELECT COUNT(*) as count FROM relations WHERE valid_to IS NULL`.get(),
-        embeddingCount: db.sql`SELECT COUNT(*) as count FROM embeddings`.get(),
-      }
-
-      console.log(JSON.stringify(stats, null, 2))
-      db.close()
+      // Show SQLite-specific stats
     })
 
-  return sqlite
+  return db
 }
 ```
 
-**Update:** `src/cli/index.ts` to register command
-
 **Validation:**
-- [ ] `npm run sqlite:init` initializes schema
-- [ ] `npm run sqlite:info` shows database stats
-- [ ] `npm run sqlite:init --recreate` resets database
+- [ ] Neo4j CLI deleted
+- [ ] Commands use `SqliteSchemaManager` (not generic names)
+- [ ] Imports from `#db/` (not `#storage/`)
+- [ ] Commands work: `db init`, `db info`
 
 ---
 
 ### Phase 1 Validation Checklist
 
-- [ ] Server starts with `DFM_STORAGE_TYPE=sqlite`
-- [ ] SQLite database file created at `./devflow.db`
-- [ ] No Neo4j connection errors
-- [ ] Schema tables created (entities, relations, embeddings, embedding_metadata)
-- [ ] sqlite-vec extension loaded successfully
-- [ ] Can switch back to Neo4j with `DFM_STORAGE_TYPE=neo4j`
+**Directory Structure:**
+- [ ] `src/storage/` renamed to `src/db/`
+- [ ] All files in `src/db/` (no nested `sqlite/` directory)
+- [ ] Path alias updated: `#db/*` (was `#storage/*`)
+
+**Clear Naming:**
+- [ ] `SqliteDb` class (was `SqliteStorageProvider`)
+- [ ] `SqliteVectorStore` class (explicit SQLite prefix)
+- [ ] `SqliteSchemaManager` class (explicit SQLite prefix)
+- [ ] Files named: `sqlite-db.ts`, `sqlite-vector-store.ts`, `sqlite-schema-manager.ts`
+
+**Abstraction Removal:**
+- [ ] Factory files deleted (`storage-provider-factory.ts`, `vector-store-factory.ts`)
+- [ ] No generic interfaces (no `StorageProvider` interface for abstraction)
+- [ ] Direct instantiation in `src/server/index.ts`
+
+**Configuration:**
+- [ ] Only one user option: `DFM_SQLITE_LOCATION`
+- [ ] Internal optimizations hardcoded (WAL, cache, busy timeout, etc.)
+- [ ] No storage type selection
+- [ ] All Neo4j config removed
+
+**Functionality:**
+- [ ] Server starts with direct SQLite instantiation
+- [ ] SQLite database created at `./devflow.db`
+- [ ] Internal optimizations applied automatically
+- [ ] Schema initialized automatically
+- [ ] sqlite-vec extension loaded
+- [ ] All tests pass (76/76)
+- [ ] TypeScript compiles
+- [ ] CLI commands use `SqliteSchemaManager` directly
 
 ---
 
-## Phase 2: E2E Testing with SQLite
+## Phase 2: E2E Testing
 
 **Duration:** 1-2 days
 **Priority:** 🟡 **HIGH** (Validates production readiness)
@@ -284,10 +321,10 @@ export function createSqliteCommand(): Command {
 
 ### Objectives
 
-1. Port existing E2E test plan to SQLite
-2. Test all 20 MCP tools with SQLite backend
-3. Validate data integrity and correctness
-4. Benchmark performance
+1. Test all 20 MCP tools with simplified architecture
+2. Validate direct SQLite implementation works correctly
+3. Verify internal optimizations are effective
+4. Benchmark performance with optimized defaults
 
 ---
 
@@ -300,30 +337,42 @@ export function createSqliteCommand(): Command {
 ```typescript
 import { DB } from "@takinprofit/sqlite-x"
 import { load as loadSqliteVec } from "sqlite-vec"
-import { SqliteStorageProvider } from "#storage/sqlite/sqlite-storage-provider"
-import { SqliteSchemaManager } from "#storage/sqlite/sqlite-schema-manager"
+import { SqliteDb } from "#db/sqlite-db"
+import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
+import { SqliteVectorStore } from "#db/sqlite-vector-store"
 import { logger } from "#logger"
 
 export async function setupTestDatabase(): Promise<{
   db: DB
-  storage: SqliteStorageProvider
+  sqliteDb: SqliteDb
+  vectorStore: SqliteVectorStore
 }> {
+  // In-memory SQLite database for tests
   const db = new DB({
     location: ":memory:",
     logger: logger as any,
     allowExtension: true,
   })
 
+  // Load sqlite-vec
   loadSqliteVec(db.nativeDb)
 
-  const schemaManager = new SqliteSchemaManager(db, logger, 1536)
+  // Apply same optimizations as production (hardcoded, not configurable)
+  db.exec("PRAGMA journal_mode = WAL")
+  db.exec("PRAGMA cache_size = -64000")
+  db.exec("PRAGMA busy_timeout = 5000")
+  db.exec("PRAGMA synchronous = NORMAL")
+  db.exec("PRAGMA temp_store = MEMORY")
+
+  // Initialize schema (explicit SQLite class)
+  const schemaManager = new SqliteSchemaManager(db, logger)
   await schemaManager.initializeSchema()
 
-  const storage = new SqliteStorageProvider(db, logger, {
-    vectorDimensions: 1536,
-  })
+  // Create SQLite instances (explicit naming)
+  const sqliteDb = new SqliteDb(db, logger)
+  const vectorStore = new SqliteVectorStore({ db, logger })
 
-  return { db, storage }
+  return { db, sqliteDb, vectorStore }
 }
 
 export function teardownTestDatabase(db: DB): void {
@@ -377,13 +426,15 @@ export function teardownTestDatabase(db: DB): void {
 import { describe, test, before, after } from "node:test"
 import assert from "node:assert/strict"
 import { setupTestDatabase, teardownTestDatabase } from "./setup"
+import type { DB } from "@takinprofit/sqlite-x"
+import type { SqliteDb } from "#db/sqlite-db"
 
 describe("MCP CRUD Operations E2E", () => {
   let db: DB
-  let storage: SqliteStorageProvider
+  let sqliteDb: SqliteDb
 
   before(async () => {
-    ({ db, storage } = await setupTestDatabase())
+    ({ db, sqliteDb } = await setupTestDatabase())
   })
 
   after(() => {
@@ -392,7 +443,7 @@ describe("MCP CRUD Operations E2E", () => {
 
   describe("create_entities", () => {
     test("creates single entity with all fields", async () => {
-      const entities = await storage.createEntities([
+      const entities = await sqliteDb.createEntities([
         {
           name: "test-feature",
           entityType: "feature",
@@ -411,7 +462,7 @@ describe("MCP CRUD Operations E2E", () => {
     })
 
     test("creates multiple entities in batch", async () => {
-      const entities = await storage.createEntities([
+      const entities = await sqliteDb.createEntities([
         { name: "entity1", entityType: "task", observations: [] },
         { name: "entity2", entityType: "decision", observations: [] },
         { name: "entity3", entityType: "component", observations: [] },
@@ -618,22 +669,24 @@ describe("MCP CRUD Operations E2E", () => {
 
 ### Phase 2 Validation Checklist
 
-- [ ] All 20 MCP tools tested
+- [ ] All 20 MCP tools tested with simplified architecture
 - [ ] All validation tests pass
-- [ ] Real-world scenarios work
-- [ ] Performance acceptable:
+- [ ] Real-world scenarios work correctly
+- [ ] Internal optimizations verified (WAL mode, cache settings)
+- [ ] Performance meets targets:
   - CRUD operations: <50ms
   - Search: <100ms
   - Batch operations: <1s
   - Large graph queries: <200ms
 - [ ] No data corruption
 - [ ] Temporal versioning correct
-- [ ] Vector search returns relevant results
+- [ ] Vector search with hardcoded dimensions (1536) works
 - [ ] All errors handled gracefully
+- [ ] Zero-configuration setup works in tests
 
 ---
 
-## Phase 3: Neo4j Code Removal
+## Phase 3: Cleanup & Code Removal
 
 **Duration:** 2-3 hours
 **Priority:** 🟢 **CLEANUP** (Non-blocking)
@@ -642,86 +695,80 @@ describe("MCP CRUD Operations E2E", () => {
 
 ### Objectives
 
-1. Delete all Neo4j-specific code
-2. Remove Neo4j dependencies
-3. Clean up configuration
-4. Update imports and types
+1. Delete all Neo4j-specific code (~4,500 lines)
+2. Remove Neo4j dependencies from package.json
+3. Clean up Neo4j-specific types and configuration
+4. Remove Docker Compose Neo4j service
+5. Verify all abstraction layers removed (from Phase 1)
 
 ---
 
-### Task 3.1: Delete Neo4j Files
+### Task 3.1: Delete Neo4j Files & Verify Abstraction Removal
 
 **Files to Delete:**
 
 ```bash
-# Storage implementation
+# Neo4j implementation (~4,000 lines)
 rm -rf src/storage/neo4j/
 
-# Types
+# Neo4j types
 rm src/types/neo4j.ts
 
-# CLI
+# Neo4j CLI (if not already removed in Phase 1)
 rm src/cli/neo4j.ts
 
-# Tests
+# Neo4j tests
 rm src/tests/integration/neo4j-storage.integration.test.ts
 rm src/tests/integration/neo4j-vector-store.integration.test.ts
 ```
 
+**Verify Abstraction Layers Removed (from Phase 1):**
+
+```bash
+# These should NOT exist (deleted in Phase 1):
+# src/storage/storage-provider-factory.ts
+# src/storage/vector-store-factory.ts
+# src/storage/sqlite/ (directory should be empty or deleted)
+
+# Run verification:
+ls src/storage/storage-provider-factory.ts 2>/dev/null && echo "ERROR: Factory still exists!" || echo "✓ Factory removed"
+ls src/storage/vector-store-factory.ts 2>/dev/null && echo "ERROR: Factory still exists!" || echo "✓ Factory removed"
+ls -d src/storage/sqlite/ 2>/dev/null && echo "ERROR: sqlite/ dir still exists!" || echo "✓ Directory removed"
+```
+
 **Validation:**
-- [ ] Files deleted
-- [ ] Git shows deletions
+- [ ] All Neo4j files deleted
+- [ ] Abstraction layers verified removed
+- [ ] Git shows ~5,000 line deletion
 - [ ] No broken imports
+- [ ] TypeScript compiles
 
 ---
 
-### Task 3.2: Update Configuration
+### Task 3.2: Final Configuration Cleanup
 
 **File:** `src/config.ts`
 
-**Changes:**
+**Note:** Most config changes done in Phase 1. This is final cleanup.
 
+**Verify Removed:**
 ```typescript
-// REMOVE Neo4j config schema entirely
-// REMOVE Neo4jConfig type
-// REMOVE NEO4J_* environment variables
-// KEEP only SQLite configuration
+// These should already be gone (from Phase 1):
+// - DFM_STORAGE_TYPE
+// - Neo4jConfig type
+// - NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, etc.
+```
 
-const storageConfig = z.object({
-  type: z.literal("sqlite"), // Remove enum, only SQLite
-  sqlite: sqliteConfig,
-})
+**Final cleanup if any Neo4j references remain:**
+```typescript
+// Remove any lingering Neo4j imports
+// Remove any Neo4j-related type definitions
+// Ensure config only has SQLite options
 ```
 
 ---
 
-### Task 3.3: Update Factories
-
-**File:** `src/storage/storage-provider-factory.ts`
-
-**Changes:**
-
-```typescript
-// REMOVE Neo4j case statement
-// REMOVE Neo4j imports
-
-export async function createStorageProvider(
-  config: StorageConfig,
-  logger: Logger
-): Promise<StorageProvider> {
-  // Only SQLite case remains
-  const db = new DB({ /* ... */ })
-  loadSqliteVec(db.nativeDb)
-  // ...
-  return new SqliteStorageProvider(/* ... */)
-}
-```
-
-**Repeat for:** `src/storage/vector-store-factory.ts`
-
----
-
-### Task 3.4: Update Type Definitions
+### Task 3.3: Update Type Definitions
 
 **File:** `src/types/storage.ts`
 

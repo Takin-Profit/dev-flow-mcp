@@ -1,7 +1,9 @@
 # DevFlow MCP E2E Test Plan
 
 ## Overview
-Comprehensive end-to-end testing strategy for the DevFlow MCP server to ensure production readiness.
+Comprehensive end-to-end testing strategy for the DevFlow MCP server with **SQLite-only architecture** to ensure production readiness.
+
+**Note:** DevFlow MCP uses SQLite exclusively. There are no other storage backends.
 
 ## Tools to Test (20 total)
 
@@ -97,9 +99,10 @@ Comprehensive end-to-end testing strategy for the DevFlow MCP server to ensure p
 
 ### 7. Integration Tests
 - [ ] Embeddings generated correctly
-- [ ] Vector search returns relevant results
+- [ ] Vector search returns relevant results (sqlite-vec)
 - [ ] Temporal queries accurate
-- [ ] Neo4j transactions work
+- [ ] SQLite transactions work correctly
+- [ ] Internal optimizations active (WAL mode, cache settings)
 
 ## Prompt Tests (4 total)
 1. **init-project** - Initialize new project
@@ -132,6 +135,9 @@ src/tests/integration/
 - [ ] Performance benchmarks met
 - [ ] 90%+ code coverage on handlers
 - [ ] Zero flaky tests
+- [ ] SQLite-only architecture validated (no abstraction layers)
+- [ ] Direct `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager` usage confirmed
+- [ ] Internal optimizations verified (not user-configurable)
 
 ## Next Steps
 

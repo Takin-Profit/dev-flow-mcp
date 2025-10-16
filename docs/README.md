@@ -7,43 +7,50 @@ This folder contains essential documentation for the DevFlow MCP project.
 ## 📄 Documentation Files
 
 ### 1. [MIGRATION_STATUS.md](./MIGRATION_STATUS.md)
-**Purpose:** Comprehensive status report of the Neo4j → SQLite migration
+**Purpose:** Comprehensive status report of the SQLite-only migration
 
 **Contents:**
-- Executive summary of migration progress (85% complete)
-- Completed work (SQLite storage provider, vector search, temporal versioning)
-- Neo4j dependencies analysis (~4,000 lines of code)
-- Feature comparison matrix (Neo4j vs SQLite)
-- Remaining work breakdown
-- Risk assessment
+- Executive summary (85% complete)
+- **Architecture Decision:** SQLite-only, no other storage backends
+  - Remove all abstractions
+  - Restructure to `src/db/`
+  - Use explicit `SqliteDb` class names
+  - Simplify configuration (1 user option)
+- Completed work (SQLite implementation complete, tested)
+- Neo4j dependencies (~4,000 lines to remove)
+- Abstraction layers (~500 lines to remove)
+- Remaining work (3 phases)
 - Success criteria
 
-**When to read:** Want to understand current state of the migration
+**When to read:** Want to understand current state and architecture decisions
 
 ---
 
 ### 2. [ROADMAP.md](./ROADMAP.md)
-**Purpose:** Step-by-step implementation plan to complete the migration
+**Purpose:** Step-by-step implementation plan for SQLite-only architecture
 
 **Contents:**
-- **Phase 1:** Configuration Migration (make SQLite default)
-  - Task-by-task code changes
-  - File modifications with code examples
-  - Validation checklists
+- **Phase 1:** Architecture Simplification (3-5 hours)
+  - Restructure: `src/storage/` → `src/db/`
+  - Rename classes: `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager`
+  - Delete abstraction layers (factories, generic interfaces)
+  - Simplify configuration (1 user option)
+  - Direct SQLite instantiation
 
-- **Phase 2:** E2E Testing with SQLite (validate all 20 MCP tools)
-  - Test file structure
-  - Test cases for each tool category
-  - Performance benchmarks
+- **Phase 2:** E2E Testing (1-2 days)
+  - Test all 20 MCP tools with simplified architecture
+  - Validate direct SQLite implementation
+  - Verify internal optimizations
 
-- **Phase 3:** Neo4j Code Removal (cleanup)
-  - Files to delete (~4,500 lines)
-  - Dependencies to remove
+- **Phase 3:** Cleanup & Code Removal (2-3 hours)
+  - Delete Neo4j code (~4,000 lines)
+  - Delete abstraction layers (~500 lines)
+  - Remove dependencies
 
-- **Phase 4:** Documentation Updates
-  - README updates
-  - Migration guide
-  - Docs consolidation
+- **Phase 4:** Documentation Updates (2-3 hours)
+  - Update README
+  - Create migration guide
+  - Clean up docs
 
 **When to read:** Ready to execute the migration work
 
@@ -52,18 +59,19 @@ This folder contains essential documentation for the DevFlow MCP project.
 ---
 
 ### 3. [E2E_TEST_PLAN.md](./E2E_TEST_PLAN.md)
-**Purpose:** Comprehensive end-to-end testing strategy
+**Purpose:** E2E testing strategy for SQLite-only architecture
 
 **Contents:**
 - All 20 MCP tools to test
 - 7 test categories (Happy path, validation, edge cases, errors, scenarios, performance, integration)
-- Test file structure
-- Success criteria (90%+ code coverage, zero flaky tests)
+- Test file structure (using `SqliteDb`, `SqliteVectorStore`)
+- Success criteria (90%+ coverage, SQLite-only architecture validated)
+- Internal optimizations verification
 - Prompt tests (4 prompts to validate)
 
 **When to read:** Implementing E2E tests (Phase 2 of roadmap)
 
-**Status:** Plan defined, SQLite tests not yet implemented
+**Status:** Plan updated for SQLite-only, tests not yet implemented
 
 ---
 
@@ -132,18 +140,25 @@ Completion:
 ### Current Migration Status
 - **Progress:** 85% complete
 - **Current Branch:** `sqlite`
-- **Next Phase:** Configuration Migration (Phase 1)
+- **Next Phase:** Architecture Simplification (Phase 1)
 - **Blocker:** None (ready to proceed)
 
+### Architecture Decision
+- **SQLite-Only:** 100% committed, no other storage backends
+- **Directory:** `src/storage/` → `src/db/`
+- **Classes:** `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager`
+- **No Abstractions:** Direct SQLite instantiation, no factories
+
 ### Key Metrics
-- **SQLite Code:** ~1,400 lines (storage provider)
-- **Neo4j Code:** ~4,000 lines (to be removed)
+- **SQLite Implementation:** ~2,200 lines (db + vector + schema)
+- **Code to Remove:** ~5,000 lines (Neo4j + abstractions)
 - **Test Coverage:** 76/76 integration tests passing
-- **Feature Parity:** 100% (SQLite has all Neo4j features)
+- **User Configuration:** 1 option (`DFM_SQLITE_LOCATION`)
 
 ### Quick Links
 - [Migration Status Report](./MIGRATION_STATUS.md#executive-summary)
-- [Next Steps](./ROADMAP.md#phase-1-configuration-migration)
+- [Architecture Decision: SQLite-Only](./MIGRATION_STATUS.md#architecture-decision-sqlite-only)
+- [Next Steps](./ROADMAP.md#phase-1-architecture-simplification)
 - [Test Plan](./E2E_TEST_PLAN.md#test-categories)
 
 ---

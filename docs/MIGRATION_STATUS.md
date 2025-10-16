@@ -8,29 +8,88 @@
 
 ## Executive Summary
 
-The DevFlow MCP project is migrating from Neo4j graph database to SQLite for improved portability, reduced dependencies, and simplified deployment. The SQLite storage provider implementation is functionally complete and tested, but the codebase still uses Neo4j as the primary storage backend. This document tracks the migration progress and remaining work.
+The DevFlow MCP project is migrating from Neo4j graph database to SQLite for improved portability, reduced dependencies, and simplified deployment. **This is a permanent, one-way migration** - SQLite will be the only storage backend going forward, with no plans for supporting other databases.
+
+The SQLite implementation is functionally complete and tested. Remaining work focuses on:
+1. **Removing all storage abstraction layers** (no multi-backend support needed)
+2. **Flattening directory structure** (move from `src/storage/sqlite/` to `src/storage/`)
+3. **Simplifying configuration** (minimal user-facing options, optimized defaults)
+4. **Deleting Neo4j code** (~4,500 lines)
 
 ### Quick Status
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| **SQLite Storage Provider** | ✅ Complete | All CRUD operations implemented |
-| **SQLite Temporal Versioning** | ✅ Complete | Full history tracking functional |
-| **SQLite Vector Search** | ✅ Complete | sqlite-vec integrated, all tests passing |
-| **SQLite Schema Manager** | ✅ Complete | Tables, indexes, triggers in place |
+| **SQLite Implementation** | ✅ Complete | All CRUD, temporal, vector search functional |
 | **Integration Tests** | ✅ Passing | 76/76 tests pass |
-| **Configuration Migration** | ❌ **Not Started** | Still hardcoded to Neo4j |
-| **Neo4j Code Removal** | ❌ **Not Started** | ~4,000 lines to remove |
-| **E2E Testing** | ⚠️ **Partial** | Neo4j tests exist, SQLite tests needed |
-| **Production Readiness** | ❌ **Blocked** | Needs config migration & testing |
+| **Architecture Simplification** | ❌ **Not Started** | Remove abstractions, flatten structure |
+| **Configuration Simplification** | ❌ **Not Started** | Remove storage type selection, use optimized defaults |
+| **Neo4j Code Removal** | ❌ **Not Started** | ~4,500 lines to delete |
+| **E2E Testing** | ⚠️ **Partial** | Port to SQLite-only architecture |
+| **Production Readiness** | ❌ **Blocked** | Needs architecture cleanup & testing |
+
+---
+
+## Architecture Decision: SQLite-Only
+
+**Decision Date:** 2025-10-16
+
+### Rationale
+
+DevFlow MCP is **100% committed to SQLite** as the only storage backend. There are **no plans to support other databases** in the future. This is a deliberate architectural choice based on:
+
+1. **Simplicity** - Single database = simpler codebase, easier maintenance
+2. **Portability** - SQLite is embedded, works everywhere, zero configuration
+3. **Performance** - For our use case (<10k entities), SQLite is faster than client-server databases
+4. **Developer Experience** - No external dependencies, instant setup
+
+### Implications
+
+This decision allows us to:
+
+1. **Remove All Abstraction Layers**
+   - Delete factory classes (`storage-provider-factory.ts`, `vector-store-factory.ts`)
+   - Delete generic interfaces (no `StorageProvider` interface for multi-backend support)
+   - Direct SQLite class instantiation everywhere
+   - No indirection, no polymorphism
+
+2. **Restructure Directory & Use Clear Names**
+   - Rename `src/storage/` → `src/db/` (we're dealing with a database)
+   - Flatten from `src/storage/sqlite/` to `src/db/`
+   - Use explicit SQLite names:
+     - `SqliteDb` class (was `SqliteStorageProvider`)
+     - `SqliteVectorStore` class
+     - `SqliteSchemaManager` class
+   - No generic names like "StorageProvider" or "VectorStore"
+
+3. **Simplify Configuration**
+   - No storage type selection (always SQLite)
+   - Minimal user-facing options (just database location)
+   - Optimized defaults controlled by us
+   - Remove all Neo4j configuration
+
+4. **Reduce Code Complexity**
+   - ~4,500 lines of Neo4j code deleted
+   - ~500 lines of abstraction layer deleted
+   - Simpler mental model for contributors
+   - Faster onboarding for new developers
+
+### What Users Get
+
+- **Zero Configuration** - Works out of the box
+- **Single File Database** - Easy backup, migration, version control
+- **Optimized Performance** - We control all SQLite settings
+- **No Breaking Changes** - MCP tool API remains the same
 
 ---
 
 ## Completed Work
 
-### 1. SQLite Storage Provider ✅
+### 1. SQLite Database Implementation ✅
 
-**Files:** `src/storage/sqlite/sqlite-storage-provider.ts` (1,400+ lines)
+**Files:**
+- `src/storage/sqlite/sqlite-storage-provider.ts` → Will become `src/db/sqlite-db.ts`
+- Currently 1,400+ lines of implementation
 
 **Implemented Features:**
 - ✅ Entity CRUD operations (create, read, update, delete)
@@ -55,7 +114,9 @@ The DevFlow MCP project is migrating from Neo4j graph database to SQLite for imp
 
 ### 2. SQLite Vector Store ✅
 
-**Files:** `src/storage/sqlite/sqlite-vector-store.ts` (352 lines)
+**Files:**
+- `src/storage/sqlite/sqlite-vector-store.ts` → Will become `src/db/sqlite-vector-store.ts`
+- Currently 352 lines
 
 **Implemented Features:**
 - ✅ sqlite-vec extension integration (vec0 virtual tables)
@@ -79,7 +140,9 @@ The DevFlow MCP project is migrating from Neo4j graph database to SQLite for imp
 
 ### 3. SQLite Schema Manager ✅
 
-**Files:** `src/storage/sqlite/sqlite-schema-manager.ts` (403 lines)
+**Files:**
+- `src/storage/sqlite/sqlite-schema-manager.ts` → Will become `src/db/sqlite-schema-manager.ts`
+- Currently 403 lines
 
 **Schema Features:**
 - ✅ `entities` table with temporal fields (id, version, valid_from, valid_to, changed_by)
@@ -244,37 +307,62 @@ The DevFlow MCP project is migrating from Neo4j graph database to SQLite for imp
 
 ## Remaining Work
 
-### Phase 1: Configuration Migration 🔴 **CRITICAL**
+### Phase 1: Architecture Simplification 🔴 **CRITICAL**
 
-**Objective:** Make SQLite the default storage backend
+**Objective:** Remove all storage abstractions and flatten structure for SQLite-only architecture
 
 **Tasks:**
-1. Update `src/config.ts`:
-   - Change `DFM_STORAGE_TYPE` default to `"sqlite"`
-   - Add SQLite configuration schema (location, vectorDimensions, etc.)
-   - Keep Neo4j config for backward compatibility
 
-2. Update `src/storage/storage-provider-factory.ts`:
-   - Add `case "sqlite"` to create SqliteStorageProvider
-   - Load sqlite-vec extension
-   - Pass logger and decay config
+1. **Restructure Directory** (`src/storage/` → `src/db/`)
+   - Rename entire directory to reflect database-centric architecture
+   - Move files from `src/storage/sqlite/` to `src/db/`
+   - Rename files:
+     - `sqlite-storage-provider.ts` → `sqlite-db.ts`
+     - `sqlite-vector-store.ts` → `sqlite-vector-store.ts`
+     - `sqlite-schema-manager.ts` → `sqlite-schema-manager.ts`
+   - Update tsconfig.json path alias: `#storage/*` → `#db/*`
 
-3. Update `src/storage/vector-store-factory.ts`:
-   - Add `case "sqlite"` to create SqliteVectorStore
+2. **Use Clear, Explicit Names**
+   - Rename class: `SqliteStorageProvider` → `SqliteDb`
+   - Keep: `SqliteVectorStore` (already clear)
+   - Keep: `SqliteSchemaManager` (already clear)
+   - No generic names - everything explicitly says "Sqlite"
 
-4. Update environment variable documentation
-   - Add `DFM_SQLITE_LOCATION` (default: `./devflow.db`)
-   - Add `DFM_SQLITE_VECTOR_DIMENSIONS` (default: 1536)
+3. **Delete Abstraction Layers**
+   - Delete `src/storage/storage-provider-factory.ts`
+   - Delete `src/storage/vector-store-factory.ts`
+   - Remove generic interfaces if only used for abstraction
+   - Update all imports: `#storage/*` → `#db/*`
 
-**Estimated Effort:** 2-4 hours
+4. **Simplify Configuration** (`src/config.ts`)
+   - Remove `DFM_STORAGE_TYPE` (always SQLite)
+   - Remove all Neo4j configuration
+   - Simplify to ONE user option:
+     - `DFM_SQLITE_LOCATION` (default: `./devflow.db`)
+   - Internal optimizations hardcoded (WAL mode, cache size, busy timeout, synchronous, temp_store)
+   - Vector dimensions hardcoded to 1536
+
+5. **Update Server Initialization** (`src/server/index.ts`)
+   - Remove factory pattern
+   - Direct instantiation: `new SqliteDb()`, `new SqliteVectorStore()`, `new SqliteSchemaManager()`
+   - Apply internal optimizations (PRAGMA statements)
+   - No storage type switching
+
+6. **Update CLI**
+   - Delete `src/cli/neo4j.ts`
+   - Use direct `SqliteSchemaManager` instantiation
+   - Command: `db init`, `db info` (not "sqlite")
+   - Import from `#db/*`
+
+**Estimated Effort:** 3-5 hours
 
 ---
 
-### Phase 2: E2E Testing with SQLite 🟡 **HIGH PRIORITY**
+### Phase 2: E2E Testing 🟡 **HIGH PRIORITY**
 
-**Objective:** Validate all 20 MCP tools work with SQLite backend
+**Objective:** Validate all 20 MCP tools work with simplified SQLite architecture
 
-**Reference:** `docs/E2E_TEST_PLAN.md` (comprehensive test plan exists)
+**Reference:** `docs/E2E_TEST_PLAN.md` (test plan to be updated for SQLite-only)
 
 **Test Categories:**
 1. Core CRUD Operations (5 tools)
@@ -307,41 +395,53 @@ src/tests/integration/e2e/
 └── mcp-scenarios.e2e.test.ts
 ```
 
-**Port Existing Tests:**
-- Adapt Neo4j integration tests to SQLite
-- Use same test scenarios
-- Validate data integrity
+**Focus:**
+- Test direct SQLite implementation (no abstraction layers)
+- Validate optimized defaults work correctly
+- Ensure zero-configuration setup works
+- Verify performance with hardcoded optimizations
 
 **Estimated Effort:** 1-2 days
 
 ---
 
-### Phase 3: Neo4j Code Removal 🟢 **CLEANUP**
+### Phase 3: Cleanup & Code Removal 🟢 **CLEANUP**
 
-**Objective:** Remove all Neo4j dependencies to reduce codebase complexity
+**Objective:** Delete all Neo4j code and unnecessary abstraction layers
 
 **Files to Delete:**
 ```
-src/storage/neo4j/
+# Neo4j Implementation (~4,000 lines)
+src/storage/neo4j/  # or src/db/neo4j/ if directory was renamed first
 ├── neo4j-storage-provider.ts
 ├── neo4j-vector-store.ts
 ├── neo4j-schema-manager.ts
 ├── neo4j-connection-manager.ts
 └── neo4j-config.ts
 
+# Abstraction Layers (~500 lines) - Already deleted in Phase 1
+# src/storage/storage-provider-factory.ts
+# src/storage/vector-store-factory.ts
+# (or src/db/*-factory.ts if directory was renamed first)
+
+# Neo4j-specific Types and Tests
 src/cli/neo4j.ts
 src/types/neo4j.ts
 src/tests/integration/neo4j-storage.integration.test.ts
+
+# Old nested directory (files moved to src/db/ in Phase 1)
+src/storage/sqlite/  # or src/db/sqlite/ - should be empty after Phase 1
 ```
 
 **Files to Modify:**
-- `src/config.ts` - Remove Neo4j config schema
-- `src/types/storage.ts` - Remove Neo4jConfig
+- `src/types/storage.ts` - Remove Neo4j-specific types
 - `package.json` - Remove neo4j-driver dependency
 - `docker-compose.yml` - Remove Neo4j service
-- `README.md` - Remove Neo4j setup instructions
+- `README.md` - Remove Neo4j references
 
-**Estimated Lines Removed:** ~4,500 lines
+**Estimated Lines Removed:** ~5,000 lines total
+- Neo4j code: ~4,500 lines
+- Abstraction layers: ~500 lines
 
 **Estimated Effort:** 2-3 hours
 
