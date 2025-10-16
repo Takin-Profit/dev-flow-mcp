@@ -130,21 +130,48 @@ export class SqliteVectorStore implements VectorStore {
 
       // Convert vector to Float32Array for sqlite-vec
       const float32Vector = new Float32Array(vector)
+      const vectorBlob = new Uint8Array(float32Vector.buffer)
 
-      // Insert or replace embedding
-      // Using sqlite-vec's vec_f32() to construct the vector
-      this.db.sql<{
-        entity_name: string
-        observation_index: number
-        embedding: Uint8Array
-      }>`
-        INSERT OR REPLACE INTO embeddings (entity_name, observation_index, embedding)
-        VALUES (${"$entity_name"}, ${"$observation_index"}, ${"$embedding"})
-      `.run({
+      // Check if this entity+observation already exists
+      const existing = this.db.sql<{ entity_name: string; observation_index: number }>`
+        SELECT rowid FROM embedding_metadata
+        WHERE entity_name = ${"$entity_name"} AND observation_index = ${"$observation_index"}
+      `.get<{ rowid: number }>({
         entity_name: entityName,
         observation_index: observationIndex,
-        embedding: new Uint8Array(float32Vector.buffer),
       })
+
+      if (existing) {
+        // Update existing embedding
+        this.db.sql<{ rowid: number; vector_blob: Uint8Array }>`
+          UPDATE embeddings SET embedding = vec_f32(${"$vector_blob"})
+          WHERE rowid = ${"$rowid"}
+        `.run({
+          rowid: existing.rowid,
+          vector_blob: vectorBlob,
+        })
+      } else {
+        // Insert new embedding and metadata
+        const result = this.db.sql<{ vector_blob: Uint8Array }>`
+          INSERT INTO embeddings (embedding)
+          VALUES (vec_f32(${"$vector_blob"}))
+        `.run({
+          vector_blob: vectorBlob,
+        })
+
+        // Get the rowid of the inserted embedding
+        const rowid = result.lastInsertRowid
+
+        // Insert metadata with the same rowid
+        this.db.sql<{ rowid: number; entity_name: string; observation_index: number }>`
+          INSERT INTO embedding_metadata (rowid, entity_name, observation_index)
+          VALUES (${"$rowid"}, ${"$entity_name"}, ${"$observation_index"})
+        `.run({
+          rowid,
+          entity_name: entityName,
+          observation_index: observationIndex,
+        })
+      }
 
       this.logger.debug("Vector added successfully", { entityName })
     } catch (error) {
@@ -166,11 +193,24 @@ export class SqliteVectorStore implements VectorStore {
 
       this.logger.debug("Removing vector from store", { entityName })
 
-      this.db.sql<{ entity_name: string }>`
-        DELETE FROM embeddings WHERE entity_name = ${"$entity_name"}
-      `.run({ entity_name: entityName })
+      // Get all rowids for this entity
+      const rows = this.db.sql<{ entity_name: string }>`
+        SELECT rowid FROM embedding_metadata
+        WHERE entity_name = ${"$entity_name"}
+      `.all<{ rowid: number }>({ entity_name: entityName })
 
-      this.logger.debug("Vector removed successfully", { entityName })
+      // Delete from both tables
+      for (const row of rows) {
+        this.db.sql<{ rowid: number }>`
+          DELETE FROM embeddings WHERE rowid = ${"$rowid"}
+        `.run({ rowid: row.rowid })
+
+        this.db.sql<{ rowid: number }>`
+          DELETE FROM embedding_metadata WHERE rowid = ${"$rowid"}
+        `.run({ rowid: row.rowid })
+      }
+
+      this.logger.debug("Vector removed successfully", { entityName, count: rows.length })
     } catch (error) {
       this.logger.error("Failed to remove vector", { error, id })
       throw error
@@ -217,7 +257,7 @@ export class SqliteVectorStore implements VectorStore {
       const queryVectorBlob = new Uint8Array(float32QueryVector.buffer)
 
       // Perform vector similarity search using sqlite-vec
-      // Using vec_distance_cosine for cosine similarity
+      // Join with metadata table to get entity names
       type SearchResult = {
         entity_name: string
         observation_index: number
@@ -226,11 +266,12 @@ export class SqliteVectorStore implements VectorStore {
 
       const results = this.db.sql<{ query_vector: Uint8Array; limit: number }>`
         SELECT
-          entity_name,
-          observation_index,
-          vec_distance_cosine(embedding, ${"$query_vector"}) as distance
-        FROM embeddings
-        WHERE embedding IS NOT NULL
+          m.entity_name,
+          m.observation_index,
+          vec_distance_cosine(e.embedding, vec_f32(${"$query_vector"})) as distance
+        FROM embeddings e
+        JOIN embedding_metadata m ON e.rowid = m.rowid
+        WHERE e.embedding IS NOT NULL
         ORDER BY distance ASC
         LIMIT ${"$limit"}
       `.all<SearchResult>({
@@ -276,9 +317,9 @@ export class SqliteVectorStore implements VectorStore {
         SELECT COUNT(*) as count FROM embeddings
       `.get<{ count: number }>()
 
-      // Get unique entities
+      // Get unique entities from metadata table
       const uniqueEntitiesResult = this.db.sql`
-        SELECT COUNT(DISTINCT entity_name) as count FROM embeddings
+        SELECT COUNT(DISTINCT entity_name) as count FROM embedding_metadata
       `.get<{ count: number }>()
 
       return {

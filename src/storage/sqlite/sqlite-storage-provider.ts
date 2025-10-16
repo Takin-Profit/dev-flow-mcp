@@ -652,6 +652,14 @@ export class SqliteStorageProvider implements StorageProvider {
         AND valid_to IS NULL
     `)
 
+      // Remove vectors from vector store for deleted entities
+      if (this.vectorStore) {
+        await this.ensureVectorStoreInitialized()
+        for (const entityName of entityNames) {
+          await this.vectorStore.removeVector(entityName)
+        }
+      }
+
       this.logger.info("Entities deleted successfully")
     } catch (error) {
       this.logger.error("Failed to delete entities", { error })

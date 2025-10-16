@@ -1,0 +1,3 @@
+# Exclude nested git repositories and their node_modules
+sqlite-x
+simple-graph

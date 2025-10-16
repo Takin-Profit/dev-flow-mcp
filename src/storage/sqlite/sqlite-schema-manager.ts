@@ -56,10 +56,12 @@ function createTable<T extends DataRow>({
 export class SqliteSchemaManager {
   private readonly db: DB
   private readonly logger: Logger
+  private readonly vectorDimensions: number
 
-  constructor(db: DB, logger: Logger) {
+  constructor(db: DB, logger: Logger, vectorDimensions: number = 1536) {
     this.db = db
     this.logger = logger
+    this.vectorDimensions = vectorDimensions
   }
 
   /**
@@ -241,19 +243,34 @@ export class SqliteSchemaManager {
    * Creates the embeddings virtual table using sqlite-vec
    */
   private createEmbeddingsTable(): void {
-    this.logger.debug("Creating embeddings table")
+    this.logger.debug("Creating embeddings table", { dimensions: this.vectorDimensions })
 
-    // Use raw SQL for virtual table creation since it's not a regular table
-    // The vec0 module is provided by sqlite-vec extension
+    // Create vec0 virtual table with just the embedding column
+    // vec0 only supports vector columns, not custom metadata
     this.db.exec(`
 			CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
-				entity_name TEXT PRIMARY KEY,
-				observation_index INTEGER,
-				embedding FLOAT[1536]
+				embedding FLOAT[${this.vectorDimensions}]
 			)
 		`)
 
-    this.logger.info("Embeddings virtual table created")
+    // Create a separate metadata table to track entity names and observation indices
+    // The rowid links to the vec0 table's implicit rowid
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS embedding_metadata (
+        rowid INTEGER PRIMARY KEY,
+        entity_name TEXT NOT NULL,
+        observation_index INTEGER NOT NULL DEFAULT 0,
+        UNIQUE(entity_name, observation_index)
+      )
+    `)
+
+    // Create index on entity_name for fast lookups
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_embedding_metadata_entity
+      ON embedding_metadata(entity_name)
+    `)
+
+    this.logger.info("Embeddings virtual table and metadata created", { dimensions: this.vectorDimensions })
   }
 
   /**

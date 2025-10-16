@@ -12,6 +12,9 @@ Icon
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 
+
+sqlite-x/
+simple-graph/
 # nested repos
 .prompts/
 .scripts/

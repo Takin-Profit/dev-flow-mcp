@@ -62,3 +62,5 @@ ignore:
   - pnpm-lock.yaml
   - package-lock.json
   - yarn.lock
+  - sqlite-x
+  - simple-graph
