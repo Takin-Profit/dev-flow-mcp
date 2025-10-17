@@ -1,9 +1,5 @@
 import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
 import type { StorageProvider } from "#db/storage-provider"
-import {
-  VectorStoreFactory,
-  type VectorStoreFactoryOptions,
-} from "#db/vector-store-factory"
 import type {
   Entity,
   KnowledgeGraph,
@@ -84,15 +80,7 @@ export class KnowledgeGraphManager {
     this.logger = options.logger ?? createNoOpLogger()
     this.embeddingJobManager = options.embeddingJobManager
 
-    // Initialize vector store if options provided
-    if (options?.vectorStoreOptions) {
-      this.initializeVectorStore(options.vectorStoreOptions).catch((err) =>
-        this.logger.error(
-          "Failed to initialize vector store during construction",
-          err
-        )
-      )
-    }
+    // Vector store initialization removed - SQLite storage provider has its own vector store
   }
 
   /**
@@ -113,59 +101,30 @@ export class KnowledgeGraphManager {
 
   /**
    * Initialize the vector store with the given options
+   * NOTE: This method is deprecated - SQLite storage provider has its own vector store
    *
    * @param options - Options for the vector store
    */
   private async initializeVectorStore(
-    options: VectorStoreFactoryOptions
+    _options: any
   ): Promise<void> {
-    try {
-      // Set the initialize immediately flag to true
-      const factoryOptions = {
-        ...options,
-        initializeImmediately: true,
-      }
-
-      // Create and initialize the vector store
-      this.vectorStore =
-        await VectorStoreFactory.createVectorStore(factoryOptions)
-      this.logger.info("Vector store initialized successfully")
-    } catch (error) {
-      this.logger.error("Failed to initialize vector store", error)
-      throw error
-    }
+    // Vector store factory removed - using SQLite provider's internal vector store
+    this.logger.info("Vector store initialization skipped - using storage provider's vector store")
   }
 
   /**
    * Ensure vector store is initialized
+   * NOTE: This now returns the storage provider's vector store (for SQLite)
    *
    * @returns Promise that resolves when the vector store is initialized
    */
   private async ensureVectorStore(): Promise<VectorStore> {
     if (!this.vectorStore) {
-      // If vectorStore is not yet initialized but we have options from the storage provider,
-      // try to initialize it
-      if (
-        this.storageProvider &&
-        "vectorStoreOptions" in this.storageProvider
-      ) {
-        await this.initializeVectorStore(
-          (
-            this.storageProvider as unknown as {
-              vectorStoreOptions: VectorStoreFactoryOptions
-            }
-          ).vectorStoreOptions
-        )
-
-        // If still undefined after initialization attempt, throw error
-        if (!this.vectorStore) {
-          throw new Error("Failed to initialize vector store")
-        }
-      } else {
-        throw new Error(
-          "Vector store is not initialized and no options are available"
-        )
-      }
+      // Vector store is managed by the storage provider (SQLite)
+      // This method is kept for backward compatibility but won't be used
+      throw new Error(
+        "Vector store is not initialized - storage provider should handle vector operations"
+      )
     }
 
     return this.vectorStore
