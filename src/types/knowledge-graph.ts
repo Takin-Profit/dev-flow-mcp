@@ -28,7 +28,7 @@
 
 import { type } from "arktype"
 import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
-import type { StorageProvider } from "#storage/storage-provider"
+import type { StorageProvider } from "#db/storage-provider"
 import { Entity } from "#types/entity"
 // Import types needed for KnowledgeGraphManagerOptions
 import type { Logger } from "#types/index"

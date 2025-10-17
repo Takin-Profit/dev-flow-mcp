@@ -43,7 +43,7 @@ This directory contains integration tests that require a real Neo4j database.
 pnpm run test:integration
 
 # Run specific integration test file
-NODE_ENV=testing TEST_INTEGRATION=true tsx --test src/tests/integration/neo4j-storage.integration.test.ts
+DFM_ENV=testing TEST_INTEGRATION=true tsx --test src/tests/integration/neo4j-storage.integration.test.ts
 ```
 
 ## Test Database

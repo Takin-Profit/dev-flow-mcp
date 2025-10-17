@@ -3,7 +3,7 @@ import crypto from "node:crypto"
 import { LRUCache } from "lru-cache"
 import { v4 as uuidv4 } from "uuid"
 import type { EmbeddingService } from "#embeddings/embedding-service"
-import type { StorageProvider } from "#storage/storage-provider"
+import type { StorageProvider } from "#db/storage-provider"
 import type {
   CachedEmbedding,
   CacheOptions,

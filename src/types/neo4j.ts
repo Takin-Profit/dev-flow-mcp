@@ -71,6 +71,7 @@ export type Neo4jRelationship = typeof Neo4jRelationship.infer
  */
 export type ExtendedEntity = Entity & {
   id?: string
+  embedding?: number[] | null
   version: number
   createdAt: number
   updatedAt: number

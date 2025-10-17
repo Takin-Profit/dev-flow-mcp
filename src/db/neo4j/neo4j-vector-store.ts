@@ -17,8 +17,8 @@
  */
 
 import neo4j from "neo4j-driver"
-import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
-import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager"
+import type { Neo4jConnectionManager } from "#db/neo4j/neo4j-connection-manager"
+import { Neo4jSchemaManager } from "#db/neo4j/neo4j-schema-manager"
 import type { Logger, VectorSearchResult, VectorStore } from "#types"
 import { createNoOpLogger, DEFAULT_VECTOR_DIMENSIONS } from "#types"
 
@@ -131,16 +131,12 @@ export class Neo4jVectorStore implements VectorStore {
     })
 
     try {
-      // Check if vector index exists and is ONLINE
+      // Check if vector index exists
       const indexExists = await this.schemaManager.vectorIndexExists(
         this.indexName
       )
 
-      if (indexExists) {
-        this.logger.info("Vector index already exists and is ONLINE", {
-          indexName: this.indexName,
-        })
-      } else {
+      if (!indexExists) {
         this.logger.info("Creating new vector index", {
           indexName: this.indexName,
           dimensions: this.dimensions,
@@ -154,11 +150,10 @@ export class Neo4jVectorStore implements VectorStore {
           dimensions: this.dimensions,
           similarityFunction: this.similarityFunction,
         })
-
-        this.logger.info("Vector index created successfully", {
-          indexName: this.indexName,
-        })
       }
+
+      // Wait for the index to be online
+      await this.schemaManager.waitForVectorIndex(this.indexName)
 
       this.initialized = true
       this.logger.info("Neo4j vector store initialized successfully")
@@ -301,6 +296,53 @@ export class Neo4jVectorStore implements VectorStore {
   }
 
   /**
+   * Recursively convert Neo4j properties to native JavaScript types.
+   * Handles Integers, Dates, DateTimes, and other potential Neo4j types.
+   * @param properties The properties object from a Neo4j record
+   * @returns A new object with native JavaScript types
+   */
+  private convertNeo4jProperties(
+    properties: Record<string, any>
+  ): Record<string, any> {
+    const converted: Record<string, any> = {}
+    for (const key in properties) {
+      if (Object.hasOwn(properties, key)) {
+        const value = properties[key]
+        if (neo4j.isInt(value)) {
+          converted[key] = value.toNumber()
+        } else if (
+          value instanceof neo4j.types.Date ||
+          value instanceof neo4j.types.DateTime ||
+          value instanceof neo4j.types.LocalDateTime
+        ) {
+          converted[key] = value.toStandardDate()
+        } else if (
+          value instanceof neo4j.types.Time ||
+          value instanceof neo4j.types.LocalTime
+        ) {
+          converted[key] = value.toString()
+        } else if (
+          value instanceof neo4j.types.Duration ||
+          value instanceof neo4j.types.Point
+        ) {
+          converted[key] = value.toString()
+        } else if (Array.isArray(value)) {
+          converted[key] = value.map((item) =>
+            typeof item === "object" && item !== null && !neo4j.isInt(item)
+              ? this.convertNeo4jProperties(item)
+              : item
+          )
+        } else if (typeof value === "object" && value !== null) {
+          converted[key] = this.convertNeo4jProperties(value)
+        } else {
+          converted[key] = value
+        }
+      }
+    }
+    return converted
+  }
+
+  /**
    * Search for entities similar to the query vector
    *
    * Uses Neo4j's db.index.vector.queryNodes() procedure for efficient
@@ -393,19 +435,24 @@ export class Neo4jVectorStore implements VectorStore {
         })
 
         if (foundResults > 0) {
-          return result.records.map((record) => ({
-            id: record.get("id"),
-            similarity: record.get("similarity"),
-            metadata: {
-              entityType: record.get("entityType"),
-              searchMethod: "vector",
-            },
-          }))
+          return result.records.map((record) => {
+            const convertedRecord = this.convertNeo4jProperties(
+              record.toObject()
+            )
+            return {
+              id: convertedRecord.id,
+              similarity: convertedRecord.similarity,
+              metadata: {
+                entityType: convertedRecord.entityType,
+                searchMethod: "vector",
+              },
+            }
+          })
         }
 
-        // If no results, use fallback
-        this.logger.debug("No results from vector search, using fallback")
-        return this.searchByPatternFallback(limit)
+        // If no results, return empty array. The fallback is now only for errors.
+        this.logger.debug("No results from vector search.")
+        return []
       } finally {
         await session.close()
       }
@@ -652,11 +699,14 @@ export class Neo4jVectorStore implements VectorStore {
           LIMIT 3
         `
         const sampleResult = await session.run(sampleQuery)
-        const samples = sampleResult.records.map((record) => ({
-          name: record.get("e.name"),
-          entityType: record.get("e.entityType"),
-          embeddingSize: record.get("embeddingSize"),
-        }))
+        const samples = sampleResult.records.map((record) => {
+          const convertedRecord = this.convertNeo4jProperties(record.toObject())
+          return {
+            name: convertedRecord.name,
+            entityType: convertedRecord.entityType,
+            embeddingSize: convertedRecord.embeddingSize,
+          }
+        })
 
         // Get vector index info
         const indexQuery = `

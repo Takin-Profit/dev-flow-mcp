@@ -7,9 +7,9 @@ import { buildCommand, buildRouteMap } from "@stricli/core"
 import type { CliContext } from "#cli/app"
 import { env } from "#config"
 import { cliLogger } from "#logger"
-import type { Neo4jConfig } from "#storage/neo4j/neo4j-config"
-import { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
-import { Neo4jSchemaManager } from "#storage/neo4j/neo4j-schema-manager"
+import type { Neo4jConfig } from "#db/neo4j/neo4j-config"
+import { Neo4jConnectionManager } from "#db/neo4j/neo4j-connection-manager"
+import { Neo4jSchemaManager } from "#db/neo4j/neo4j-schema-manager"
 
 /**
  * Flags for Neo4j commands

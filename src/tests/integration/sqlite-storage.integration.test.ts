@@ -3,15 +3,15 @@ import { after, before, describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { DB } from "@takinprofit/sqlite-x"
 import * as sqliteVec from "sqlite-vec"
-import { SqliteSchemaManager } from "#storage/sqlite/sqlite-schema-manager"
-import { SqliteStorageProvider } from "#storage/sqlite/sqlite-storage-provider"
+import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
+import { SqliteDb } from "#db/sqlite-db"
 import { DefaultEmbeddingService } from "#embeddings/default-embedding-service"
 import { logger } from "#logger"
 import type { EmbeddingService, Entity, Relation, EntityEmbedding } from "#types"
 
 describe("SQLite Storage Provider Integration Tests", () => {
   let db: DB
-  let storage: SqliteStorageProvider
+  let storage: SqliteDb
   let schemaManager: SqliteSchemaManager
   let embeddingService: EmbeddingService
 
@@ -47,7 +47,7 @@ describe("SQLite Storage Provider Integration Tests", () => {
     await schemaManager.initializeSchema()
 
     // Initialize storage provider with the embedding service
-    storage = new SqliteStorageProvider(db, logger, {
+    storage = new SqliteDb(db, logger, {
       vectorDimensions: dimensions,
     })
   })

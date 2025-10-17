@@ -768,7 +768,7 @@ export async function handleCallToolRequest(
           pending_embedding_jobs: pendingJobs,
           environment_variables: {
             DEBUG: process.env.DEBUG === "true",
-            NODE_ENV: process.env.NODE_ENV,
+            DFM_ENV: process.env.DFM_ENV,
             MEMORY_STORAGE_TYPE: process.env.MEMORY_STORAGE_TYPE || "neo4j",
           },
         }

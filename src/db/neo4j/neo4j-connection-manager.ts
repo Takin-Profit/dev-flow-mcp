@@ -6,7 +6,7 @@ import neo4j, {
 import {
   DEFAULT_NEO4J_CONFIG,
   type Neo4jConfig,
-} from "#storage/neo4j/neo4j-config"
+} from "#db/neo4j/neo4j-config"
 
 /**
  * Manages connections to a Neo4j database

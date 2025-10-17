@@ -217,6 +217,20 @@ export const EMBEDDING_REQUEST_TIMEOUT_MS = 30_000
 export const EMBEDDING_BATCH_TIMEOUT_MS = 60_000
 
 // ============================================================================
+// SQLite Storage Constants
+// ============================================================================
+
+/**
+ * Default search limit for SQLite text search
+ */
+export const SQLITE_DEFAULT_SEARCH_LIMIT = 50
+
+/**
+ * Default maximum depth for graph traversal
+ */
+export const SQLITE_DEFAULT_TRAVERSAL_DEPTH = 3
+
+// ============================================================================
 // CLI Constants
 // ============================================================================
 

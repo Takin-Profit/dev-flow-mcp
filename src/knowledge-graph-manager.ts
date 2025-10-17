@@ -1,9 +1,9 @@
 import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
-import type { StorageProvider } from "#storage/storage-provider"
+import type { StorageProvider } from "#db/storage-provider"
 import {
   VectorStoreFactory,
   type VectorStoreFactoryOptions,
-} from "#storage/vector-store-factory"
+} from "#db/vector-store-factory"
 import type {
   Entity,
   KnowledgeGraph,

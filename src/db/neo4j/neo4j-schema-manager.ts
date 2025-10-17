@@ -17,8 +17,8 @@
 import {
   DEFAULT_NEO4J_CONFIG,
   type Neo4jConfig,
-} from "#storage/neo4j/neo4j-config"
-import type { Neo4jConnectionManager } from "#storage/neo4j/neo4j-connection-manager"
+} from "#db/neo4j/neo4j-config"
+import type { Neo4jConnectionManager } from "#db/neo4j/neo4j-connection-manager"
 import type { Logger } from "#types"
 import { createNoOpLogger } from "#types"
 
@@ -302,6 +302,8 @@ export class Neo4jSchemaManager {
             indexName,
           }
         )
+        const allIndexes = await this.listIndexes()
+        this.logger.warn("All indexes", { allIndexes })
       }
     } catch (error) {
       this.logger.error("Failed to create vector index", error, {
@@ -418,6 +420,43 @@ export class Neo4jSchemaManager {
         return false
       }
     }
+  }
+
+  /**
+   * Waits for a vector index to be ONLINE
+   *
+   * @param indexName - The name of the vector index to wait for
+   * @param timeout - Timeout in milliseconds (default: 30000)
+   */
+  async waitForVectorIndex(
+    indexName: string,
+    timeout = 120_000
+  ): Promise<void> {
+    this.log("Waiting for vector index to be ONLINE", { indexName, timeout })
+
+    const startTime = Date.now()
+
+    while (Date.now() - startTime < timeout) {
+      try {
+        const isOnline = await this.vectorIndexExists(indexName)
+        if (isOnline) {
+          this.log("Vector index is ONLINE", { indexName })
+          return
+        }
+      } catch (error) {
+        this.logger.warn("Error checking vector index status", {
+          indexName,
+          error,
+        })
+      }
+
+      // Wait for a short interval before checking again
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+
+    throw new Error(
+      `Timed out waiting for vector index ${indexName} to be ONLINE`
+    )
   }
 
   /**

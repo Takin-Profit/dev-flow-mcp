@@ -5,12 +5,11 @@
 
 import { existsSync, mkdirSync } from "node:fs"
 import path from "node:path"
-import arkenv from "arkenv"
-import { type as t } from "arktype"
+import { consola } from "consola"
 import xdgAppPaths from "xdg-app-paths"
-import { logger } from "#logger"
-import { StorageProviderFactory } from "#storage/storage-provider-factory"
-import type { VectorStoreFactoryOptions } from "#storage/vector-store-factory"
+import { z } from "zod"
+import { StorageProviderFactory } from "#db/storage-provider-factory"
+import type { VectorStoreFactoryOptions } from "#db/vector-store-factory"
 import {
   DEFAULT_RATE_LIMIT_INTERVAL,
   DEFAULT_RATE_LIMIT_TOKENS,
@@ -22,47 +21,93 @@ import {
 // ============================================================================
 
 /**
- * Environment variable schema
+ * Environment variable schema using Zod
  * Defines all environment variables used by the application with validation
  */
-export const env = arkenv({
-  // Node environment
-  NODE_ENV: t("'development' | 'production' | 'test'").default("development"),
+const envSchema = z.object({
+  // Application environment
+  DFM_ENV: z
+    .enum(["development", "production", "test", "testing"])
+    .default("development"),
 
   // OpenAI Configuration
-  DFM_OPENAI_API_KEY: t("string").optional(),
-  DFM_OPENAI_EMBEDDING_MODEL: t("string").default("text-embedding-3-small"),
+  DFM_OPENAI_API_KEY: z.string().optional(),
+  DFM_OPENAI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
 
   // Embedding Configuration
-  DFM_EMBEDDING_RATE_LIMIT_TOKENS: t("number").default(
-    DEFAULT_RATE_LIMIT_TOKENS
+  DFM_EMBEDDING_RATE_LIMIT_TOKENS: z.preprocess(
+    (val) => (val ? Number(val) : DEFAULT_RATE_LIMIT_TOKENS),
+    z.number().default(DEFAULT_RATE_LIMIT_TOKENS)
   ),
-  DFM_EMBEDDING_RATE_LIMIT_INTERVAL: t("number").default(
-    DEFAULT_RATE_LIMIT_INTERVAL
+  DFM_EMBEDDING_RATE_LIMIT_INTERVAL: z.preprocess(
+    (val) => (val ? Number(val) : DEFAULT_RATE_LIMIT_INTERVAL),
+    z.number().default(DEFAULT_RATE_LIMIT_INTERVAL)
   ),
-  DFM_MOCK_EMBEDDINGS: t("boolean").default(false),
+  DFM_MOCK_EMBEDDINGS: z.preprocess(
+    (val) => val === "true" || val === true,
+    z.boolean().default(false)
+  ),
 
   // Storage Configuration
-  DFM_STORAGE_TYPE: t("'neo4j'").default("neo4j"),
+  DFM_STORAGE_TYPE: z.enum(["neo4j"]).default("neo4j"),
 
   // Neo4j Configuration
-  NEO4J_URI: t("string").default("bolt://localhost:7687"),
-  NEO4J_USERNAME: t("string").default("neo4j"),
-  NEO4J_PASSWORD: t("string").default("dfm_password"),
-  NEO4J_DATABASE: t("string").default("neo4j"),
-  NEO4J_VECTOR_INDEX: t("string").default("entity_embeddings"),
-  NEO4J_VECTOR_DIMENSIONS: t("number").default(DEFAULT_VECTOR_DIMENSIONS),
-  NEO4J_SIMILARITY_FUNCTION: t("'cosine' | 'euclidean'").default("cosine"),
+  NEO4J_URI: z.string().default("bolt://localhost:7687"),
+  NEO4J_USERNAME: z.string().default("neo4j"),
+  NEO4J_PASSWORD: z.string().default("dfm_password"),
+  NEO4J_DATABASE: z.string().default("neo4j"),
+  NEO4J_VECTOR_INDEX: z.string().default("entity_embeddings"),
+  NEO4J_VECTOR_DIMENSIONS: z.preprocess(
+    (val) => (val ? Number(val) : DEFAULT_VECTOR_DIMENSIONS),
+    z.number().default(DEFAULT_VECTOR_DIMENSIONS)
+  ),
+  NEO4J_SIMILARITY_FUNCTION: z.enum(["cosine", "euclidean"]).default("cosine"),
 
   // Logging Configuration
-  DFM_LOG_LEVEL: t("'error' | 'warn' | 'info' | 'debug'").default("info"),
-  DFM_ENABLE_CONSOLE_LOGS: t("boolean").default(false),
+  DFM_LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
+  DFM_ENABLE_CONSOLE_LOGS: z.preprocess(
+    (val) => val === "true" || val === true,
+    z.boolean().default(false)
+  ),
 
   // Debug Configuration
-  DFM_DEBUG: t("boolean").default(false),
+  DFM_DEBUG: z.preprocess(
+    (val) => val === "true" || val === true,
+    z.boolean().default(false)
+  ),
 })
 
-export type Env = typeof env
+// Debug: Log raw process.env before parsing
+if (process.env.DFM_DEBUG === "true") {
+  consola.debug("[CONFIG] Raw process.env.DFM_ENV:", process.env.DFM_ENV)
+  consola.debug("[CONFIG] Raw process.env.NEO4J_URI:", process.env.NEO4J_URI)
+  consola.debug(
+    "[CONFIG] Raw process.env.NEO4J_PASSWORD:",
+    process.env.NEO4J_PASSWORD ? "***SET***" : "undefined"
+  )
+}
+
+// Parse and validate environment variables
+const parsedEnv = envSchema.safeParse(process.env)
+
+if (!parsedEnv.success) {
+  consola.error(
+    "❌ Invalid environment variables:",
+    JSON.stringify(parsedEnv.error.format(), null, 4)
+  )
+  process.exit(1)
+}
+
+export const env = parsedEnv.data
+
+// Debug: Log what zod parsed
+if (env.DFM_DEBUG) {
+  consola.debug("[CONFIG] Parsed env.DFM_ENV:", env.DFM_ENV)
+  consola.debug("[CONFIG] Parsed env.NEO4J_URI:", env.NEO4J_URI)
+  consola.debug("[CONFIG] Parsed env.NEO4J_PASSWORD:", env.NEO4J_PASSWORD)
+}
+
+export type Env = z.infer<typeof envSchema>
 
 export function getEnv<K extends keyof Env>(key: K): Env[K] {
   return env[key]
@@ -145,12 +190,6 @@ export function createStorageConfig(
   storageType: string | undefined
 ): StorageConfig {
   const storageProviderType = determineStorageType(storageType)
-
-  logger.info("Configuring Neo4j storage provider", {
-    uri: env.NEO4J_URI,
-    database: env.NEO4J_DATABASE,
-    vectorIndex: env.NEO4J_VECTOR_INDEX,
-  })
 
   const config: StorageConfig = {
     type: storageProviderType,

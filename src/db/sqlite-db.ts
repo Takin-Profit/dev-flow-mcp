@@ -31,7 +31,7 @@ import {
   SQLITE_DEFAULT_TRAVERSAL_DEPTH,
 } from "#types/constants"
 import type { StorageProvider } from "#types/storage"
-import { SqliteVectorStore } from "#storage/sqlite/sqlite-vector-store"
+import { SqliteVectorStore } from "#db/sqlite-vector-store"
 
 // Add at top of class or as module function
 function generateUUID(): string {
@@ -70,7 +70,7 @@ type RelationRow = {
   changed_by: string | null
 }
 
-export class SqliteStorageProvider implements StorageProvider {
+export class SqliteDb implements StorageProvider {
   private readonly db: DB
   private readonly logger: Logger
   private readonly vectorStore: SqliteVectorStore

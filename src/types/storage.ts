@@ -232,4 +232,27 @@ export type StorageProvider = {
     query: string,
     options?: SemanticSearchOptions
   ): Promise<KnowledgeGraph>
+
+  updateEntityEmbedding?(entityName: string, embedding: any): Promise<void>
+
+  getEntityEmbedding?(entityName: string): Promise<any | null>
+
+  findSimilarEntities?(
+    queryVector: number[],
+    limit: number
+  ): Promise<Array<TemporalEntityType & { similarity: number }>>
+
+  getEntityHistory?(entityName: string): Promise<TemporalEntityType[]>
+
+  getRelationHistory?(
+    from: string,
+    to: string,
+    relationType: string
+  ): Promise<Relation[]>
+
+  getGraphAtTime?(timestamp: number): Promise<KnowledgeGraph>
+
+  getDecayedGraph?(): Promise<KnowledgeGraph>
+
+  diagnoseVectorSearch?(): Promise<Record<string, unknown>>
 }

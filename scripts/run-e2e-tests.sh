@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# Integration Test Runner for DevFlow MCP
-# Automatically sets up Neo4j, runs tests, and cleans up
-# No manual setup required!
+# E2E Test Runner for DevFlow MCP
+# Automatically sets up Neo4j, starts the server, runs tests, and cleans up
 
 set -e  # Exit on error
 
@@ -127,24 +126,37 @@ init_schema() {
     fi
 }
 
-# Function to run integration tests
+# Function to build the project
+build_project() {
+    print_info "Building project..."
+    if pnpm run build > /dev/null 2>&1; then
+        print_success "Project built successfully"
+    else
+        print_error "Build failed"
+        return 1
+    fi
+}
+
+# Function to run e2e tests
 run_tests() {
-    print_info "Running integration tests..."
+    print_info "Running e2e tests..."
     echo ""
-    
+
     export DFM_ENV=testing
     export TEST_INTEGRATION=true
     export NEO4J_URI="bolt://localhost:${NEO4J_PORT_BOLT}"
     export NEO4J_USERNAME="neo4j"
     export NEO4J_PASSWORD="${NEO4J_PASSWORD}"
-    
-    if tsx --test src/tests/integration/**/*.integration.test.ts; then
+
+    # Run all e2e tests using Node.js test runner
+    # Tests spawn their own MCP server processes using the built CLI
+    if node --test src/tests/integration/e2e/*.test.js; then
         echo ""
-        print_success "All integration tests passed!"
+        print_success "All e2e tests passed!"
         return 0
     else
         echo ""
-        print_error "Some integration tests failed"
+        print_error "Some e2e tests failed"
         return 1
     fi
 }
@@ -175,10 +187,10 @@ cleanup_on_exit() {
 main() {
     echo ""
     echo "=========================================="
-    echo "  DevFlow MCP Integration Test Runner"
+    echo "    DevFlow MCP E2E Test Runner"
     echo "=========================================="
     echo ""
-    
+
     # Check prerequisites
     check_docker
     
@@ -201,21 +213,28 @@ main() {
     
     # Initialize schema (optional)
     init_schema
-    
+
+    # Build project
+    if ! build_project; then
+        exit 1
+    fi
+
     # Run tests
     if run_tests; then
         echo ""
         echo "=========================================="
-        print_success "Integration tests completed successfully!"
+        print_success "E2E tests completed successfully!"
         echo "=========================================="
         echo ""
+
         exit 0
     else
         echo ""
         echo "=========================================="
-        print_error "Integration tests failed"
+        print_error "E2E tests failed"
         echo "=========================================="
         echo ""
+
         exit 1
     fi
 }
@@ -224,10 +243,10 @@ main() {
 KEEP_CONTAINER=false
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --keep)
+        --keep) 
             KEEP_CONTAINER=true
             shift
-            ;;
+            ;; 
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -240,12 +259,12 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --keep         # Run tests and keep container"
             echo ""
             exit 0
-            ;;
+            ;; 
         *)
             print_error "Unknown option: $1"
             echo "Use --help for usage information"
             exit 1
-            ;;
+            ;; 
     esac
 done
 

@@ -5,14 +5,14 @@
 import { test, describe, beforeEach, afterEach } from "node:test"
 import assert from "node:assert/strict"
 import { DB } from "@takinprofit/sqlite-x"
-import { SqliteSchemaManager } from "#storage/sqlite/sqlite-schema-manager"
-import { SqliteStorageProvider } from "#storage/sqlite/sqlite-storage-provider"
+import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
+import { SqliteDb } from "#db/sqlite-db"
 import type { Entity, Relation } from "#types"
 import { ConsoleLogger, LogLevel } from "@takinprofit/sqlite-x"
 
-describe("SqliteStorageProvider Unit Tests", () => {
+describe("SqliteDb Unit Tests", () => {
   let db: DB
-  let storage: SqliteStorageProvider
+  let storage: SqliteDb
   let logger: ConsoleLogger
 
   beforeEach(async () => {
@@ -20,7 +20,7 @@ describe("SqliteStorageProvider Unit Tests", () => {
     db = new DB({ location: ":memory:", logger, allowExtension: true })
     const schemaManager = new SqliteSchemaManager(db, logger)
     await schemaManager.initializeSchema()
-    storage = new SqliteStorageProvider(db, logger)
+    storage = new SqliteDb(db, logger)
   })
 
   afterEach(() => {

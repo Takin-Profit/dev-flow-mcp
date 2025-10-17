@@ -11,7 +11,7 @@
  * - Validation utilities for temporal data
  */
 
-import type { Entity } from "#types/entity"
+import type { Entity, EntityEmbedding } from "#types/entity"
 import { type Relation, RelationValidator } from "#types/relation"
 
 // ============================================================================
@@ -27,9 +27,12 @@ import { type Relation, RelationValidator } from "#types/relation"
  * - Optional validity period for temporal queries
  * - Who made the changes
  */
-export default interface TemporalEntity extends Entity {
+export interface TemporalEntity extends Entity {
   /** Unique identifier for the entity */
   id?: string
+
+  /** The vector embedding for the entity (overrides Entity.embedding) */
+  embedding?: EntityEmbedding
 
   /** Timestamp when created (milliseconds since epoch) */
   createdAt: number

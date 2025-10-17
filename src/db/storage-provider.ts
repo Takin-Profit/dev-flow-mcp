@@ -9,7 +9,8 @@ import type {
 } from "#types"
 
 /**
- * Interface for storage providers that can load and save knowledge graphs
+ * Asynchronous interface for storage providers
+ * All storage providers should implement this interface with Promise-based methods
  */
 export type StorageProvider = {
   /**
@@ -223,7 +224,7 @@ export type StorageProvider = {
 }
 
 /**
- * Validator for StorageProvider objects
+ * Validator for StorageProvider objects (synchronous version)
  * Uses frozen object pattern for consistency with other validators
  */
 export const StorageProviderValidator = Object.freeze({

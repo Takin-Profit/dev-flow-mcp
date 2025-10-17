@@ -8,7 +8,7 @@
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict"
 import { afterEach, beforeEach, describe, it, mock } from "node:test"
 import { KnowledgeGraphManager } from "#knowledge-graph-manager"
-import type { StorageProvider } from "#storage/storage-provider"
+import type { StorageProvider } from "#db/storage-provider"
 import type {
   Entity,
   KnowledgeGraph,

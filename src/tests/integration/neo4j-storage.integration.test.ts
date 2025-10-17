@@ -10,15 +10,23 @@
  * Prerequisites:
  * 1. Neo4j running: docker-compose up -d neo4j
  * 2. Schema initialized: pnpm run neo4j:init
- * 3. Environment: NODE_ENV=testing TEST_INTEGRATION=true
+ * 3. Environment: DFM_ENV=testing TEST_INTEGRATION=true
  */
 /** biome-ignore-all lint/style/noMagicNumbers: tests */
 
-import { deepStrictEqual, ok, strictEqual } from "node:assert/strict"
+import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert/strict"
 import { after, before, describe, it } from "node:test"
-import { Neo4jStorageProvider } from "#storage/neo4j/neo4j-storage-provider"
+import type { Session } from "neo4j-driver"
+import { Neo4jConnectionManager } from "#db/neo4j/neo4j-connection-manager"
+import { Neo4jStorageProvider } from "#db/neo4j/neo4j-storage-provider"
+import { Neo4jVectorStore } from "#db/neo4j/neo4j-vector-store"
 import type { Entity, Relation } from "#types"
 import { createNoOpLogger } from "#types/logger"
+
+// Regex patterns for validation
+const INVALID_VECTOR_DIMENSIONS_PATTERN = /Invalid vector dimensions/
+const INVALID_QUERY_VECTOR_DIMENSIONS_PATTERN =
+  /Invalid query vector dimensions/
 
 // Skip these tests unless TEST_INTEGRATION is set
 const shouldRunIntegrationTests = process.env.TEST_INTEGRATION === "true"
@@ -917,4 +925,346 @@ describe("Neo4j Storage Provider - Integration Tests", () => {
   })
 })
 
-console.log("\n✅ Neo4j integration tests complete. Database state verified.\n")
+// ============================================================================
+// Vector Store Integration Tests
+// ============================================================================
+
+describe("Neo4j Vector Store - Integration Tests", () => {
+  let connectionManager: Neo4jConnectionManager
+  let vectorStore: Neo4jVectorStore
+  let session: Session
+
+  before(async () => {
+    const config = {
+      uri: process.env.NEO4J_URI || "bolt://localhost:7687",
+      username: process.env.NEO4J_USERNAME || "neo4j",
+      password: process.env.NEO4J_PASSWORD || "dfm_password",
+    }
+
+    connectionManager = new Neo4jConnectionManager(config)
+    session = connectionManager.getSession()
+    console.log("✓ Connected to Neo4j for vector store tests")
+
+    // Drop the default index to avoid conflicts
+    try {
+      await session.run("DROP INDEX entity_embeddings IF EXISTS")
+    } catch (error) {
+      console.warn("Could not drop default index, proceeding anyway...")
+    }
+
+    // Initialize vector store with test index
+    vectorStore = new Neo4jVectorStore({
+      connectionManager,
+      indexName: "test_entity_embeddings",
+      dimensions: 384, // Smaller dimension for faster testing
+      similarityFunction: "cosine",
+      entityNodeLabel: "Entity",
+      logger: {
+        debug: (message, meta) => console.log(`DEBUG: ${message}`, meta),
+        info: (message, meta) => console.log(`INFO: ${message}`, meta),
+        warn: (message, meta) => console.log(`WARN: ${message}`, meta),
+        error: (message, error, meta) =>
+          console.log(`ERROR: ${message}`, error, meta),
+      },
+    })
+
+    await vectorStore.initialize()
+    console.log("✓ Vector store initialized")
+  })
+
+  after(async () => {
+    // Clean up test entities
+    await session.run(`
+      MATCH (e:Entity)
+      WHERE e.name STARTS WITH 'test_vector_'
+      DETACH DELETE e
+    `)
+
+    // Drop test vector index
+    try {
+      await session.run("DROP INDEX test_entity_embeddings IF EXISTS")
+    } catch {
+      // Ignore if index doesn't exist
+    }
+
+    await session.close()
+    await connectionManager.close()
+    console.log("✓ Vector store tests cleaned up")
+  })
+
+  /**
+   * Helper function to create a normalized random vector
+   */
+  function createNormalizedVector(dimensions: number, seed = 0): number[] {
+    const vector = Array.from(
+      { length: dimensions },
+      (_, i) => Math.sin(seed + i) * 0.5 + Math.cos(seed * i) * 0.5
+    )
+
+    // Normalize to unit length
+    const l2Norm = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0))
+    return vector.map((val) => val / l2Norm)
+  }
+
+  describe("Vector Storage", () => {
+    it("should add and store a vector for an entity", async () => {
+      const entityName = "test_vector_entity_1"
+      const vector = createNormalizedVector(384, 1)
+
+      await vectorStore.addVector(entityName, vector)
+
+      // Verify the vector was stored
+      const result = await session.run(
+        `
+        MATCH (e:Entity {name: $name})
+        RETURN e.embedding AS embedding, size(e.embedding) AS dimensions
+        `,
+        { name: entityName }
+      )
+
+      strictEqual(result.records.length, 1, "Entity should exist")
+      const record = result.records[0]
+      const storedVector = record?.get("embedding")
+      const dimensions = record?.get("dimensions")?.toNumber()
+
+      strictEqual(dimensions, 384, "Should have correct dimensions")
+      ok(Array.isArray(storedVector), "Embedding should be an array")
+      strictEqual(
+        storedVector.length,
+        384,
+        "Stored vector should have correct length"
+      )
+    })
+
+    it("should update existing vector when adding to same entity", async () => {
+      const entityName = "test_vector_entity_2"
+      const vector1 = createNormalizedVector(384, 2)
+      const vector2 = createNormalizedVector(384, 3)
+
+      // Add first vector
+      await vectorStore.addVector(entityName, vector1)
+
+      // Add second vector (update)
+      await vectorStore.addVector(entityName, vector2)
+
+      // Verify only one entity exists with the second vector
+      const result = await session.run(
+        `
+        MATCH (e:Entity {name: $name})
+        RETURN count(e) AS count, e.embedding AS embedding
+        `,
+        { name: entityName }
+      )
+
+      strictEqual(result.records.length, 1, "Should have exactly one entity")
+      const storedVector = result.records[0]?.get("embedding")
+      ok(storedVector, "Stored vector should exist")
+      ok(
+        Array.isArray(storedVector) && storedVector.length > 0,
+        "Vector should be array"
+      )
+
+      // Verify it's the second vector (not the first)
+      ok(
+        vector2[0] !== undefined &&
+          Math.abs(storedVector[0] - vector2[0]) < 0.0001,
+        "Should have updated vector"
+      )
+    })
+
+    it("should store metadata with vector", async () => {
+      const entityName = "test_vector_entity_3"
+      const vector = createNormalizedVector(384, 4)
+      const metadata = {
+        entityType: "concept",
+        source: "test",
+        importance: 0.8,
+      }
+
+      await vectorStore.addVector(entityName, vector, metadata)
+
+      // Verify metadata was stored
+      const result = await session.run(
+        `
+        MATCH (e:Entity {name: $name})
+        RETURN e.metadata AS metadata
+        `,
+        { name: entityName }
+      )
+
+      const storedMetadata = JSON.parse(result.records[0]?.get("metadata"))
+      deepStrictEqual(
+        storedMetadata,
+        metadata,
+        "Metadata should be stored correctly"
+      )
+    })
+
+    it("should reject vectors with incorrect dimensions", async () => {
+      const entityName = "test_vector_entity_bad"
+      const wrongVector = [0.1, 0.2, 0.3] // Only 3 dimensions instead of 384
+
+      await rejects(
+        async () => {
+          await vectorStore.addVector(entityName, wrongVector)
+        },
+        INVALID_VECTOR_DIMENSIONS_PATTERN,
+        "Should reject wrong dimensions"
+      )
+    })
+  })
+
+  describe("Vector Removal", () => {
+    it("should remove vector but keep entity", async () => {
+      const entityName = "test_vector_entity_remove"
+      const vector = createNormalizedVector(384, 5)
+
+      // Add vector
+      await vectorStore.addVector(entityName, vector)
+
+      // Remove vector
+      await vectorStore.removeVector(entityName)
+
+      // Verify entity exists but has no embedding
+      const result = await session.run(
+        `
+        MATCH (e:Entity {name: $name})
+        RETURN e, e.embedding AS embedding
+        `,
+        { name: entityName }
+      )
+
+      strictEqual(result.records.length, 1, "Entity should still exist")
+      strictEqual(
+        result.records[0]?.get("embedding"),
+        null,
+        "Embedding should be removed"
+      )
+    })
+  })
+
+  describe("Vector Search", () => {
+    before(async () => {
+      // Create a set of test entities with known vectors
+      const testData = [
+        {
+          name: "test_vector_search_1",
+          vector: createNormalizedVector(384, 10),
+        },
+        {
+          name: "test_vector_search_2",
+          vector: createNormalizedVector(384, 11),
+        },
+        {
+          name: "test_vector_search_3",
+          vector: createNormalizedVector(384, 12),
+        },
+        {
+          name: "test_vector_search_4",
+          vector: createNormalizedVector(384, 13),
+        },
+        {
+          name: "test_vector_search_5",
+          vector: createNormalizedVector(384, 14),
+        },
+      ]
+
+      for (const item of testData) {
+        await vectorStore.addVector(item.name, item.vector)
+      }
+
+      // Wait a bit for index to update
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    })
+
+    it("should find similar vectors using semantic search", async () => {
+      // Use a query vector similar to the first test entity
+      const queryVector = createNormalizedVector(384, 10.1) // Very close to seed 10
+
+      const results = await vectorStore.search(queryVector, { limit: 3 })
+
+      ok(results.length > 0, "Should return search results")
+
+      // Verify results have required fields
+      for (const result of results) {
+        ok(result.id, "Result should have id")
+        ok(
+          typeof result.similarity === "number",
+          "Result should have similarity score"
+        )
+        ok(
+          result.similarity >= 0 && result.similarity <= 1,
+          "Similarity should be in [0,1]"
+        )
+      }
+
+      // Results should be ordered by similarity (descending)
+      for (let i = 1; i < results.length; i++) {
+        const prevResult = results[i - 1]
+        const currentResult = results[i]
+        if (prevResult && currentResult) {
+          ok(
+            prevResult.similarity >= currentResult.similarity,
+            "Results should be ordered by similarity"
+          )
+        }
+      }
+    })
+
+    it("should filter results by minimum similarity threshold", async () => {
+      const queryVector = createNormalizedVector(384, 10) // Identical to test_vector_search_1
+
+      const results = await vectorStore.search(queryVector, {
+        limit: 10,
+        minSimilarity: 0.99, // High threshold
+      })
+
+      // All results should meet the threshold if any are returned
+      if (results.length > 0) {
+        for (const result of results) {
+          ok(
+            result.similarity >= 0.99,
+            `Similarity ${result.similarity} should be >= 0.99`
+          )
+        }
+      }
+    })
+
+    it("should handle empty results gracefully", async () => {
+      // Create a vector very different from existing ones
+      const queryVector = Array.from({ length: 384 }, () => 0)
+      queryVector[0] = 1 // Unit vector in a single dimension
+
+      const results = await vectorStore.search(queryVector, {
+        minSimilarity: 0.99, // Impossibly high threshold
+      })
+
+      // Should return fallback results or empty array
+      ok(Array.isArray(results), "Should return an array")
+    })
+
+    it("should reject query vectors with wrong dimensions", async () => {
+      const wrongQueryVector = [0.1, 0.2, 0.3] // Only 3 dimensions
+
+      await rejects(
+        async () => {
+          await vectorStore.search(wrongQueryVector)
+        },
+        INVALID_QUERY_VECTOR_DIMENSIONS_PATTERN,
+        "Should reject wrong dimensions"
+      )
+    })
+  })
+
+  describe("Vector Store Diagnostics", () => {
+    it("should return diagnostic information", async () => {
+      const diagnostics = await vectorStore.diagnosticGetEntityEmbeddings()
+
+      ok(typeof diagnostics.count === "number", "Should return count")
+      ok(diagnostics.count > 0, "Should have entities with embeddings")
+      ok(Array.isArray(diagnostics.samples), "Should return samples array")
+      ok(diagnostics.indexInfo, "Should return index info")
+      ok(diagnostics.vectorQueryTest, "Should return query test results")
+    })
+  })
+})

@@ -60,7 +60,7 @@ export { EntityName, Observation } from "#types/shared"
 
 // Temporal types - entities and relations with versioning
 export type {
-  default as TemporalEntity,
+  TemporalEntity,
   TemporalRelation,
 } from "#types/temporal"
 export {
@@ -69,7 +69,7 @@ export {
 } from "#types/temporal"
 
 // Type alias for TemporalEntity (for backward compatibility)
-import type { default as TemporalEntity } from "#types/temporal"
+import type { TemporalEntity } from "#types/temporal"
 export type TemporalEntityType = TemporalEntity
 
 // Application constants
