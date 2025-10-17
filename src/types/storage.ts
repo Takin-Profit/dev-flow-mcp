@@ -20,46 +20,10 @@ import type {
 // ============================================================================
 
 /**
- * Supported vector store types
- */
-export const VectorStoreType = type("'neo4j'")
-export type VectorStoreType = typeof VectorStoreType.infer
-
-/**
  * Similarity functions for vector search
  */
 export const VectorSimilarityFunction = type("'cosine' | 'euclidean'")
 export type VectorSimilarityFunction = typeof VectorSimilarityFunction.infer
-
-/**
- * Neo4j configuration with strict validation
- *
- * Validates Neo4j connection and vector index configuration.
- * URIs must start with bolt://, bolt+s://, bolt+ssc://, or neo4j://
- */
-export const Neo4jConfig = type({
-  /** Neo4j server URI - must be a valid bolt:// or neo4j:// URI */
-  uri: "string >= 10",
-
-  /** Username for authentication - non-empty string */
-  username: "string > 0",
-
-  /** Password for authentication - non-empty string */
-  password: "string > 0",
-
-  /** Neo4j database name - non-empty string */
-  database: "string > 0",
-
-  /** Name of the vector index - non-empty string */
-  vectorIndexName: "string > 0",
-
-  /** Dimensions for vector embeddings - must be positive integer */
-  vectorDimensions: "number.integer > 0",
-
-  /** Similarity function for vector search */
-  similarityFunction: VectorSimilarityFunction,
-})
-export type Neo4jConfig = typeof Neo4jConfig.infer
 
 /**
  * Options for searching nodes in the knowledge graph
@@ -96,14 +60,10 @@ export const SemanticSearchOptions = type({
 export type SemanticSearchOptions = typeof SemanticSearchOptions.infer
 
 /**
- * Configuration options for vector store factory (runtime validation schema)
- *
- * This schema validates all properties except logger (which is a method-bearing interface).
- * The exported TypeScript type intersects this with {logger?: Logger} for type safety.
+ * Configuration options for vector store (legacy - kept for backward compatibility)
+ * NOTE: Factory removed - SQLite vector store is always used
  */
 export const VectorStoreFactoryOptionsSchema = type({
-  "type?": VectorStoreType,
-  "neo4jConfig?": Neo4jConfig,
   "indexName?": "string > 0",
   "dimensions?": "number.integer > 0",
   "similarityFunction?": VectorSimilarityFunction,
