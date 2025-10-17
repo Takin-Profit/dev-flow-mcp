@@ -1,129 +1,162 @@
 # DevFlow MCP E2E Test Plan
 
-## Overview
-Comprehensive end-to-end testing strategy for the DevFlow MCP server with **SQLite-only architecture** to ensure production readiness.
+**Last Updated:** 2025-10-17  
+**Status:** ⚠️ Partial - Basic tests exist, comprehensive suite needed
 
-**Note:** DevFlow MCP uses SQLite exclusively. There are no other storage backends.
+---
+
+## Overview
+
+Comprehensive end-to-end testing strategy for DevFlow MCP with SQLite-only architecture. This plan covers all 20 MCP tools with happy path, edge case, validation, and scenario tests.
+
+---
 
 ## Tools to Test (20 total)
 
-### Core CRUD Operations
-1. **create_entities** - Create new entities in the knowledge graph
-2. **read_graph** - Read the entire knowledge graph
-3. **delete_entities** - Delete entities from the graph
-4. **add_observations** - Add observations to existing entities
-5. **delete_observations** - Remove observations from entities
+### Core CRUD Operations (5 tools)
+1. ✅ **create_entities** - Partially tested
+2. ✅ **read_graph** - Partially tested  
+3. ⚠️ **delete_entities** - Needs tests
+4. ⚠️ **add_observations** - Needs tests
+5. ⚠️ **delete_observations** - Needs tests
 
-### Relation Management
-6. **create_relations** - Create relationships between entities
-7. **get_relation** - Get a specific relation
-8. **update_relation** - Update an existing relation
-9. **delete_relations** - Delete relations
-10. **get_relation_history** - Get temporal history of a relation
+### Relation Management (5 tools)
+6. ✅ **create_relations** - Partially tested
+7. ✅ **get_relation** - Partially tested
+8. ⚠️ **update_relation** - Needs tests
+9. ⚠️ **delete_relations** - Needs tests
+10. ⚠️ **get_relation_history** - Needs tests
 
-### Search & Discovery
-11. **search_nodes** - Text-based search
-12. **semantic_search** - Vector similarity search
-13. **open_nodes** - Open multiple nodes by name
+### Search & Discovery (4 tools)
+11. ⚠️ **search_nodes** - Needs tests
+12. ✅ **semantic_search** - Partially tested
+13. ⚠️ **open_nodes** - Needs tests
+14. ⚠️ **get_entity_embedding** - Needs tests
 
-### Temporal Features
-14. **get_entity_history** - Get entity change history
-15. **get_graph_at_time** - Get graph state at specific timestamp
-16. **get_decayed_graph** - Get graph with confidence decay applied
+### Temporal Features (3 tools)
+15. ⚠️ **get_entity_history** - Needs tests
+16. ⚠️ **get_graph_at_time** - Needs tests
+17. ⚠️ **get_decayed_graph** - Needs tests
 
-### Embedding Management
-17. **get_entity_embedding** - Get embedding for an entity
-18. **force_generate_embedding** - Force regeneration of embeddings
+### Debug Tools (3 tools)
+18. ⚠️ **force_generate_embedding** - Needs tests
+19. ⚠️ **debug_embedding_config** - Needs tests
+20. ⚠️ **diagnose_vector_search** - Needs tests
 
-### Debug/Diagnostic
-19. **debug_embedding_config** - Debug embedding configuration
-20. **diagnose_vector_search** - Diagnose vector search issues
+---
 
 ## Test Categories
 
 ### 1. Happy Path Tests
-- ✅ Basic CRUD operations work correctly
-- ✅ Relations can be created and retrieved
-- ✅ Search returns results
-- ✅ All tools return properly formatted MCP responses
+- ✅ Basic CRUD operations (partial)
+- ✅ Relations creation and retrieval (partial)
+- ✅ Search returns results (partial)
+- ⚠️ All tools return properly formatted MCP responses (needs validation)
 
-### 2. Data Validation Tests
-- [ ] Invalid entity types rejected
+### 2. Validation Tests (⚠️ NEEDED)
+- [ ] Invalid entity types rejected (feature, task, decision, component, test)
 - [ ] Missing required fields rejected
 - [ ] Invalid relation types rejected
 - [ ] Array fields validate correctly
-- [ ] Optional fields work
-- [ ] Type coercion works (strings to numbers, etc.)
+- [ ] Optional fields work (strength, confidence)
+- [ ] Type coercion works (strings to numbers)
 
-### 3. Edge Case Tests
+### 3. Edge Case Tests (⚠️ NEEDED)
 - [ ] Empty arrays handled
-- [ ] Special characters in names
-- [ ] Very long observation strings
+- [ ] Special characters in entity names
+- [ ] Very long observation strings (>5000 chars)
 - [ ] Duplicate entity creation
 - [ ] Non-existent entity references
 - [ ] Circular relationships
 - [ ] Null/undefined handling
 
-### 4. Error Handling Tests
-- [ ] Tool returns proper error format
+### 4. Error Handling Tests (⚠️ NEEDED)
+- [ ] Tool returns proper MCP error format
 - [ ] Validation errors have clear messages
 - [ ] Database errors handled gracefully
-- [ ] Network timeouts handled
 - [ ] Missing tool arguments
+- [ ] Invalid parameter types
 
-### 5. Real-World Scenario Tests
-- [ ] **Software Development Workflow**
-  - Create feature entity
-  - Add implementation tasks
-  - Link dependencies
-  - Track decisions
-  - Search for related work
+### 5. Real-World Scenario Tests (⚠️ NEEDED)
+- [ ] Software development workflow (feature → tasks → decisions)
+- [ ] Knowledge graph evolution over time
+- [ ] Collaborative work (multiple features, shared components)
+- [ ] Complex dependency graphs
 
-- [ ] **Knowledge Graph Evolution**
-  - Create entities over time
-  - Update observations
-  - Check temporal history
-  - Verify confidence decay
-
-- [ ] **Collaborative Work**
-  - Multiple features
-  - Shared components
-  - Complex dependency graphs
-  - Cross-feature relations
-
-### 6. Performance Tests
-- [ ] Large batch operations
-- [ ] Many concurrent relations
+### 6. Performance Tests (⚠️ NEEDED)
+- [ ] Large batch operations (100+ entities)
+- [ ] Many concurrent relations (1000+)
 - [ ] Search with many results
-- [ ] Graph with 100+ entities
+- [ ] Graph with 1000+ entities
 
-### 7. Integration Tests
-- [ ] Embeddings generated correctly
+### 7. Integration Tests (⚠️ NEEDED)
 - [ ] Vector search returns relevant results (sqlite-vec)
-- [ ] Temporal queries accurate
+- [ ] Temporal queries accurate (versioning, history)
 - [ ] SQLite transactions work correctly
-- [ ] Internal optimizations active (WAL mode, cache settings)
+- [ ] Internal optimizations active (WAL mode, cache)
 
-## Prompt Tests (4 total)
-1. **init-project** - Initialize new project
-2. **remember-work** - Record work session
-3. **get-context** - Retrieve context for work
-4. **review-context** - Review and validate context
+---
 
 ## Test File Structure
 
 ```
-src/tests/integration/
-├── mcp-client.integration.test.ts (basic - DONE ✅)
-├── mcp-crud.e2e.test.ts (CRUD operations)
-├── mcp-relations.e2e.test.ts (relation operations)
-├── mcp-search.e2e.test.ts (search & discovery)
-├── mcp-temporal.e2e.test.ts (temporal features)
-├── mcp-embeddings.e2e.test.ts (embedding operations)
-├── mcp-validation.e2e.test.ts (data validation & errors)
-├── mcp-scenarios.e2e.test.ts (real-world workflows)
-└── mcp-prompts.e2e.test.ts (prompt testing)
+src/tests/integration/e2e/
+├── 00-mcp-client.test.js          ✅ Done (~10 tests)
+├── 01-crud.test.js                ⚠️ Needed (~40 tests)
+├── 02-relations.test.js           ⚠️ Needed (~50 tests)
+├── 03-search.test.js              ⚠️ Needed (~30 tests)
+├── 04-temporal.test.js            ⚠️ Needed (~25 tests)
+├── 05-validation.test.js          ⚠️ Needed (~40 tests)
+├── 06-scenarios.test.js           ⚠️ Needed (~20 tests)
+└── fixtures/
+    ├── entities.js                ✅ Exists
+    ├── relations.js               ✅ Exists
+    └── helpers.js                 ✅ Exists
 ```
+
+---
+
+## Estimated Test Count
+
+| Category | Tests | Status |
+|----------|-------|--------|
+| Basic Client | 10 | ✅ Done |
+| CRUD Operations | 40 | ⚠️ Needed |
+| Relations | 50 | ⚠️ Needed |
+| Search & Discovery | 30 | ⚠️ Needed |
+| Temporal Features | 25 | ⚠️ Needed |
+| Validation & Errors | 40 | ⚠️ Needed |
+| Real-World Scenarios | 20 | ⚠️ Needed |
+| **TOTAL** | **~215** | **~5% Complete** |
+
+---
+
+## Implementation Priority
+
+### Phase 1: Core Functionality (HIGH) - ~130 tests
+1. CRUD operations (40 tests)
+2. Relation management (50 tests)
+3. Validation & errors (40 tests)
+
+**Estimated Effort:** 1 day
+
+### Phase 2: Advanced Features (MEDIUM) - ~55 tests
+1. Search & discovery (30 tests)
+2. Temporal features (25 tests)
+
+**Estimated Effort:** 4-6 hours
+
+### Phase 3: Real-World (MEDIUM) - ~20 tests
+1. Scenario tests (20 tests)
+
+**Estimated Effort:** 3-4 hours
+
+### Phase 4: Debug Tools (LOW) - ~15 tests
+1. Debug tool tests (15 tests)
+
+**Estimated Effort:** 2-3 hours
+
+---
 
 ## Success Criteria
 
@@ -132,17 +165,114 @@ src/tests/integration/
 - [ ] All error cases return proper MCP error format
 - [ ] All validation rules enforced
 - [ ] Real-world scenarios pass
-- [ ] Performance benchmarks met
-- [ ] 90%+ code coverage on handlers
+- [ ] Performance acceptable (<100ms for typical queries)
 - [ ] Zero flaky tests
-- [ ] SQLite-only architecture validated (no abstraction layers)
-- [ ] Direct `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager` usage confirmed
-- [ ] Internal optimizations verified (not user-configurable)
+- [ ] SQLite-only architecture validated
+- [ ] Direct `SqliteDb` usage confirmed
+- [ ] Internal optimizations verified
+
+---
+
+## Running Tests
+
+```bash
+# All tests
+pnpm test
+
+# Just E2E tests
+pnpm run test:e2e
+
+# Specific test file
+node --test src/tests/integration/e2e/01-crud.test.js
+
+# Watch mode
+pnpm run test:watch
+```
+
+---
+
+## Test Data Validation Rules
+
+### Entity Types (Required)
+```typescript
+"feature" | "task" | "decision" | "component" | "test"
+```
+
+### Relation Types (Required)
+```typescript
+"depends_on" | "implements" | "part_of" | "relates_to"
+```
+
+### Optional Fields with Defaults
+```typescript
+strength: 0.0 - 1.0
+confidence: 0.0 - 1.0
+limit: number (default: 10)
+min_similarity: 0.0 - 1.0 (default: 0.6)
+```
+
+### MCP Response Format
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "JSON.stringify(data)"
+    }
+  ]
+}
+```
+
+### MCP Error Format
+```json
+{
+  "code": -32603,
+  "message": "Error message",
+  "data": undefined
+}
+```
+
+---
 
 ## Next Steps
 
-1. Document all tool schemas and validation rules
-2. Create test fixtures for common data
-3. Implement comprehensive test suite
-4. Add performance benchmarks
-5. Create CI/CD pipeline integration
+1. ✅ Basic client tests (done)
+2. ⚠️ Implement Phase 1 tests (CRUD, relations, validation)
+3. ⚠️ Implement Phase 2 tests (search, temporal)
+4. ⚠️ Implement Phase 3 tests (scenarios)
+5. ⚠️ Add performance benchmarking
+6. ⚠️ CI/CD integration
+
+---
+
+## For Contributors
+
+**To Implement a Test Suite:**
+
+1. Choose a category from Phase 1-4 above
+2. Create test file in `src/tests/integration/e2e/`
+3. Use existing fixtures from `fixtures/` directory
+4. Follow MCP client pattern from `00-mcp-client.test.js`
+5. Test happy path, edge cases, and errors
+6. Run `pnpm test` to verify
+7. Update this document to mark as done
+
+**Example Test Structure:**
+```javascript
+import { test } from 'node:test'
+import { strictEqual } from 'node:assert'
+import { createMcpClient } from './fixtures/helpers.js'
+
+test('create_entities - valid input', async (t) => {
+  const client = await createMcpClient()
+  const result = await client.callTool('create_entities', {
+    entities: [/* test data */]
+  })
+  // Assertions
+})
+```
+
+---
+
+**Maintained By:** DevFlow Team  
+**Last Updated:** 2025-10-17

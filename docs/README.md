@@ -1,184 +1,170 @@
 # DevFlow MCP Documentation
 
-This folder contains essential documentation for the DevFlow MCP project.
+**Last Updated:** 2025-10-17
+
+This folder contains essential documentation for DevFlow MCP after the SQLite-only migration.
 
 ---
 
-## 📄 Documentation Files
+## 📄 Current Documentation
 
-### 1. [MIGRATION_STATUS.md](./MIGRATION_STATUS.md)
-**Purpose:** Comprehensive status report of the SQLite-only migration
+### [MIGRATION_COMPLETE.md](./MIGRATION_COMPLETE.md) ✅ **START HERE**
+Complete record of the SQLite-only migration including:
+- What was accomplished (architecture simplification, code removal)
+- Final architecture (SQLite-only, no abstractions)
+- Code metrics (~6,500 lines removed)
+- Remaining work (testing, documentation)
 
-**Contents:**
-- Executive summary (85% complete)
-- **Architecture Decision:** SQLite-only, no other storage backends
-  - Remove all abstractions
-  - Restructure to `src/db/`
-  - Use explicit `SqliteDb` class names
-  - Simplify configuration (1 user option)
-- Completed work (SQLite implementation complete, tested)
-- Neo4j dependencies (~4,000 lines to remove)
-- Abstraction layers (~500 lines to remove)
-- Remaining work (3 phases)
+**Read this first** to understand the current state of the project.
+
+---
+
+### [ROADMAP.md](./ROADMAP.md) 📋 **WORK QUEUE**
+Current priorities and future enhancements:
+- **Priority 1:** Comprehensive E2E Testing (~220 tests needed)
+- **Priority 2:** Documentation updates (README, CONTRIBUTING, migration guide)
+- **Future:** Performance optimization, developer experience improvements
+
+**Read this** to find tasks to work on.
+
+---
+
+### [E2E_TEST_PLAN.md](./E2E_TEST_PLAN.md) 🧪 **TEST SPECIFICATIONS**
+Detailed test plan for all 20 MCP tools:
+- Test categories (CRUD, relations, search, temporal, validation, scenarios)
+- Expected test count (~220 total)
+- Test file structure
 - Success criteria
 
-**When to read:** Want to understand current state and architecture decisions
+**Reference this** when implementing E2E tests.
 
 ---
 
-### 2. [ROADMAP.md](./ROADMAP.md)
-**Purpose:** Step-by-step implementation plan for SQLite-only architecture
+## 🎯 Quick Start for New Contributors
 
-**Contents:**
-- **Phase 1:** Architecture Simplification (3-5 hours)
-  - Restructure: `src/storage/` → `src/db/`
-  - Rename classes: `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager`
-  - Delete abstraction layers (factories, generic interfaces)
-  - Simplify configuration (1 user option)
-  - Direct SQLite instantiation
+1. **Understand the Project:**
+   - Read [MIGRATION_COMPLETE.md](./MIGRATION_COMPLETE.md)
+   - Review architecture: SQLite-only, `src/db/` directory, no abstractions
 
-- **Phase 2:** E2E Testing (1-2 days)
-  - Test all 20 MCP tools with simplified architecture
-  - Validate direct SQLite implementation
-  - Verify internal optimizations
+2. **Set Up Development:**
+   ```bash
+   git clone <repo>
+   cd devflow-mcp
+   pnpm install
+   pnpm test       # Should see 46 tests passing
+   pnpm run dev    # Start server
+   ```
 
-- **Phase 3:** Cleanup & Code Removal (2-3 hours)
-  - Delete Neo4j code (~4,000 lines)
-  - Delete abstraction layers (~500 lines)
-  - Remove dependencies
+3. **Pick a Task:**
+   - See [ROADMAP.md](./ROADMAP.md) for current priorities
+   - Check [E2E_TEST_PLAN.md](./E2E_TEST_PLAN.md) for test work
 
-- **Phase 4:** Documentation Updates (2-3 hours)
-  - Update README
-  - Create migration guide
-  - Clean up docs
-
-**When to read:** Ready to execute the migration work
-
-**Estimated timeline:** 2-3 days total
+4. **Start Contributing:**
+   - Easy: Update root README.md (1-2 hours)
+   - Medium: Implement E2E test suite (4-6 hours)
+   - Advanced: Performance optimization (1-2 weeks)
 
 ---
 
-### 3. [E2E_TEST_PLAN.md](./E2E_TEST_PLAN.md)
-**Purpose:** E2E testing strategy for SQLite-only architecture
+## 📊 Project Status
 
-**Contents:**
-- All 20 MCP tools to test
-- 7 test categories (Happy path, validation, edge cases, errors, scenarios, performance, integration)
-- Test file structure (using `SqliteDb`, `SqliteVectorStore`)
-- Success criteria (90%+ coverage, SQLite-only architecture validated)
-- Internal optimizations verification
-- Prompt tests (4 prompts to validate)
-
-**When to read:** Implementing E2E tests (Phase 2 of roadmap)
-
-**Status:** Plan updated for SQLite-only, tests not yet implemented
-
----
-
-### 4. [E2E_TEST_SUMMARY.md](./E2E_TEST_SUMMARY.md)
-**Purpose:** Results of E2E testing (when completed)
-
-**Current status:** From Neo4j testing phase, needs to be updated for SQLite
-
-**When to read:** After completing E2E tests to validate results
+| Area | Status | Notes |
+|------|--------|-------|
+| SQLite Migration | ✅ Complete | Architecture simplified, Neo4j removed |
+| Unit Tests | ✅ Passing | 46/46 tests |
+| E2E Tests | ⚠️ Partial | Basic tests exist, comprehensive suite needed |
+| Documentation | ⚠️ In Progress | Core docs done, user docs needed |
+| Production Ready | ✅ Yes | Core functionality stable |
 
 ---
 
 ## 🗂️ Document History
 
-### Removed Files (2025-10-16)
-The following implementation plans and status reports were removed as they're no longer needed:
+### Removed Files (2025-10-17)
+These files were removed as they're no longer relevant after migration completion:
 
-- `sqlite-temporal-implementation-plan.md` (51kb) - Already executed
-- `sqlite-temporal-implementation-code-review.md` (11kb) - Review complete
-- `sqlite-temporal-implementation-summary.md` (4.9kb) - Redundant with MIGRATION_STATUS.md
-- `sqlite-temporal-final-status.md` (7.4kb) - Consolidated into MIGRATION_STATUS.md
-- `sqlite-vector-implementation-plan.md` (54kb) - Already executed
-- `sqlite-vector-implementation-complete.md` (9.8kb) - Redundant with MIGRATION_STATUS.md
-- `sqlite-vector-testing-blockers.md` (36kb) - Issues resolved
-- `sqlite-vector-testing-fix-implementation-plan.md` (31kb) - Already executed
+- `IMPLEMENTATION_CHECKLIST.md` (2,258 lines) - Step-by-step migration guide (completed)
+- `E2E_TEST_SUMMARY.md` (220 lines) - Neo4j test results (outdated)
+- `MIGRATION_STATUS.md` (544 lines) - Consolidated into MIGRATION_COMPLETE.md
+- Old ROADMAP.md (1,148 lines) - Replaced with simplified version
 
-**Total space saved:** ~210kb of redundant documentation
+**Total removed:** ~4,100 lines of outdated documentation
 
-**Rationale:** These files served their purpose during implementation but are now outdated. All relevant information has been consolidated into MIGRATION_STATUS.md and ROADMAP.md.
+**Rationale:** These files served their purpose during the migration but are now obsolete. All relevant information has been consolidated into current docs.
 
 ---
 
-## 🔄 Documentation Maintenance
+## 📝 Documentation Maintenance
 
 ### When to Update
 
-| Document | Update Trigger | Owner |
-|----------|----------------|-------|
-| MIGRATION_STATUS.md | After completing any migration phase | Dev Team |
-| ROADMAP.md | When timeline or approach changes | Dev Team |
-| E2E_TEST_PLAN.md | When adding new MCP tools or test categories | QA/Dev Team |
-| E2E_TEST_SUMMARY.md | After running E2E test suite | QA Team |
+| Document | Update Trigger |
+|----------|---------------|
+| MIGRATION_COMPLETE.md | Never (historical record) |
+| ROADMAP.md | When priorities change or tasks complete |
+| E2E_TEST_PLAN.md | When adding new tools or test categories |
+| README.md (this file) | When doc structure changes |
 
-### Document Lifecycle
+### Document Purpose
 
 ```
-Planning Phase:
-└── Create ROADMAP.md with implementation plan
-
-Implementation Phase:
-├── Update MIGRATION_STATUS.md as work progresses
-└── Reference ROADMAP.md for task details
-
-Testing Phase:
-├── Use E2E_TEST_PLAN.md as test specification
-└── Document results in E2E_TEST_SUMMARY.md
-
-Completion:
-└── Archive old docs, update README.md
+MIGRATION_COMPLETE.md   →  Historical record of what was done
+ROADMAP.md             →  Current priorities and task queue
+E2E_TEST_PLAN.md       →  Test specifications and requirements
+README.md              →  Navigation and quick start guide
 ```
 
 ---
 
-## 📊 Quick Reference
+## 🔗 External Documentation
 
-### Current Migration Status
-- **Progress:** 85% complete
-- **Current Branch:** `sqlite`
-- **Next Phase:** Architecture Simplification (Phase 1)
-- **Blocker:** None (ready to proceed)
+These root-level files also need updating:
 
-### Architecture Decision
-- **SQLite-Only:** 100% committed, no other storage backends
-- **Directory:** `src/storage/` → `src/db/`
-- **Classes:** `SqliteDb`, `SqliteVectorStore`, `SqliteSchemaManager`
-- **No Abstractions:** Direct SQLite instantiation, no factories
+- `../README.md` - Main project README (needs Neo4j removal)
+- `../CONTRIBUTING.md` - Contributor guide (needs Docker removal)
+- `../.env.example` - Environment variables (needs simplification)
 
-### Key Metrics
-- **SQLite Implementation:** ~2,200 lines (db + vector + schema)
-- **Code to Remove:** ~5,000 lines (Neo4j + abstractions)
-- **Test Coverage:** 76/76 integration tests passing
-- **User Configuration:** 1 option (`DFM_SQLITE_LOCATION`)
-
-### Quick Links
-- [Migration Status Report](./MIGRATION_STATUS.md#executive-summary)
-- [Architecture Decision: SQLite-Only](./MIGRATION_STATUS.md#architecture-decision-sqlite-only)
-- [Next Steps](./ROADMAP.md#phase-1-architecture-simplification)
-- [Test Plan](./E2E_TEST_PLAN.md#test-categories)
+See [ROADMAP.md](./ROADMAP.md#priority-2-documentation-updates-medium) for details.
 
 ---
 
-## 🎯 For New Contributors
+## 💡 Tips for Documentation
 
-1. **Start here:** Read [MIGRATION_STATUS.md](./MIGRATION_STATUS.md) to understand the current state
-2. **Want to help:** See [ROADMAP.md](./ROADMAP.md) for tasks to work on
-3. **Testing:** Reference [E2E_TEST_PLAN.md](./E2E_TEST_PLAN.md) for test cases
+### Writing Guidelines
+
+- **Be Clear:** Use simple language, avoid jargon
+- **Be Concise:** Remove unnecessary words
+- **Be Current:** Update docs when code changes
+- **Be Helpful:** Include examples and code snippets
+- **Be Organized:** Use headings, lists, and tables
+
+### Markdown Best Practices
+
+- Use `# Heading 1` for document title
+- Use `## Heading 2` for major sections
+- Use `###` for subsections (max 3 levels)
+- Use code blocks with language tags: ```typescript
+- Use tables for structured data
+- Use checklists: `- [ ]` for tasks
+- Use emojis sparingly for visual hierarchy
 
 ---
 
-## 📝 Notes
+## 📞 Getting Help
 
-- All documentation uses Markdown format
-- Code examples use TypeScript syntax highlighting
-- File sizes are approximate as of 2025-10-16
-- Documentation follows [Markdown lint rules](../.markdownlint.json)
+**Architecture Questions:**
+- Check [MIGRATION_COMPLETE.md](./MIGRATION_COMPLETE.md) for SQLite architecture
+- Look at `src/db/` for implementation details
+
+**Test Questions:**
+- Check [E2E_TEST_PLAN.md](./E2E_TEST_PLAN.md) for specifications
+- Look at `src/tests/integration/e2e/` for examples
+
+**Task Questions:**
+- Check [ROADMAP.md](./ROADMAP.md) for current priorities
+- Ask in project issues or discussions
 
 ---
 
-**Last Updated:** 2025-10-16
-**Maintainer:** DevFlow Team
+**Maintained By:** DevFlow Team  
+**Questions?** Open an issue or discussion
