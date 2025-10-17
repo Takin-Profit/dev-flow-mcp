@@ -9,7 +9,7 @@
  */
 
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js"
-import { z } from "zod"
+import { z } from "#config"
 
 /**
  * Entity types supported by DevFlow MCP

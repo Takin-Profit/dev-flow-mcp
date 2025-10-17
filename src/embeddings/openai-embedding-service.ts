@@ -12,7 +12,6 @@
  * - Accepts logger via constructor injection (dependency inversion)
  */
 
-import { type } from "arktype"
 import { EmbeddingService } from "#embeddings/embedding-service"
 import type {
   EmbeddingModel,
@@ -78,16 +77,17 @@ export class OpenAIEmbeddingService extends EmbeddingService {
       process.env.DFM_OPENAI_EMBEDDING_MODEL ||
       "text-embedding-3-small"
 
-    const modelValidation = OpenAIEmbeddingModelValidator(modelCandidate)
-    if (modelValidation instanceof type.errors) {
+    const modelValidation =
+      OpenAIEmbeddingModelValidator.safeParse(modelCandidate)
+    if (modelValidation.success) {
+      this.model = modelValidation.data
+    } else {
       // Invalid model, use default and log warning
       this.model = "text-embedding-3-small"
       const logger = config.logger ?? createNoOpLogger()
       logger.warn(
         `Invalid OpenAI embedding model "${modelCandidate}", using default: text-embedding-3-small`
       )
-    } else {
-      this.model = modelValidation
     }
 
     this.dimensions = config.dimensions || DEFAULT_VECTOR_DIMENSIONS

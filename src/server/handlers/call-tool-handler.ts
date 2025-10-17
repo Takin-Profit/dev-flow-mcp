@@ -1,3 +1,10 @@
+/**
+ * Call Tool Handler - MCP Protocol Request Router
+ *
+ * Routes CallTool requests to appropriate tool handlers.
+ * All handlers use Zod validation and standardized responses.
+ */
+
 import type { KnowledgeGraphManager } from "#knowledge-graph-manager"
 import {
   handleAddObservations,
@@ -6,72 +13,32 @@ import {
   handleDeleteEntities,
   handleReadGraph,
 } from "#server/handlers/tool-handlers"
-import type { Entity, Logger, Relation, TemporalEntityType } from "#types"
+import type { Entity, Logger, TemporalEntityType } from "#types"
 import {
   DEFAULT_MIN_SIMILARITY,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_VECTOR_DIMENSIONS,
 } from "#types"
-
-// ============================================================================
-// Type Guard Validation Functions
-// ============================================================================
-
-/**
- * Validates and narrows an unknown value to a string
- */
-function validateString(value: unknown, fieldName: string): string {
-  if (typeof value !== "string") {
-    throw new Error(`${fieldName} must be a string, got ${typeof value}`)
-  }
-  return value
-}
-
-/**
- * Validates and narrows an unknown value to a number
- */
-function validateNumber(value: unknown, fieldName: string): number {
-  if (typeof value !== "number") {
-    throw new Error(`${fieldName} must be a number, got ${typeof value}`)
-  }
-  return value
-}
-
-/**
- * Validates and narrows an unknown value to a string array
- */
-function validateStringArray(value: unknown, fieldName: string): string[] {
-  if (!Array.isArray(value)) {
-    throw new Error(`${fieldName} must be an array`)
-  }
-  if (!value.every((item) => typeof item === "string")) {
-    throw new Error(`${fieldName} must be an array of strings`)
-  }
-  return value
-}
-
-/**
- * Validates and narrows an unknown value to an array
- */
-function validateArray(value: unknown, fieldName: string): unknown[] {
-  if (!Array.isArray(value)) {
-    throw new Error(`${fieldName} must be an array`)
-  }
-  return value
-}
-
-/**
- * Validates and narrows an unknown value to an object
- */
-function validateObject(
-  value: unknown,
-  fieldName: string
-): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`${fieldName} must be an object`)
-  }
-  return value as Record<string, unknown>
-}
+import type { MCPToolResponse } from "#types/responses"
+import {
+  DeleteObservationsInputSchema,
+  DeleteRelationsInputSchema,
+  GetEntityEmbeddingInputSchema,
+  GetEntityHistoryInputSchema,
+  GetGraphAtTimeInputSchema,
+  GetRelationHistoryInputSchema,
+  GetRelationInputSchema,
+  OpenNodesInputSchema,
+  SearchNodesInputSchema,
+  SemanticSearchInputSchema,
+  UpdateRelationInputSchema,
+} from "#types/validation"
+import { handleError } from "#utils/error-handler"
+import {
+  buildErrorResponse,
+  buildSuccessResponse,
+  buildValidationErrorResponse,
+} from "#utils/response-builders"
 
 // ============================================================================
 // Constants
@@ -100,229 +67,367 @@ export async function handleCallToolRequest(
   request: { params?: { name?: string; arguments?: Record<string, unknown> } },
   knowledgeGraphManager: KnowledgeGraphManager,
   logger: Logger
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<MCPToolResponse> {
   if (!request) {
-    throw new Error("Invalid request: request is null or undefined")
+    return buildErrorResponse("Invalid request: request is null or undefined")
   }
 
   if (!request.params) {
-    throw new Error("Invalid request: missing params")
+    return buildErrorResponse("Invalid request: missing params")
   }
 
   const { name, arguments: args } = request.params
 
   if (!name) {
-    throw new Error("Invalid request: missing tool name")
+    return buildErrorResponse("Invalid request: missing tool name")
   }
 
   if (!args) {
-    throw new Error(`No arguments provided for tool: ${name}`)
+    return buildErrorResponse(`No arguments provided for tool: ${name}`)
   }
 
   switch (name) {
+    // Delegate to updated tool handlers (tool-handlers.ts)
     case "create_entities":
-      return await handleCreateEntities(args, knowledgeGraphManager)
+      return await handleCreateEntities(args, knowledgeGraphManager, logger)
 
     case "read_graph":
-      return await handleReadGraph(args, knowledgeGraphManager)
+      return await handleReadGraph(args, knowledgeGraphManager, logger)
 
     case "create_relations":
-      return await handleCreateRelations(args, knowledgeGraphManager)
+      return await handleCreateRelations(args, knowledgeGraphManager, logger)
 
     case "add_observations":
       return await handleAddObservations(args, knowledgeGraphManager, logger)
 
     case "delete_entities":
-      return await handleDeleteEntities(args, knowledgeGraphManager)
+      return await handleDeleteEntities(args, knowledgeGraphManager, logger)
 
     case "delete_observations": {
-      const deletions = validateArray(args.deletions, "deletions") as Array<{
-        entityName: string
-        observations: string[]
-      }>
-      await knowledgeGraphManager.deleteObservations(deletions)
-      return {
-        content: [{ type: "text", text: "Observations deleted successfully" }],
+      try {
+        const result = DeleteObservationsInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("delete_observations validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { deletions } = result.data
+
+        logger.debug("delete_observations called", {
+          deletionCount: deletions.length,
+        })
+
+        await knowledgeGraphManager.deleteObservations(deletions)
+
+        logger.info("delete_observations completed", {
+          deleted: deletions.length,
+        })
+
+        const totalDeleted = deletions.reduce(
+          (sum, d) => sum + d.observations.length,
+          0
+        )
+
+        return buildSuccessResponse({
+          deleted: totalDeleted,
+          entities: deletions.map((d) => ({
+            entityName: d.entityName,
+            deletedCount: d.observations.length,
+          })),
+        })
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
     case "delete_relations": {
-      const relations = validateArray(args.relations, "relations") as Relation[]
-      await knowledgeGraphManager.deleteRelations(relations)
-      return {
-        content: [{ type: "text", text: "Relations deleted successfully" }],
+      try {
+        const result = DeleteRelationsInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("delete_relations validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { relations } = result.data
+
+        logger.debug("delete_relations called", {
+          relationCount: relations.length,
+        })
+
+        await knowledgeGraphManager.deleteRelations(relations)
+
+        logger.info("delete_relations completed", {
+          deleted: relations.length,
+        })
+
+        return buildSuccessResponse({
+          deleted: relations.length,
+        })
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
     case "get_relation": {
-      const from = validateString(args.from, "from")
-      const to = validateString(args.to, "to")
-      const relationType = validateString(args.relationType, "relationType")
-
-      const relation = await knowledgeGraphManager.getRelation(
-        from,
-        to,
-        relationType
-      )
-      if (!relation) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Relation not found: ${args.from} -> ${args.relationType} -> ${args.to}`,
-            },
-          ],
+      try {
+        const result = GetRelationInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("get_relation validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
         }
-      }
-      return {
-        content: [{ type: "text", text: JSON.stringify(relation, null, 2) }],
+
+        const { from, to, relationType } = result.data
+
+        logger.debug("get_relation called", { from, to, relationType })
+
+        const relation = await knowledgeGraphManager.getRelation(
+          from as string,
+          to as string,
+          relationType
+        )
+
+        logger.info("get_relation completed", { found: !!relation })
+
+        return buildSuccessResponse(relation)
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
     case "update_relation": {
-      const relation = validateObject(args.relation, "relation") as Relation
-      await knowledgeGraphManager.updateRelation(relation)
-      return {
-        content: [{ type: "text", text: "Relation updated successfully" }],
+      try {
+        const result = UpdateRelationInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("update_relation validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { relation } = result.data
+
+        logger.debug("update_relation called", {
+          from: relation.from,
+          to: relation.to,
+          type: relation.relationType,
+        })
+
+        const updated = await knowledgeGraphManager.updateRelation(relation)
+
+        logger.info("update_relation completed")
+
+        return buildSuccessResponse(updated)
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
     case "search_nodes": {
-      const query = validateString(args.query, "query")
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              await knowledgeGraphManager.searchNodes(query),
-              null,
-              2
-            ),
-          },
-        ],
+      try {
+        const result = SearchNodesInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("search_nodes validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { query } = result.data
+
+        logger.debug("search_nodes called", { query })
+
+        const results = await knowledgeGraphManager.searchNodes(query)
+
+        logger.info("search_nodes completed", { count: results.length })
+
+        return buildSuccessResponse({
+          results,
+          count: results.length,
+        })
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
     case "open_nodes": {
-      const names = validateStringArray(args.names, "names")
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              await knowledgeGraphManager.openNodes(names),
-              null,
-              2
-            ),
-          },
-        ],
+      try {
+        const result = OpenNodesInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("open_nodes validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { names } = result.data
+
+        logger.debug("open_nodes called", { count: names.length })
+
+        const openResult = await knowledgeGraphManager.openNodes(
+          names.map((n) => n as string)
+        )
+
+        logger.info("open_nodes completed", {
+          found: openResult.nodes?.length || 0,
+        })
+
+        return buildSuccessResponse({
+          nodes: openResult.nodes || [],
+          found: openResult.nodes?.length || 0,
+          notFound: openResult.notFound || [],
+        })
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
-    case "get_entity_history":
+    case "get_entity_history": {
       try {
-        const entityName = validateString(args.entityName, "entityName")
-        const history = await knowledgeGraphManager.getEntityHistory(entityName)
-        return {
-          content: [{ type: "text", text: JSON.stringify(history, null, 2) }],
+        const result = GetEntityHistoryInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("get_entity_history validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
         }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error retrieving entity history: ${errorMessage}`,
-            },
-          ],
-        }
-      }
 
-    case "get_relation_history":
+        const { entityName } = result.data
+
+        logger.debug("get_entity_history called", { entityName })
+
+        const history = await knowledgeGraphManager.getEntityHistory(
+          entityName as string
+        )
+
+        logger.info("get_entity_history completed", {
+          versionCount: history.length,
+        })
+
+        return buildSuccessResponse({
+          entityName,
+          history,
+          totalVersions: history.length,
+        })
+      } catch (error) {
+        return handleError(error, logger)
+      }
+    }
+
+    case "get_relation_history": {
       try {
-        const from = validateString(args.from, "from")
-        const to = validateString(args.to, "to")
-        const relationType = validateString(args.relationType, "relationType")
+        const result = GetRelationHistoryInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("get_relation_history validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { from, to, relationType } = result.data
+
+        logger.debug("get_relation_history called", { from, to, relationType })
 
         const history = await knowledgeGraphManager.getRelationHistory(
-          from,
-          to,
+          from as string,
+          to as string,
           relationType
         )
-        return {
-          content: [{ type: "text", text: JSON.stringify(history, null, 2) }],
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error retrieving relation history: ${errorMessage}`,
-            },
-          ],
-        }
-      }
 
-    case "get_graph_at_time":
-      try {
-        const timestamp = validateNumber(args.timestamp, "timestamp")
-        const graph = await knowledgeGraphManager.getGraphAtTime(timestamp)
-        return {
-          content: [{ type: "text", text: JSON.stringify(graph, null, 2) }],
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error retrieving graph at time: ${errorMessage}`,
-            },
-          ],
-        }
-      }
+        logger.info("get_relation_history completed", {
+          versionCount: history.length,
+        })
 
-    case "get_decayed_graph":
+        return buildSuccessResponse({
+          from,
+          to,
+          relationType,
+          history,
+          totalVersions: history.length,
+        })
+      } catch (error) {
+        return handleError(error, logger)
+      }
+    }
+
+    case "get_graph_at_time": {
       try {
-        // Note: getDecayedGraph doesn't accept parameters
-        // Decay is configured at the database level
+        const result = GetGraphAtTimeInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("get_graph_at_time validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { timestamp } = result.data
+
+        logger.debug("get_graph_at_time called", { timestamp })
+
+        const graph = await knowledgeGraphManager.getGraphAtTime(
+          timestamp as number
+        )
+
+        logger.info("get_graph_at_time completed", {
+          entityCount: graph.entities.length,
+          relationCount: graph.relations.length,
+        })
+
+        return buildSuccessResponse({
+          timestamp,
+          graph,
+        })
+      } catch (error) {
+        return handleError(error, logger)
+      }
+    }
+
+    case "get_decayed_graph": {
+      try {
+        logger.debug("get_decayed_graph called")
+
+        // No validation needed - no arguments
         const graph = await knowledgeGraphManager.getDecayedGraph()
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(graph, null, 2) }],
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error retrieving decayed graph: ${errorMessage}`,
-            },
-          ],
-        }
+        logger.info("get_decayed_graph completed", {
+          entityCount: graph.entities.length,
+          relationCount: graph.relations.length,
+        })
+
+        return buildSuccessResponse(graph)
+      } catch (error) {
+        return handleError(error, logger)
       }
+    }
 
     case "force_generate_embedding": {
-      // Validate arguments
-      const entityName = validateString(args.entity_name, "entity_name")
-
-      logger.debug("Force generating embedding for entity", {
-        entityName,
-      })
-
       try {
-        // First determine if the input looks like a UUID
-        const isUUID = UUID_PATTERN.test(entityName)
+        const result = GetEntityEmbeddingInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("force_generate_embedding validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { entityName } = result.data
+        const entityNameStr = entityName as string
+
+        logger.debug("Force generating embedding for entity", {
+          entityName: entityNameStr,
+        })
+
+        // Determine if the input looks like a UUID
+        const isUUID = UUID_PATTERN.test(entityNameStr)
 
         if (isUUID) {
           logger.debug("Input appears to be a UUID", {
-            entityName,
+            entityName: entityNameStr,
           })
         }
 
@@ -340,8 +445,9 @@ export async function handleCallToolRequest(
           // Try different methods to find the entity
           // 1. Direct match by name
           entity =
-            allEntities.entities.find((e: Entity) => e.name === entityName) ??
-            null
+            allEntities.entities.find(
+              (e: Entity) => e.name === entityNameStr
+            ) ?? null
 
           // 2. If not found and input is UUID, try matching by ID
           if (!entity && isUUID) {
@@ -349,10 +455,10 @@ export async function handleCallToolRequest(
               allEntities.entities.find(
                 (e: Entity & { id?: string }) =>
                   // The id property might not be in the Entity interface, but could exist at runtime
-                  "id" in e && e.id === entityName
+                  "id" in e && e.id === entityNameStr
               ) ?? null
             logger.debug("Searching by ID match for UUID", {
-              uuid: entityName,
+              uuid: entityNameStr,
             })
           }
 
@@ -377,7 +483,7 @@ export async function handleCallToolRequest(
             "Entity not found in list, trying explicit lookup by name"
           )
           const openedEntities = await knowledgeGraphManager.openNodes([
-            entityName,
+            entityNameStr,
           ])
 
           if (openedEntities?.entities && openedEntities.entities.length > 0) {
@@ -391,17 +497,12 @@ export async function handleCallToolRequest(
 
         // If still not found, check if we can query by ID through the database
         const database = knowledgeGraphManager.getDatabase()
-        if (
-          !entity &&
-          isUUID &&
-          database &&
-          database.getEntityById
-        ) {
+        if (!entity && isUUID && database && database.getEntityById) {
           try {
             logger.debug("Trying direct database lookup by ID", {
-              entityId: entityName,
+              entityId: entityNameStr,
             })
-            entity = await database.getEntityById(entityName)
+            entity = await database.getEntityById(entityNameStr)
             if (entity) {
               logger.debug("Found entity by direct ID lookup", {
                 name: entity.name,
@@ -418,9 +519,9 @@ export async function handleCallToolRequest(
         // Final check
         if (!entity) {
           logger.error("Entity not found after all lookup attempts", {
-            entityName,
+            entityName: entityNameStr,
           })
-          throw new Error(`Entity not found: ${entityName}`)
+          return buildErrorResponse(`Entity not found: ${entityNameStr}`)
         }
 
         logger.debug("Successfully found entity", {
@@ -433,7 +534,7 @@ export async function handleCallToolRequest(
           knowledgeGraphManager.getEmbeddingJobManager()
         if (!embeddingJobManager) {
           logger.error("EmbeddingJobManager not initialized")
-          throw new Error("EmbeddingJobManager not initialized")
+          return buildErrorResponse("EmbeddingJobManager not initialized")
         }
 
         logger.debug("EmbeddingJobManager found, proceeding")
@@ -451,7 +552,7 @@ export async function handleCallToolRequest(
         const embeddingService = embeddingJobManager.getEmbeddingService()
         if (!embeddingService) {
           logger.error("Embedding service not available")
-          throw new Error("Embedding service not available")
+          return buildErrorResponse("Embedding service not available")
         }
 
         const vector = await embeddingService.generateEmbedding(embeddingText)
@@ -462,7 +563,7 @@ export async function handleCallToolRequest(
         // Store the embedding with both name and ID for redundancy
         // Validate entity.name is a string
         if (typeof entity.name !== "string") {
-          throw new Error(
+          return buildErrorResponse(
             `Entity name must be a string, got ${typeof entity.name}`
           )
         }
@@ -472,7 +573,9 @@ export async function handleCallToolRequest(
         })
 
         if (!database?.storeEntityVector) {
-          throw new Error("Storage provider does not support vector operations")
+          return buildErrorResponse(
+            "Storage provider does not support vector operations"
+          )
         }
 
         await database.storeEntityVector(entity.name, vector)
@@ -498,160 +601,124 @@ export async function handleCallToolRequest(
           entityName: entity.name,
         })
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  success: true,
-                  entity: entity.name,
-                  entity_id: (entity as Record<string, unknown>).id,
-                  vector_length: vector.length,
-                  model: embeddingService.getModelInfo().name,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        const errorStack = error instanceof Error ? error.stack : undefined
-
-        logger.error("Failed to force generate embedding", {
-          error: errorMessage,
-          stack: errorStack,
+        return buildSuccessResponse({
+          success: true,
+          entity: entity.name,
+          entity_id: (entity as Record<string, unknown>).id,
+          vector_length: vector.length,
+          model: embeddingService.getModelInfo().name,
         })
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Failed to generate embedding: ${errorMessage}`,
-            },
-          ],
-        }
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
-    case "semantic_search":
+    case "semantic_search": {
       try {
-        const query = validateString(args.query, "query")
-
-        // Extract search options from args
-        const searchOptions = {
-          limit:
-            typeof args.limit === "number" ? args.limit : DEFAULT_SEARCH_LIMIT,
-          minSimilarity:
-            typeof args.min_similarity === "number"
-              ? args.min_similarity
-              : DEFAULT_MIN_SIMILARITY,
-          entityTypes: Array.isArray(args.entity_types)
-            ? args.entity_types
-            : [],
-          hybridSearch:
-            typeof args.hybrid_search === "boolean" ? args.hybrid_search : true,
-          semanticWeight:
-            typeof args.semantic_weight === "number"
-              ? args.semantic_weight
-              : DEFAULT_MIN_SIMILARITY,
-          semanticSearch: true,
+        const result = SemanticSearchInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("semantic_search validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
         }
+
+        const {
+          query,
+          limit = DEFAULT_SEARCH_LIMIT,
+          minSimilarity = DEFAULT_MIN_SIMILARITY,
+          entityTypes = [],
+          hybridSearch = true,
+          semanticWeight = DEFAULT_MIN_SIMILARITY,
+        } = result.data
+
+        logger.debug("semantic_search called", { query, limit, minSimilarity })
 
         // Call the search method with semantic search options
-        const results = await knowledgeGraphManager.search(query, searchOptions)
+        const searchResults = await knowledgeGraphManager.search(query, {
+          limit,
+          minSimilarity,
+          entityTypes,
+          hybridSearch,
+          semanticWeight,
+          semanticSearch: true,
+        })
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error performing semantic search: ${errorMessage}`,
-            },
-          ],
-        }
+        logger.info("semantic_search completed", {
+          count: searchResults.length,
+        })
+
+        // Format results to match the expected response schema
+        const results = searchResults.map((result) => ({
+          entity: result.entity,
+          similarity: result.score,
+        }))
+
+        return buildSuccessResponse({
+          results,
+          count: results.length,
+        })
+      } catch (error) {
+        return handleError(error, logger)
       }
+    }
 
-    case "get_entity_embedding":
+    case "get_entity_embedding": {
       try {
-        const entityName = validateString(args.entity_name, "entity_name")
+        const result = GetEntityEmbeddingInputSchema.safeParse(args)
+        if (!result.success) {
+          logger.warn("get_entity_embedding validation failed", {
+            issues: result.error.issues,
+          })
+          return buildValidationErrorResponse(result.error)
+        }
+
+        const { entityName } = result.data
+        const entityNameStr = entityName as string
+
+        logger.debug("get_entity_embedding called", {
+          entityName: entityNameStr,
+        })
 
         // Check if entity exists
-        const entity = await knowledgeGraphManager.openNodes([entityName])
+        const entity = await knowledgeGraphManager.openNodes([entityNameStr])
         if (!entity.entities || entity.entities.length === 0) {
-          return {
-            content: [
-              { type: "text", text: `Entity not found: ${entityName}` },
-            ],
-          }
+          return buildErrorResponse(`Entity not found: ${entityNameStr}`)
         }
 
         // Access the embedding using appropriate interface
         const database = knowledgeGraphManager.getDatabase()
         if (database?.getEntityEmbedding) {
-          const embedding = await database.getEntityEmbedding(entityName)
+          const embedding = await database.getEntityEmbedding(entityNameStr)
 
           if (!embedding) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `No embedding found for entity: ${entityName}`,
-                },
-              ],
-            }
+            return buildErrorResponse(
+              `No embedding found for entity: ${entityNameStr}`
+            )
           }
 
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  {
-                    entityName,
-                    embedding: embedding.vector,
-                    model: embedding.model || "unknown",
-                    dimensions: embedding.vector ? embedding.vector.length : 0,
-                    lastUpdated: embedding.lastUpdated || Date.now(),
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-          }
+          logger.info("get_entity_embedding completed", {
+            dimensions: embedding.vector?.length || 0,
+          })
+
+          return buildSuccessResponse({
+            entityName,
+            embedding: embedding.vector,
+            model: embedding.model || "unknown",
+          })
         }
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Embedding retrieval not supported by this database",
-            },
-          ],
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error retrieving entity embedding: ${errorMessage}`,
-            },
-          ],
-        }
+
+        return buildErrorResponse(
+          "Embedding retrieval not supported by this database"
+        )
+      } catch (error) {
+        return handleError(error, logger)
       }
+    }
 
-    case "debug_embedding_config":
-      // Diagnostic tool to check embedding configuration
+    case "debug_embedding_config": {
       try {
+        // Diagnostic tool to check embedding configuration
         // Check for OpenAI API key
         const hasOpenAIKey = !!process.env.DFM_OPENAI_API_KEY
         const embeddingModel =
@@ -691,17 +758,11 @@ export async function handleCallToolRequest(
         }
 
         // Check if Neo4j connection manager is available
-        if (
-          database &&
-          typeof database.getConnectionManager === "function"
-        ) {
+        if (database && typeof database.getConnectionManager === "function") {
           try {
             const connectionManager = database.getConnectionManager()
             if (connectionManager) {
               neo4jInfo.connectionStatus = "available"
-
-              // Note: vector store status is implementation-specific
-              // We can't check it directly through the interface
               neo4jInfo.vectorStoreStatus = "implementation-specific"
             }
           } catch (error: unknown) {
@@ -745,13 +806,7 @@ export async function handleCallToolRequest(
           }
         }
 
-        // Note: Embedding provider info is accessed through job manager
-        // Database doesn't expose embedding service directly
         const embeddingProviderInfo = embeddingServiceInfo
-
-        // Check pending embedding jobs if available
-        // Note: EmbeddingJobManager doesn't expose getPendingJobs publicly
-        // This would need to be added if needed for diagnostics
         const pendingJobs = 0 // Not available through public API
 
         // Return diagnostic information with proper formatting
@@ -773,74 +828,27 @@ export async function handleCallToolRequest(
           },
         }
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(diagnosticInfo, null, 2),
-            },
-          ],
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error)
-        const errorStack = error instanceof Error ? error.stack : undefined
-        logger.error("Error in debug_embedding_config", {
-          error: errorMessage,
-        })
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  error: errorMessage,
-                  stack: errorStack,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        }
+        return buildSuccessResponse(diagnosticInfo)
+      } catch (error) {
+        return handleError(error, logger)
       }
+    }
 
     case "diagnose_vector_search": {
-      const database = knowledgeGraphManager.getDatabase()
-      if (database?.diagnoseVectorSearch) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                await database.diagnoseVectorSearch(),
-                null,
-                2
-              ),
-            },
-          ],
+      try {
+        const database = knowledgeGraphManager.getDatabase()
+        if (database?.diagnoseVectorSearch) {
+          const diagnostics = await database.diagnoseVectorSearch()
+          return buildSuccessResponse(diagnostics)
         }
-      }
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                error: "Diagnostic method not available",
-                storageType: database
-                  ? database.constructor.name
-                  : "unknown",
-              },
-              null,
-              2
-            ),
-          },
-        ],
+
+        return buildErrorResponse("Diagnostic method not available")
+      } catch (error) {
+        return handleError(error, logger)
       }
     }
 
     default:
-      throw new Error(`Unknown tool: ${name}`)
+      return buildErrorResponse(`Unknown tool: ${name}`)
   }
 }

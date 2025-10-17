@@ -15,7 +15,7 @@
  * All validation rules remain identical to maintain compatibility.
  */
 
-import { z } from "zod"
+import { z } from "#config"
 
 /**
  * Constants for validation rules
@@ -33,6 +33,66 @@ export const VALIDATION_CONSTANTS = {
   /** Valid entity name pattern: starts with letter/underscore, then alphanumeric + _ or - */
   ENTITY_NAME_PATTERN: /^[a-zA-Z_][a-zA-Z0-9_-]*$/,
 } as const
+
+/**
+ * Branded Primitive Types
+ *
+ * These types prevent mixing up similar primitive values (e.g., timestamp vs version number).
+ * Zod's .brand() creates a nominal type that's incompatible with plain numbers/strings at compile time.
+ */
+
+/**
+ * Unix timestamp in milliseconds
+ * Must be a non-negative integer
+ */
+export const TimestampSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .brand<"Timestamp">()
+export type Timestamp = z.infer<typeof TimestampSchema>
+
+/**
+ * Version number (1-based)
+ * Must be a positive integer
+ */
+export const VersionSchema = z.number().int().positive().brand<"Version">()
+export type Version = z.infer<typeof VersionSchema>
+
+/**
+ * Confidence score (0.0 to 1.0)
+ * Represents certainty or confidence in a relation or classification
+ */
+export const ConfidenceScoreSchema = z
+  .number()
+  .min(0)
+  .max(1)
+  .brand<"ConfidenceScore">()
+export type ConfidenceScore = z.infer<typeof ConfidenceScoreSchema>
+
+/**
+ * Strength score (0.0 to 1.0)
+ * Represents intensity or importance of a relation
+ */
+export const StrengthScoreSchema = z
+  .number()
+  .min(0)
+  .max(1)
+  .brand<"StrengthScore">()
+export type StrengthScore = z.infer<typeof StrengthScoreSchema>
+
+/**
+ * UUID-based entity identifier
+ */
+export const EntityIdSchema = z.string().uuid().brand<"EntityId">()
+export type EntityId = z.infer<typeof EntityIdSchema>
+
+/**
+ * Relation identifier
+ * Format: "{from}_{relationType}_{to}"
+ */
+export const RelationIdSchema = z.string().brand<"RelationId">()
+export type RelationId = z.infer<typeof RelationIdSchema>
 
 /**
  * Entity Name Schema
@@ -136,7 +196,7 @@ export const EntityEmbeddingSchema = z
         `Vector cannot exceed ${VALIDATION_CONSTANTS.MAX_VECTOR_DIMENSIONS} dimensions`
       ),
     model: z.string().min(1, "Model identifier cannot be empty"),
-    lastUpdated: z.number().int().nonnegative(),
+    lastUpdated: TimestampSchema,
   })
   .strict()
 
@@ -173,10 +233,10 @@ export type Entity = z.infer<typeof EntitySchema>
  */
 export const RelationMetadataSchema = z
   .object({
-    createdAt: z.number().int().nonnegative(),
-    updatedAt: z.number().int().nonnegative(),
-    inferredFrom: z.array(z.string()).optional(),
-    lastAccessed: z.number().int().nonnegative().optional(),
+    createdAt: TimestampSchema,
+    updatedAt: TimestampSchema,
+    inferredFrom: z.array(RelationIdSchema).optional(),
+    lastAccessed: TimestampSchema.optional(),
   })
   .strict()
   .refine((data) => data.updatedAt >= data.createdAt, {
@@ -202,13 +262,14 @@ export const RelationSchema = z
     from: EntityNameSchema,
     to: EntityNameSchema,
     relationType: RelationTypeSchema,
-    strength: z.number().min(0).max(1).optional(),
-    confidence: z.number().min(0).max(1).optional(),
+    strength: StrengthScoreSchema.optional(),
+    confidence: ConfidenceScoreSchema.optional(),
     metadata: RelationMetadataSchema.optional(),
   })
   .strict()
   .refine((data) => data.from !== data.to, {
-    message: "Relation cannot connect an entity to itself (from must differ from to)",
+    message:
+      "Relation cannot connect an entity to itself (from must differ from to)",
     path: ["to"],
   })
 
@@ -227,12 +288,12 @@ export type Relation = z.infer<typeof RelationSchema>
  * - changedBy: Optional identifier of who made the change
  */
 export const TemporalEntitySchema = EntitySchema.extend({
-  id: z.string().optional(),
-  version: z.number().int().positive(),
-  createdAt: z.number().int().nonnegative(),
-  updatedAt: z.number().int().nonnegative(),
-  validFrom: z.number().int().nonnegative().optional(),
-  validTo: z.number().int().nonnegative().nullable().optional(),
+  id: EntityIdSchema.optional(),
+  version: VersionSchema,
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+  validFrom: TimestampSchema.optional(),
+  validTo: TimestampSchema.nullable().optional(),
   changedBy: z.string().nullable().optional(),
 }).refine((data) => data.updatedAt >= data.createdAt, {
   message: "updatedAt must be greater than or equal to createdAt",
@@ -264,72 +325,60 @@ export const Validators = Object.freeze({
   /**
    * Validate entity name
    */
-  entityName: (value: unknown): value is EntityName => {
-    return EntityNameSchema.safeParse(value).success
-  },
+  entityName: (value: unknown): value is EntityName =>
+    EntityNameSchema.safeParse(value).success,
 
   /**
    * Validate observation string
    */
-  observation: (value: unknown): value is Observation => {
-    return ObservationSchema.safeParse(value).success
-  },
+  observation: (value: unknown): value is Observation =>
+    ObservationSchema.safeParse(value).success,
 
   /**
    * Validate entity
    */
-  entity: (value: unknown): value is Entity => {
-    return EntitySchema.safeParse(value).success
-  },
+  entity: (value: unknown): value is Entity =>
+    EntitySchema.safeParse(value).success,
 
   /**
    * Validate relation
    */
-  relation: (value: unknown): value is Relation => {
-    return RelationSchema.safeParse(value).success
-  },
+  relation: (value: unknown): value is Relation =>
+    RelationSchema.safeParse(value).success,
 
   /**
    * Validate temporal entity
    */
-  temporalEntity: (value: unknown): value is TemporalEntity => {
-    return TemporalEntitySchema.safeParse(value).success
-  },
+  temporalEntity: (value: unknown): value is TemporalEntity =>
+    TemporalEntitySchema.safeParse(value).success,
 
   /**
    * Validate knowledge graph
    */
-  knowledgeGraph: (value: unknown): value is KnowledgeGraph => {
-    return KnowledgeGraphSchema.safeParse(value).success
-  },
+  knowledgeGraph: (value: unknown): value is KnowledgeGraph =>
+    KnowledgeGraphSchema.safeParse(value).success,
 
   /**
    * Parse and validate entity name (throws on invalid)
    */
-  parseEntityName: (value: unknown): EntityName => {
-    return EntityNameSchema.parse(value)
-  },
+  parseEntityName: (value: unknown): EntityName =>
+    EntityNameSchema.parse(value),
 
   /**
    * Parse and validate entity (throws on invalid)
    */
-  parseEntity: (value: unknown): Entity => {
-    return EntitySchema.parse(value)
-  },
+  parseEntity: (value: unknown): Entity => EntitySchema.parse(value),
 
   /**
    * Parse and validate relation (throws on invalid)
    */
-  parseRelation: (value: unknown): Relation => {
-    return RelationSchema.parse(value)
-  },
+  parseRelation: (value: unknown): Relation => RelationSchema.parse(value),
 
   /**
    * Parse and validate knowledge graph (throws on invalid)
    */
-  parseKnowledgeGraph: (value: unknown): KnowledgeGraph => {
-    return KnowledgeGraphSchema.parse(value)
-  },
+  parseKnowledgeGraph: (value: unknown): KnowledgeGraph =>
+    KnowledgeGraphSchema.parse(value),
 })
 
 /**
@@ -347,3 +396,424 @@ export const Schemas = Object.freeze({
   TemporalEntity: TemporalEntitySchema,
   KnowledgeGraph: KnowledgeGraphSchema,
 })
+
+/**
+ * ============================================================================
+ * Tool Input Schemas
+ * ============================================================================
+ *
+ * These schemas validate the input parameters for MCP tool handlers.
+ * Each schema corresponds to a tool defined in list-tools-handler.ts
+ */
+
+/**
+ * create_entities tool input
+ */
+export const CreateEntitiesInputSchema = z
+  .object({
+    entities: z.array(EntitySchema).min(1, "Must provide at least one entity"),
+  })
+  .strict()
+
+export type CreateEntitiesInput = z.infer<typeof CreateEntitiesInputSchema>
+
+/**
+ * delete_entities tool input
+ */
+export const DeleteEntitiesInputSchema = z
+  .object({
+    entityNames: z
+      .array(EntityNameSchema)
+      .min(1, "Must provide at least one entity name"),
+  })
+  .strict()
+
+export type DeleteEntitiesInput = z.infer<typeof DeleteEntitiesInputSchema>
+
+/**
+ * add_observations tool input
+ */
+export const AddObservationsInputSchema = z
+  .object({
+    entityName: EntityNameSchema,
+    contents: z
+      .array(ObservationSchema)
+      .min(1, "Must provide at least one observation"),
+  })
+  .strict()
+
+export type AddObservationsInput = z.infer<typeof AddObservationsInputSchema>
+
+/**
+ * delete_observations tool input
+ */
+export const DeleteObservationsInputSchema = z
+  .object({
+    deletions: z
+      .array(
+        z.object({
+          entityName: EntityNameSchema,
+          observations: z.array(ObservationSchema).min(1),
+        })
+      )
+      .min(1, "Must provide at least one deletion"),
+  })
+  .strict()
+
+export type DeleteObservationsInput = z.infer<
+  typeof DeleteObservationsInputSchema
+>
+
+/**
+ * create_relations tool input
+ */
+export const CreateRelationsInputSchema = z
+  .object({
+    relations: z
+      .array(RelationSchema)
+      .min(1, "Must provide at least one relation"),
+  })
+  .strict()
+
+export type CreateRelationsInput = z.infer<typeof CreateRelationsInputSchema>
+
+/**
+ * delete_relations tool input
+ */
+export const DeleteRelationsInputSchema = z
+  .object({
+    relations: z
+      .array(RelationSchema)
+      .min(1, "Must provide at least one relation"),
+  })
+  .strict()
+
+export type DeleteRelationsInput = z.infer<typeof DeleteRelationsInputSchema>
+
+/**
+ * search_nodes tool input
+ */
+export const SearchNodesInputSchema = z
+  .object({
+    query: z.string().min(1, "Search query cannot be empty"),
+  })
+  .strict()
+
+export type SearchNodesInput = z.infer<typeof SearchNodesInputSchema>
+
+/**
+ * semantic_search tool input
+ */
+export const SemanticSearchInputSchema = z
+  .object({
+    query: z.string().min(1, "Search query cannot be empty"),
+    limit: z.number().int().positive().optional(),
+    minSimilarity: ConfidenceScoreSchema.optional(),
+    entityTypes: z.array(EntityTypeSchema).optional(),
+    hybridSearch: z.boolean().optional(),
+    semanticWeight: z.number().min(0).max(1).optional(),
+  })
+  .strict()
+
+export type SemanticSearchInput = z.infer<typeof SemanticSearchInputSchema>
+
+/**
+ * get_relation tool input
+ */
+export const GetRelationInputSchema = z
+  .object({
+    from: EntityNameSchema,
+    to: EntityNameSchema,
+    relationType: RelationTypeSchema,
+  })
+  .strict()
+
+export type GetRelationInput = z.infer<typeof GetRelationInputSchema>
+
+/**
+ * update_relation tool input
+ */
+export const UpdateRelationInputSchema = z
+  .object({
+    from: EntityNameSchema,
+    to: EntityNameSchema,
+    relationType: RelationTypeSchema,
+    strength: StrengthScoreSchema.optional(),
+    confidence: ConfidenceScoreSchema.optional(),
+    metadata: RelationMetadataSchema.optional(),
+  })
+  .strict()
+
+export type UpdateRelationInput = z.infer<typeof UpdateRelationInputSchema>
+
+/**
+ * open_nodes tool input
+ */
+export const OpenNodesInputSchema = z
+  .object({
+    names: z
+      .array(EntityNameSchema)
+      .min(1, "Must provide at least one entity name"),
+  })
+  .strict()
+
+export type OpenNodesInput = z.infer<typeof OpenNodesInputSchema>
+
+/**
+ * get_entity_history tool input
+ */
+export const GetEntityHistoryInputSchema = z
+  .object({
+    entityName: EntityNameSchema,
+  })
+  .strict()
+
+export type GetEntityHistoryInput = z.infer<typeof GetEntityHistoryInputSchema>
+
+/**
+ * get_relation_history tool input
+ */
+export const GetRelationHistoryInputSchema = z
+  .object({
+    from: EntityNameSchema,
+    to: EntityNameSchema,
+    relationType: RelationTypeSchema,
+  })
+  .strict()
+
+export type GetRelationHistoryInput = z.infer<
+  typeof GetRelationHistoryInputSchema
+>
+
+/**
+ * get_graph_at_time tool input
+ */
+export const GetGraphAtTimeInputSchema = z
+  .object({
+    timestamp: TimestampSchema,
+  })
+  .strict()
+
+export type GetGraphAtTimeInput = z.infer<typeof GetGraphAtTimeInputSchema>
+
+/**
+ * get_entity_embedding tool input
+ */
+export const GetEntityEmbeddingInputSchema = z
+  .object({
+    entityName: EntityNameSchema,
+  })
+  .strict()
+
+export type GetEntityEmbeddingInput = z.infer<
+  typeof GetEntityEmbeddingInputSchema
+>
+
+/**
+ * read_graph tool has no parameters (empty object)
+ */
+export const ReadGraphInputSchema = z.object({}).strict()
+
+export type ReadGraphInput = z.infer<typeof ReadGraphInputSchema>
+
+/**
+ * get_decayed_graph tool has no parameters (empty object)
+ */
+export const GetDecayedGraphInputSchema = z.object({}).strict()
+
+export type GetDecayedGraphInput = z.infer<typeof GetDecayedGraphInputSchema>
+
+/**
+ * ============================================================================
+ * Tool Output Schemas
+ * ============================================================================
+ *
+ * Output schemas define the expected structure of tool responses.
+ * These schemas enable:
+ * - Runtime validation of handler outputs
+ * - Type-safe response construction
+ * - Early detection of implementation errors
+ * - Better documentation and DX
+ */
+
+/**
+ * create_entities output
+ */
+export const CreateEntitiesOutputSchema = z.object({
+  created: z.number().int().nonnegative(),
+  entities: z.array(EntitySchema),
+})
+
+export type CreateEntitiesOutput = z.infer<typeof CreateEntitiesOutputSchema>
+
+/**
+ * delete_entities output
+ */
+export const DeleteEntitiesOutputSchema = z.object({
+  deleted: z.number().int().nonnegative(),
+  entityNames: z.array(EntityNameSchema),
+})
+
+export type DeleteEntitiesOutput = z.infer<typeof DeleteEntitiesOutputSchema>
+
+/**
+ * read_graph output
+ */
+export const ReadGraphOutputSchema = KnowledgeGraphSchema
+
+export type ReadGraphOutput = z.infer<typeof ReadGraphOutputSchema>
+
+/**
+ * create_relations output
+ */
+export const CreateRelationsOutputSchema = z.object({
+  created: z.number().int().nonnegative(),
+  relations: z.array(RelationSchema),
+})
+
+export type CreateRelationsOutput = z.infer<typeof CreateRelationsOutputSchema>
+
+/**
+ * add_observations output
+ */
+export const AddObservationsOutputSchema = z.object({
+  entityName: EntityNameSchema,
+  added: z.number().int().nonnegative(),
+  totalObservations: z.number().int().nonnegative(),
+})
+
+export type AddObservationsOutput = z.infer<typeof AddObservationsOutputSchema>
+
+/**
+ * delete_observations output
+ */
+export const DeleteObservationsOutputSchema = z.object({
+  deleted: z.number().int().nonnegative(),
+  entities: z.array(
+    z.object({
+      entityName: EntityNameSchema,
+      deletedCount: z.number().int().nonnegative(),
+    })
+  ),
+})
+
+export type DeleteObservationsOutput = z.infer<
+  typeof DeleteObservationsOutputSchema
+>
+
+/**
+ * delete_relations output
+ */
+export const DeleteRelationsOutputSchema = z.object({
+  deleted: z.number().int().nonnegative(),
+})
+
+export type DeleteRelationsOutput = z.infer<typeof DeleteRelationsOutputSchema>
+
+/**
+ * get_relation output (can be null if not found)
+ */
+export const GetRelationOutputSchema = RelationSchema.nullable()
+
+export type GetRelationOutput = z.infer<typeof GetRelationOutputSchema>
+
+/**
+ * update_relation output
+ */
+export const UpdateRelationOutputSchema = RelationSchema
+
+export type UpdateRelationOutput = z.infer<typeof UpdateRelationOutputSchema>
+
+/**
+ * search_nodes output
+ */
+export const SearchNodesOutputSchema = z.object({
+  results: z.array(EntitySchema),
+  count: z.number().int().nonnegative(),
+})
+
+export type SearchNodesOutput = z.infer<typeof SearchNodesOutputSchema>
+
+/**
+ * open_nodes output
+ */
+export const OpenNodesOutputSchema = z.object({
+  nodes: z.array(EntitySchema),
+  found: z.number().int().nonnegative(),
+  notFound: z.array(EntityNameSchema),
+})
+
+export type OpenNodesOutput = z.infer<typeof OpenNodesOutputSchema>
+
+/**
+ * get_entity_history output
+ */
+export const GetEntityHistoryOutputSchema = z.object({
+  entityName: EntityNameSchema,
+  history: z.array(TemporalEntitySchema),
+  totalVersions: z.number().int().positive(),
+})
+
+export type GetEntityHistoryOutput = z.infer<
+  typeof GetEntityHistoryOutputSchema
+>
+
+/**
+ * get_relation_history output
+ */
+export const GetRelationHistoryOutputSchema = z.object({
+  from: EntityNameSchema,
+  to: EntityNameSchema,
+  relationType: RelationTypeSchema,
+  history: z.array(TemporalEntitySchema),
+  totalVersions: z.number().int().positive(),
+})
+
+export type GetRelationHistoryOutput = z.infer<
+  typeof GetRelationHistoryOutputSchema
+>
+
+/**
+ * get_graph_at_time output
+ */
+export const GetGraphAtTimeOutputSchema = z.object({
+  timestamp: TimestampSchema,
+  graph: KnowledgeGraphSchema,
+})
+
+export type GetGraphAtTimeOutput = z.infer<typeof GetGraphAtTimeOutputSchema>
+
+/**
+ * get_decayed_graph output
+ */
+export const GetDecayedGraphOutputSchema = KnowledgeGraphSchema
+
+export type GetDecayedGraphOutput = z.infer<typeof GetDecayedGraphOutputSchema>
+
+/**
+ * semantic_search output
+ */
+export const SemanticSearchOutputSchema = z.object({
+  results: z.array(
+    z.object({
+      entity: EntitySchema,
+      similarity: z.number().min(0).max(1),
+    })
+  ),
+  count: z.number().int().nonnegative(),
+})
+
+export type SemanticSearchOutput = z.infer<typeof SemanticSearchOutputSchema>
+
+/**
+ * get_entity_embedding output
+ */
+export const GetEntityEmbeddingOutputSchema = z.object({
+  entityName: EntityNameSchema,
+  embedding: z.array(z.number().finite()).min(1),
+  model: z.string().min(1, "Model identifier cannot be empty"),
+})
+
+export type GetEntityEmbeddingOutput = z.infer<
+  typeof GetEntityEmbeddingOutputSchema
+>

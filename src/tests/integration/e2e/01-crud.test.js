@@ -562,8 +562,12 @@ describe("E2E: CRUD Operations", () => {
       await helper.createEntities([entity])
 
       await helper.callToolJSON("delete_observations", {
-        entityName: entity.name,
-        observations: ["Delete this"],
+        deletions: [
+          {
+            entityName: entity.name,
+            observations: ["Delete this"],
+          },
+        ],
       })
 
       const graph = await helper.readGraph()

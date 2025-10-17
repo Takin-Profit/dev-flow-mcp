@@ -22,7 +22,6 @@ import { load as loadSqliteVec } from "sqlite-vec"
 import { env } from "#config"
 import { SqliteDb } from "#db/sqlite-db"
 import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
-import { SqliteVectorStore } from "#db/sqlite-vector-store"
 import { KnowledgeGraphManager } from "#knowledge-graph-manager"
 import { logger } from "#logger"
 import { setupServer } from "#server/setup"
@@ -58,7 +57,7 @@ export default async function startMcpServer(): Promise<void> {
     logger.debug("Initializing SQLite database...")
     const db = new DB({
       location: env.DFM_SQLITE_LOCATION,
-      logger: logger as any,
+      logger,
       allowExtension: true,
     })
 
@@ -82,7 +81,6 @@ export default async function startMcpServer(): Promise<void> {
     // Create database instances (explicit SQLite classes)
     logger.debug("Creating database...")
     const sqliteDb = new SqliteDb(db, logger)
-    const vectorStore = new SqliteVectorStore({ db, logger })
 
     // ========================================================================
     // Step 2: Create Knowledge Graph Manager

@@ -1,218 +1,131 @@
 /**
- * Storage Types with ArkType Runtime Validation
- *
- * This module defines storage-related types. Types without methods use
- * ArkType for runtime validation. Types with methods (interfaces) remain
- * as plain TypeScript types.
+ * Storage Types
+ * Database and search-related type definitions
  */
 
-import { type } from "arktype"
+import { z } from "#config"
 import type {
   Entity,
   KnowledgeGraph,
-  Logger,
   Relation,
   TemporalEntityType,
 } from "#types"
 
-// ============================================================================
-// Types with ArkType (no methods)
-// ============================================================================
-
 /**
  * Similarity functions for vector search
  */
-export const VectorSimilarityFunction = type("'cosine' | 'euclidean'")
-export type VectorSimilarityFunction = typeof VectorSimilarityFunction.infer
+export type VectorSimilarityFunction = "cosine" | "euclidean"
 
 /**
  * Options for searching nodes in the knowledge graph
  */
-export const SearchOptions = type({
-  "limit?": "number.integer > 0",
-  "caseSensitive?": "boolean",
-  "entityTypes?": "string[]",
+export const SearchOptionsSchema = z.object({
+  limit: z.number().optional(),
+  caseSensitive: z.boolean().optional(),
+  entityTypes: z.array(z.string()).optional(),
 })
-export type SearchOptions = typeof SearchOptions.infer
+export type SearchOptions = z.infer<typeof SearchOptionsSchema>
 
 /**
  * Vector-specific options for semantic search
- * Used in combination with SearchOptions via intersection type
- *
- * Only includes properties that actually affect search behavior.
- * Properties like hybridSearch were removed as they are only logged but don't change results.
  */
-export const SemanticSearchOptions = type({
-  //** Whether to use semantic search or not.
-  "semanticSearch?": "boolean",
-
-  /** Pre-computed query vector for vector similarity search */
-  "queryVector?": "number[]",
-
-  /** Minimum similarity threshold (0.0-1.0) for filtering results */
-  "minSimilarity?": "0 <= number <= 1",
-
-  /** Alias for minSimilarity - minimum similarity threshold (0.0-1.0) */
-  "threshold?": "0 <= number <= 1",
-
-  "limit?": "0 <= number <= 1",
+export const SemanticSearchOptionsSchema = z.object({
+  semanticSearch: z.boolean().optional(),
+  queryVector: z.array(z.number()).optional(),
+  minSimilarity: z.number().optional(),
+  threshold: z.number().optional(),
+  limit: z.number().optional(),
 })
-export type SemanticSearchOptions = typeof SemanticSearchOptions.infer
+export type SemanticSearchOptions = z.infer<typeof SemanticSearchOptionsSchema>
 
 /**
- * Configuration options for vector store (legacy - kept for backward compatibility)
- * NOTE: Factory removed - SQLite vector store is always used
+ * Vector store factory options
  */
-export const VectorStoreFactoryOptionsSchema = type({
-  "indexName?": "string > 0",
-  "dimensions?": "number.integer > 0",
-  "similarityFunction?": VectorSimilarityFunction,
-  "initializeImmediately?": "boolean",
-})
+export type VectorStoreFactoryOptions = {
+  dbPath: string
+  embeddingDimensions: number
+  similarityFunction: VectorSimilarityFunction
+}
 
 /**
- * Configuration options for vector store factory
- *
- * Combines arktype validation schema with Logger type for complete type safety.
- */
-export type VectorStoreFactoryOptions =
-  typeof VectorStoreFactoryOptionsSchema.infer & {
-    logger?: Logger
-  }
-
-// ============================================================================
-// Interface Types (contain methods - cannot use ArkType)
-// ============================================================================
-
-/**
- * Interface for databases that can load and save knowledge graphs
+ * Database Interface
+ * Core methods for persisting and querying the knowledge graph
  */
 export type Database = {
   /**
-   * Load a knowledge graph from storage
-   * @returns Promise resolving to the loaded knowledge graph
+   * Get an entity by name
    */
-  loadGraph(): Promise<KnowledgeGraph>
+  getEntity(name: string): Promise<Entity | null>
 
   /**
-   * Save a knowledge graph to storage
-   * @param graph The knowledge graph to save
-   * @returns Promise that resolves when the save is complete
+   * Save or update an entity
    */
-  saveGraph(graph: KnowledgeGraph): Promise<void>
+  saveEntity(entity: Entity): Promise<void>
 
   /**
-   * Search for nodes in the graph that match the query
-   * @param query The search query string
-   * @param options Optional search parameters
-   * @returns Promise resolving to a KnowledgeGraph containing matching nodes
+   * Delete an entity by name
    */
-  searchNodes(query: string, options?: SearchOptions): Promise<KnowledgeGraph>
+  deleteEntity(name: string): Promise<void>
 
   /**
-   * Open specific nodes by their exact names
-   * @param names Array of node names to open
-   * @returns Promise resolving to a KnowledgeGraph containing the specified nodes
+   * Get all entities
    */
-  openNodes(names: string[]): Promise<KnowledgeGraph>
+  getAllEntities(): Promise<Entity[]>
 
   /**
-   * Create new entities in the knowledge graph
-   * @param entities Array of entities to create
-   * @returns Promise resolving to array of newly created entities with temporal metadata
+   * Search entities by text query
    */
-  createEntities(entities: Entity[]): Promise<TemporalEntityType[]>
+  searchEntities(query: string, options?: SearchOptions): Promise<Entity[]>
 
   /**
-   * Create new relations between entities
-   * @param relations Array of relations to create
-   * @returns Promise resolving to array of newly created relations
+   * Semantic search using vector embeddings
    */
-  createRelations(relations: Relation[]): Promise<Relation[]>
+  semanticSearch(
+    query: string,
+    options?: SemanticSearchOptions
+  ): Promise<Entity[]>
 
   /**
-   * Add observations to entities
-   * @param observations Array of objects with entity name and observation contents
-   * @returns Promise resolving to array of objects with entity name and added observations
+   * Get a relation between two entities
    */
-  addObservations(
-    observations: { entityName: string; contents: string[] }[]
-  ): Promise<{ entityName: string; addedObservations: string[] }[]>
-
-  /**
-   * Delete entities and their relations
-   * @param entityNames Array of entity names to delete
-   * @returns Promise that resolves when deletion is complete
-   */
-  deleteEntities(entityNames: string[]): Promise<void>
-
-  /**
-   * Delete observations from entities
-   * @param deletions Array of objects with entity name and observations to delete
-   * @returns Promise that resolves when deletion is complete
-   */
-  deleteObservations(
-    deletions: { entityName: string; observations: string[] }[]
-  ): Promise<void>
-
-  /**
-   * Delete relations from the graph
-   * @param relations Array of relations to delete
-   * @returns Promise that resolves when deletion is complete
-   */
-  deleteRelations(relations: Relation[]): Promise<void>
-
-  /**
-   * Get a specific relation by its source, target, and type
-   * @param from Source entity name
-   * @param to Target entity name
-   * @param relationType Relation type
-   * @returns Promise resolving to the relation or null if not found
-   */
-  getRelation?(
+  getRelation(
     from: string,
     to: string,
     relationType: string
   ): Promise<Relation | null>
 
   /**
-   * Update an existing relation with new properties
-   * @param relation The relation with updated properties
-   * @returns Promise that resolves when the update is complete
+   * Save or update a relation
    */
-  updateRelation?(relation: Relation): Promise<void>
+  saveRelation(relation: Relation): Promise<void>
 
   /**
-   * Perform semantic search on entities using embeddings
-   * @param query The search query
-   * @param options Search options including limit and filters
-   * @returns Promise resolving to a KnowledgeGraph containing matching entities
+   * Delete a relation
    */
-  semanticSearch?(
-    query: string,
-    options?: SemanticSearchOptions
-  ): Promise<KnowledgeGraph>
+  deleteRelation(from: string, to: string, relationType: string): Promise<void>
 
-  updateEntityEmbedding?(entityName: string, embedding: any): Promise<void>
+  /**
+   * Get all relations
+   */
+  getAllRelations(): Promise<Relation[]>
 
-  getEntityEmbedding?(entityName: string): Promise<any | null>
+  /**
+   * Get the entire knowledge graph
+   */
+  getGraph(): Promise<KnowledgeGraph>
 
-  findSimilarEntities?(
-    queryVector: number[],
-    limit: number
-  ): Promise<Array<TemporalEntityType & { similarity: number }>>
+  /**
+   * Get entity history (temporal versions)
+   */
+  getEntityHistory(entityName: string): Promise<TemporalEntityType[]>
 
-  getEntityHistory?(entityName: string): Promise<TemporalEntityType[]>
+  /**
+   * Get graph state at a specific time
+   */
+  getGraphAtTime(timestamp: number): Promise<KnowledgeGraph>
 
-  getRelationHistory?(
-    from: string,
-    to: string,
-    relationType: string
-  ): Promise<Relation[]>
-
-  getGraphAtTime?(timestamp: number): Promise<KnowledgeGraph>
-
-  getDecayedGraph?(): Promise<KnowledgeGraph>
-
-  diagnoseVectorSearch?(): Promise<Record<string, unknown>>
+  /**
+   * Close database connection
+   */
+  close(): Promise<void>
 }

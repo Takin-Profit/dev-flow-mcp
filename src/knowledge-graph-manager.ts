@@ -1,5 +1,6 @@
-import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
 import type { Database } from "#db/database"
+import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
+import { DatabaseError } from "#errors"
 import type {
   Entity,
   KnowledgeGraph,
@@ -42,8 +43,7 @@ function hasSearchVectors(
 ): provider is DatabaseWithSearchVectors {
   return (
     "searchVectors" in provider &&
-    typeof (provider as DatabaseWithSearchVectors).searchVectors ===
-      "function"
+    typeof (provider as DatabaseWithSearchVectors).searchVectors === "function"
   )
 }
 
@@ -105,11 +105,11 @@ export class KnowledgeGraphManager {
    *
    * @param options - Options for the vector store
    */
-  private async initializeVectorStore(
-    _options: any
-  ): Promise<void> {
+  private async initializeVectorStore(_options: any): Promise<void> {
     // Vector store factory removed - using SQLite provider's internal vector store
-    this.logger.info("Vector store initialization skipped - using database's vector store")
+    this.logger.info(
+      "Vector store initialization skipped - using database's vector store"
+    )
   }
 
   /**
@@ -122,7 +122,7 @@ export class KnowledgeGraphManager {
     if (!this.vectorStore) {
       // Vector store is managed by the database (SQLite)
       // This method is kept for backward compatibility but won't be used
-      throw new Error(
+      throw new DatabaseError(
         "Vector store is not initialized - database should handle vector operations"
       )
     }
@@ -190,8 +190,7 @@ export class KnowledgeGraphManager {
     }
 
     // Use database for creating relations
-    const createdRelations =
-      await this.database.createRelations(relations)
+    const createdRelations = await this.database.createRelations(relations)
     return createdRelations
   }
 
@@ -298,9 +297,7 @@ export class KnowledgeGraphManager {
     }))
 
     // Use database for adding observations
-    const results = await this.database.addObservations(
-      simplifiedObservations
-    )
+    const results = await this.database.addObservations(simplifiedObservations)
 
     // Schedule re-embedding for affected entities if manager is provided
     if (this.embeddingJobManager) {
@@ -618,8 +615,7 @@ export class KnowledgeGraphManager {
   updateRelation(relation: Relation): Promise<Relation> {
     if (hasUpdateRelation(this.database)) {
       // Cast to the extended interface to access the method
-      const provider = this
-        .database as unknown as DatabaseWithUpdateRelation
+      const provider = this.database as unknown as DatabaseWithUpdateRelation
       return provider.updateRelation(relation)
     }
 
@@ -676,10 +672,7 @@ export class KnowledgeGraphManager {
   getDecayedGraph(): Promise<
     KnowledgeGraph & { decay_info?: Record<string, unknown> }
   > {
-    if (
-      !this.database ||
-      typeof this.database.getDecayedGraph !== "function"
-    ) {
+    if (!this.database || typeof this.database.getDecayedGraph !== "function") {
       throw new Error("Storage provider does not support decay operations")
     }
 
@@ -737,10 +730,7 @@ export class KnowledgeGraphManager {
    * @returns The knowledge graph as it existed at the specified time
    */
   getGraphAtTime(timestamp: number): Promise<KnowledgeGraph> {
-    if (
-      !this.database ||
-      typeof this.database.getGraphAtTime !== "function"
-    ) {
+    if (!this.database || typeof this.database.getGraphAtTime !== "function") {
       throw new Error(
         "Storage provider does not support temporal graph operations"
       )

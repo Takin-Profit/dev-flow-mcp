@@ -2,68 +2,62 @@
  * Tool Handlers for MCP Protocol
  *
  * This module contains all the handler functions for MCP tools.
- * Each handler is a simple wrapper around KnowledgeGraphManager methods.
+ * Each handler validates inputs with Zod and returns standardized MCP responses.
  */
 
-import { type } from "arktype"
 import type { KnowledgeGraphManager } from "#knowledge-graph-manager"
 import type { Logger } from "#types"
-import { Entity, Relation } from "#types"
-
-/**
- * Arktype schemas for runtime validation of tool arguments
- */
-const ObservationInputSchema = type({
-  entityName: "string",
-  contents: "string[]",
-})
-
-const AddObservationsArgsSchema = type({
-  observations: ObservationInputSchema.array(),
-})
-
-const CreateEntitiesArgsSchema = type({
-  entities: "unknown[]",
-})
-
-const CreateRelationsArgsSchema = type({
-  relations: "unknown[]",
-})
-
-const DeleteEntitiesArgsSchema = type({
-  entityNames: "string[]",
-})
+import type { MCPToolResponse } from "#types/responses"
+import {
+  AddObservationsInputSchema,
+  CreateEntitiesInputSchema,
+  CreateRelationsInputSchema,
+  DeleteEntitiesInputSchema,
+} from "#types/validation"
+import { handleError } from "#utils/error-handler"
+import {
+  buildSuccessResponse,
+  buildValidationErrorResponse,
+} from "#utils/response-builders"
 
 /**
  * Handles the create_entities tool request
  */
 export async function handleCreateEntities(
   args: unknown,
-  knowledgeGraphManager: KnowledgeGraphManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
-  const validated = CreateEntitiesArgsSchema(args)
-  if (validated instanceof type.errors) {
-    throw new Error(`Invalid arguments for create_entities: ${validated}`)
-  }
-
-  // Validate each entity using ArkType Entity schema
-  const entities: (typeof Entity.infer)[] = []
-  for (const rawEntity of validated.entities) {
-    const entityResult = Entity(rawEntity)
-    if (entityResult instanceof type.errors) {
-      throw new Error(`Invalid entity: ${entityResult}`)
+  knowledgeGraphManager: KnowledgeGraphManager,
+  logger?: Logger
+): Promise<MCPToolResponse> {
+  try {
+    // 1. Validate input with Zod
+    const result = CreateEntitiesInputSchema.safeParse(args)
+    if (!result.success) {
+      logger?.warn("create_entities validation failed", {
+        issues: result.error.issues,
+      })
+      return buildValidationErrorResponse(result.error)
     }
-    entities.push(entityResult)
-  }
 
-  const result = await knowledgeGraphManager.createEntities(entities)
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
+    const { entities } = result.data
+
+    logger?.debug("create_entities called", {
+      entityCount: entities.length,
+    })
+
+    // 2. Perform operation
+    const created = await knowledgeGraphManager.createEntities(entities)
+
+    logger?.info("create_entities completed", {
+      created: created.length,
+    })
+
+    // 3. Build response (simplified!)
+    return buildSuccessResponse({
+      created: created.length,
+      entities: created,
+    })
+  } catch (error) {
+    return handleError(error, logger)
   }
 }
 
@@ -72,31 +66,39 @@ export async function handleCreateEntities(
  */
 export async function handleCreateRelations(
   args: unknown,
-  knowledgeGraphManager: KnowledgeGraphManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
-  const validated = CreateRelationsArgsSchema(args)
-  if (validated instanceof type.errors) {
-    throw new Error(`Invalid arguments for create_relations: ${validated}`)
-  }
-
-  // Validate each relation using ArkType Relation schema
-  const relations: (typeof Relation.infer)[] = []
-  for (const rawRelation of validated.relations) {
-    const relationResult = Relation(rawRelation)
-    if (relationResult instanceof type.errors) {
-      throw new Error(`Invalid relation: ${relationResult}`)
+  knowledgeGraphManager: KnowledgeGraphManager,
+  logger?: Logger
+): Promise<MCPToolResponse> {
+  try {
+    // 1. Validate input with Zod
+    const result = CreateRelationsInputSchema.safeParse(args)
+    if (!result.success) {
+      logger?.warn("create_relations validation failed", {
+        issues: result.error.issues,
+      })
+      return buildValidationErrorResponse(result.error)
     }
-    relations.push(relationResult)
-  }
 
-  const result = await knowledgeGraphManager.createRelations(relations)
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
+    const { relations } = result.data
+
+    logger?.debug("create_relations called", {
+      relationCount: relations.length,
+    })
+
+    // 2. Perform operation
+    const created = await knowledgeGraphManager.createRelations(relations)
+
+    logger?.info("create_relations completed", {
+      created: created.length,
+    })
+
+    // 3. Build response (simplified!)
+    return buildSuccessResponse({
+      created: created.length,
+      relations: created,
+    })
+  } catch (error) {
+    return handleError(error, logger)
   }
 }
 
@@ -105,21 +107,41 @@ export async function handleCreateRelations(
  */
 export async function handleDeleteEntities(
   args: unknown,
-  knowledgeGraphManager: KnowledgeGraphManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
-  const validated = DeleteEntitiesArgsSchema(args)
-  if (validated instanceof type.errors) {
-    throw new Error(`Invalid arguments for delete_entities: ${validated}`)
-  }
+  knowledgeGraphManager: KnowledgeGraphManager,
+  logger?: Logger
+): Promise<MCPToolResponse> {
+  try {
+    // 1. Validate input with Zod
+    const result = DeleteEntitiesInputSchema.safeParse(args)
+    if (!result.success) {
+      logger?.warn("delete_entities validation failed", {
+        issues: result.error.issues,
+      })
+      return buildValidationErrorResponse(result.error)
+    }
 
-  await knowledgeGraphManager.deleteEntities(validated.entityNames)
-  return {
-    content: [
-      {
-        type: "text",
-        text: "Entities deleted successfully",
-      },
-    ],
+    const { entityNames } = result.data
+
+    logger?.debug("delete_entities called", {
+      entityCount: entityNames.length,
+    })
+
+    // 2. Perform operation
+    await knowledgeGraphManager.deleteEntities(
+      entityNames.map((name) => name as string)
+    )
+
+    logger?.info("delete_entities completed", {
+      deleted: entityNames.length,
+    })
+
+    // 3. Build response (simplified!)
+    return buildSuccessResponse({
+      deleted: entityNames.length,
+      entityNames,
+    })
+  } catch (error) {
+    return handleError(error, logger)
   }
 }
 
@@ -127,17 +149,25 @@ export async function handleDeleteEntities(
  * Handles the read_graph tool request
  */
 export async function handleReadGraph(
-  _args: Record<string, unknown>,
-  knowledgeGraphManager: KnowledgeGraphManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
-  const result = await knowledgeGraphManager.readGraph()
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
+  _args: unknown,
+  knowledgeGraphManager: KnowledgeGraphManager,
+  logger?: Logger
+): Promise<MCPToolResponse> {
+  try {
+    logger?.debug("read_graph called")
+
+    // No validation needed - read_graph takes no arguments
+    const graph = await knowledgeGraphManager.readGraph()
+
+    logger?.info("read_graph completed", {
+      entityCount: graph.entities.length,
+      relationCount: graph.relations.length,
+    })
+
+    // Build response (simplified!)
+    return buildSuccessResponse(graph)
+  } catch (error) {
+    return handleError(error, logger)
   }
 }
 
@@ -151,82 +181,46 @@ export async function handleReadGraph(
 export async function handleAddObservations(
   args: unknown,
   knowledgeGraphManager: KnowledgeGraphManager,
-  logger: Logger
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+  logger?: Logger
+): Promise<MCPToolResponse> {
   try {
-    // Validate arguments with arktype - provides both runtime safety and type narrowing
-    const validated = AddObservationsArgsSchema(args)
-    if (validated instanceof type.errors) {
-      throw new Error(`Invalid arguments for add_observations: ${validated}`)
+    // 1. Validate input with Zod
+    const result = AddObservationsInputSchema.safeParse(args)
+    if (!result.success) {
+      logger?.warn("add_observations validation failed", {
+        issues: result.error.issues,
+      })
+      return buildValidationErrorResponse(result.error)
     }
 
-    // Enhanced logging for debugging
-    logger.debug("addObservations handler called", {
-      timestamp: new Date().toISOString(),
-      observationCount: validated.observations.length,
+    const { observations } = result.data
+
+    logger?.debug("add_observations called", {
+      observationCount: observations.length,
     })
 
-    // Call knowledgeGraphManager - validated.observations is properly typed
-    const result = await knowledgeGraphManager.addObservations(
-      validated.observations
+    // 2. Perform operation
+    const results = await knowledgeGraphManager.addObservations(observations)
+
+    logger?.info("add_observations completed", {
+      entitiesAffected: results.length,
+    })
+
+    // 3. Build response (simplified!)
+    // The manager returns an array of results, aggregate them
+    const totalAdded = results.reduce((sum, r) => sum + r.added, 0)
+    const totalObservations = results.reduce(
+      (sum, r) => sum + r.totalObservations,
+      0
     )
 
-    logger.debug("addObservations completed successfully", {
-      resultCount: result.length,
+    // For now, return the first entity's info (or improve this to handle multiple)
+    return buildSuccessResponse({
+      entityName: results[0]?.entityName || ("" as never), // Branded type
+      added: totalAdded,
+      totalObservations,
     })
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              success: true,
-              result,
-              summary: {
-                observationsProcessed: validated.observations.length,
-                entitiesAffected: result.length,
-              },
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    }
   } catch (error) {
-    // Proper error type narrowing
-    let errorMessage = "Unknown error"
-    let errorStack: string | undefined
-
-    if (error instanceof Error) {
-      errorMessage = error.message
-      errorStack = error.stack
-    } else if (typeof error === "string") {
-      errorMessage = error
-    }
-
-    // Enhanced error logging for debugging
-    logger.error("addObservations error", {
-      error: errorMessage,
-      stack: errorStack || "No stack trace available",
-    })
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              success: false,
-              error: errorMessage,
-              timestamp: Date.now(),
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    }
+    return handleError(error, logger)
   }
 }

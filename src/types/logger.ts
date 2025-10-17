@@ -41,6 +41,12 @@ export type Logger = {
    * Use for: detailed diagnostic information, troubleshooting
    */
   debug(message: string, meta?: LogMetadata): void
+
+  /**
+   * Log trace messages (lowest level, most detailed)
+   * Use for: very detailed diagnostic information, function entry/exit
+   */
+  trace(message: string, meta?: LogMetadata): void
 }
 
 /**
@@ -55,4 +61,5 @@ export const createNoOpLogger = (): Logger => ({
   ): void => {},
   warn: (_message: string, _meta?: LogMetadata): void => {},
   debug: (_message: string, _meta?: LogMetadata): void => {},
+  trace: (_message: string, _meta?: LogMetadata): void => {},
 })

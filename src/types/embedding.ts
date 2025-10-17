@@ -1,5 +1,5 @@
 /**
- * Embedding Types with ArkType Runtime Validation
+ * Embedding Types with Zod Runtime Validation
  *
  * This module defines types for the embedding subsystem including:
  * - Job status enums
@@ -9,7 +9,7 @@
  */
 /** biome-ignore-all lint/style/noMagicNumbers: over zealous */
 
-import { type } from "arktype"
+import { z } from "#config"
 import type { Logger } from "#types/logger"
 
 // ============================================================================
@@ -56,93 +56,96 @@ export const DEFAULT_EMBEDDING_SETTINGS = {
 } as const
 
 // ============================================================================
-// ArkType Schemas with Defaults
+// Zod Schemas with Defaults
 // ============================================================================
 
 /**
  * Job status type - valid statuses for embedding jobs
  */
-export const EmbeddingJobStatus = type(
-  "'pending' | 'processing' | 'completed' | 'failed'"
-)
-export type EmbeddingJobStatus = typeof EmbeddingJobStatus.infer
+export const EmbeddingJobStatusSchema = z.enum([
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+])
+export type EmbeddingJobStatus = z.infer<typeof EmbeddingJobStatusSchema>
 
 /**
  * Embedding job record from the database
  */
-export const EmbeddingJob = type({
-  id: "string",
-  entity_name: "string",
-  status: EmbeddingJobStatus,
-  priority: "number.integer",
-  created_at: "number.integer >= 0",
-  "processed_at?": "number.integer >= 0",
-  "error?": "string",
-  attempts: "number.integer >= 0",
-  max_attempts: "number.integer > 0",
+export const EmbeddingJobSchema = z.object({
+  id: z.string(),
+  entity_name: z.string(),
+  status: EmbeddingJobStatusSchema,
+  priority: z.number().int(),
+  created_at: z.number().int().nonnegative(),
+  processed_at: z.number().int().nonnegative().optional(),
+  error: z.string().optional(),
+  attempts: z.number().int().nonnegative(),
+  max_attempts: z.number().int().positive(),
 })
-export type EmbeddingJob = typeof EmbeddingJob.infer
+export type EmbeddingJob = z.infer<typeof EmbeddingJobSchema>
 
 /**
  * Count result from database queries
  */
-export const CountResult = type({
-  count: "number.integer >= 0",
+export const CountResultSchema = z.object({
+  count: z.number().int().nonnegative(),
 })
-export type CountResult = typeof CountResult.infer
+export type CountResult = z.infer<typeof CountResultSchema>
 
 /**
  * Cache options for embedding cache
  *
  * Supports both new format (size, ttl) and legacy format (maxItems, ttlHours)
  */
-export const CacheOptions = type({
-  size: "number.integer > 0",
-  ttl: "number.integer > 0",
+export const CacheOptionsSchema = z.object({
+  size: z.number().int().positive(),
+  ttl: z.number().int().positive(),
   // Legacy compatibility
-  "maxItems?": "number.integer > 0",
-  "ttlHours?": "number > 0",
+  maxItems: z.number().int().positive().optional(),
+  ttlHours: z.number().positive().optional(),
 })
-export type CacheOptions = typeof CacheOptions.infer
+export type CacheOptions = z.infer<typeof CacheOptionsSchema>
 
 /**
  * Rate limiter configuration options
  */
-export const RateLimiterOptions = type({
-  tokensPerInterval: "number.integer > 0",
-  interval: "number.integer > 0",
+export const RateLimiterOptionsSchema = z.object({
+  tokensPerInterval: z.number().int().positive(),
+  interval: z.number().int().positive(),
 })
-export type RateLimiterOptions = typeof RateLimiterOptions.infer
+export type RateLimiterOptions = z.infer<typeof RateLimiterOptionsSchema>
 
 /**
  * Job processing results summary
  */
-export const JobProcessResults = type({
-  processed: "number.integer >= 0",
-  successful: "number.integer >= 0",
-  failed: "number.integer >= 0",
+export const JobProcessResultsSchema = z.object({
+  processed: z.number().int().nonnegative(),
+  successful: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
 })
-export type JobProcessResults = typeof JobProcessResults.infer
+export type JobProcessResults = z.infer<typeof JobProcessResultsSchema>
 
 /**
  * Rate limiter status information
  */
-export const RateLimiterStatus = type({
-  availableTokens: "number >= 0",
-  maxTokens: "number.integer > 0",
-  resetInMs: "number >= 0",
+export const RateLimiterStatusSchema = z.object({
+  availableTokens: z.number().nonnegative(),
+  maxTokens: z.number().int().positive(),
+  resetInMs: z.number().nonnegative(),
 })
-export type RateLimiterStatus = typeof RateLimiterStatus.infer
+export type RateLimiterStatus = z.infer<typeof RateLimiterStatusSchema>
 
 /**
  * Cached embedding entry
  */
-export const CachedEmbedding = type({
-  embedding: "number[]",
-  timestamp: "number.integer >= 0",
-  model: "string",
+export const CachedEmbeddingSchema = z.object({
+  embedding: z.array(z.number()),
+  timestamp: z.number().int().nonnegative(),
+  model: z.string(),
 })
-export type CachedEmbedding = typeof CachedEmbedding.infer
+export type CachedEmbedding = z.infer<typeof CachedEmbeddingSchema>
 
 // ============================================================================
 // Provider and Model Information
@@ -154,8 +157,8 @@ export type CachedEmbedding = typeof CachedEmbedding.infer
  * - openai: OpenAI's embedding API
  * - default: Mock/deterministic embeddings for testing
  */
-export const EmbeddingProvider = type("'openai' | 'default'")
-export type EmbeddingProvider = typeof EmbeddingProvider.infer
+export const EmbeddingProviderSchema = z.enum(["openai", "default"])
+export type EmbeddingProvider = z.infer<typeof EmbeddingProviderSchema>
 
 /**
  * OpenAI embedding model names
@@ -165,50 +168,57 @@ export type EmbeddingProvider = typeof EmbeddingProvider.infer
  * - text-embedding-3-large: Highest quality, 3072 dimensions
  * - text-embedding-ada-002: Legacy model, 1536 dimensions
  */
-export const OpenAIEmbeddingModel = type(
-  "'text-embedding-3-small' | 'text-embedding-3-large' | 'text-embedding-ada-002'"
-)
-export type OpenAIEmbeddingModel = typeof OpenAIEmbeddingModel.infer
+export const OpenAIEmbeddingModelSchema = z.enum([
+  "text-embedding-3-small",
+  "text-embedding-3-large",
+  "text-embedding-ada-002",
+])
+export type OpenAIEmbeddingModel = z.infer<typeof OpenAIEmbeddingModelSchema>
 
 /**
  * Mock/default embedding model names
  */
-export const DefaultEmbeddingModel = type(
-  "'dfm-mcp-mock' | 'text-embedding-3-small-mock'"
-)
-export type DefaultEmbeddingModel = typeof DefaultEmbeddingModel.infer
+export const DefaultEmbeddingModelSchema = z.enum([
+  "dfm-mcp-mock",
+  "text-embedding-3-small-mock",
+])
+export type DefaultEmbeddingModel = z.infer<typeof DefaultEmbeddingModelSchema>
 
 /**
  * All supported embedding model names
  */
-export const EmbeddingModel = type(
-  "'text-embedding-3-small' | 'text-embedding-3-large' | 'text-embedding-ada-002' | 'dfm-mcp-mock' | 'text-embedding-3-small-mock'"
-)
-export type EmbeddingModel = typeof EmbeddingModel.infer
+export const EmbeddingModelSchema = z.enum([
+  "text-embedding-3-small",
+  "text-embedding-3-large",
+  "text-embedding-ada-002",
+  "dfm-mcp-mock",
+  "text-embedding-3-small-mock",
+])
+export type EmbeddingModel = z.infer<typeof EmbeddingModelSchema>
 
 /**
  * Model information for embedding models
  *
  * Contains metadata about the embedding model being used
  */
-export const EmbeddingModelInfo = type({
-  name: EmbeddingModel,
-  dimensions: "number.integer > 0",
-  version: "string",
+export const EmbeddingModelInfoSchema = z.object({
+  name: EmbeddingModelSchema,
+  dimensions: z.number().int().positive(),
+  version: z.string(),
 })
-export type EmbeddingModelInfo = typeof EmbeddingModelInfo.infer
+export type EmbeddingModelInfo = z.infer<typeof EmbeddingModelInfoSchema>
 
 /**
  * Provider information for embedding services
  *
  * Combines provider type with model information
  */
-export const EmbeddingProviderInfo = type({
-  provider: EmbeddingProvider,
-  model: EmbeddingModel,
-  dimensions: "number.integer > 0",
+export const EmbeddingProviderInfoSchema = z.object({
+  provider: EmbeddingProviderSchema,
+  model: EmbeddingModelSchema,
+  dimensions: z.number().int().positive(),
 })
-export type EmbeddingProviderInfo = typeof EmbeddingProviderInfo.infer
+export type EmbeddingProviderInfo = z.infer<typeof EmbeddingProviderInfoSchema>
 
 /**
  * Configuration for the LRU cache used for embeddings
@@ -217,15 +227,23 @@ export type EmbeddingProviderInfo = typeof EmbeddingProviderInfo.infer
  * - max: 1000 items
  * - ttl: 30 days (2,592,000,000 ms)
  */
-export const EmbeddingCacheOptions = type({
+export const EmbeddingCacheOptionsSchema = z.object({
   /** Maximum number of items to keep in the cache */
-  max: `number.integer > 0 = ${DEFAULT_EMBEDDING_SETTINGS.CACHE_MAX_SIZE}`,
+  max: z
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_EMBEDDING_SETTINGS.CACHE_MAX_SIZE),
 
   /** Time-to-live in milliseconds for cache entries */
-  ttl: `number.integer > 0 = ${DEFAULT_EMBEDDING_SETTINGS.CACHE_TTL_MS}`,
+  ttl: z
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_EMBEDDING_SETTINGS.CACHE_TTL_MS),
 })
 
-export type EmbeddingCacheOptions = typeof EmbeddingCacheOptions.infer
+export type EmbeddingCacheOptions = z.infer<typeof EmbeddingCacheOptionsSchema>
 
 /**
  * Configuration for embedding job processing
@@ -235,19 +253,32 @@ export type EmbeddingCacheOptions = typeof EmbeddingCacheOptions.infer
  * - apiRateLimitMs: 1000 (1 second)
  * - jobCleanupAgeMs: 30 days (2,592,000,000 ms)
  */
-export const EmbeddingJobProcessingOptions = type({
+export const EmbeddingJobProcessingOptionsSchema = z.object({
   /** Maximum number of jobs to process in a single batch */
-  batchSize: `number.integer > 0 = ${DEFAULT_EMBEDDING_SETTINGS.BATCH_SIZE}`,
+  batchSize: z
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_EMBEDDING_SETTINGS.BATCH_SIZE),
 
   /** Minimum time in milliseconds between API calls (rate limiting) */
-  apiRateLimitMs: `number.integer > 0 = ${DEFAULT_EMBEDDING_SETTINGS.API_RATE_LIMIT_MS}`,
+  apiRateLimitMs: z
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_EMBEDDING_SETTINGS.API_RATE_LIMIT_MS),
 
   /** Maximum age in milliseconds for jobs to be eligible for cleanup */
-  jobCleanupAgeMs: `number.integer > 0 = ${DEFAULT_EMBEDDING_SETTINGS.JOB_CLEANUP_AGE_MS}`,
+  jobCleanupAgeMs: z
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_EMBEDDING_SETTINGS.JOB_CLEANUP_AGE_MS),
 })
 
-export type EmbeddingJobProcessingOptions =
-  typeof EmbeddingJobProcessingOptions.infer
+export type EmbeddingJobProcessingOptions = z.infer<
+  typeof EmbeddingJobProcessingOptionsSchema
+>
 
 // ============================================================================
 // OpenAI Configuration and Response Types
@@ -256,24 +287,26 @@ export type EmbeddingJobProcessingOptions =
 /**
  * OpenAI embedding service configuration (without logger)
  *
- * The logger is excluded from the ArkType schema since it's a complex object
+ * The logger is excluded from the Zod schema since it's a complex object
  * and is added via type intersection in the exported type
  */
-const OpenAIEmbeddingConfigBase = type({
+const OpenAIEmbeddingConfigBaseSchema = z.object({
   /** OpenAI API key (required) */
-  apiKey: "string",
+  apiKey: z.string(),
   /** Model name (defaults to text-embedding-3-small) - accepts any EmbeddingModel and validates internally */
-  "model?": EmbeddingModel,
+  model: EmbeddingModelSchema.optional(),
   /** Embedding dimensions (defaults to 1536) */
-  "dimensions?": "number.integer > 0",
+  dimensions: z.number().int().positive().optional(),
   /** Model version string (defaults to 3.0.0) */
-  "version?": "string",
+  version: z.string().optional(),
 })
 
 /**
  * Full OpenAI embedding configuration including optional logger
  */
-export type OpenAIEmbeddingConfig = typeof OpenAIEmbeddingConfigBase.infer & {
+export type OpenAIEmbeddingConfig = z.infer<
+  typeof OpenAIEmbeddingConfigBaseSchema
+> & {
   /** Logger instance for dependency injection */
   logger?: Logger
 }
@@ -281,32 +314,34 @@ export type OpenAIEmbeddingConfig = typeof OpenAIEmbeddingConfigBase.infer & {
 /**
  * OpenAI embedding API response data item
  */
-export const OpenAIEmbeddingData = type({
-  embedding: "number[]",
-  index: "number.integer >= 0",
-  object: "string",
+export const OpenAIEmbeddingDataSchema = z.object({
+  embedding: z.array(z.number()),
+  index: z.number().int().nonnegative(),
+  object: z.string(),
 })
-export type OpenAIEmbeddingData = typeof OpenAIEmbeddingData.infer
+export type OpenAIEmbeddingData = z.infer<typeof OpenAIEmbeddingDataSchema>
 
 /**
  * OpenAI API usage information
  */
-export const OpenAIUsage = type({
-  prompt_tokens: "number.integer >= 0",
-  total_tokens: "number.integer >= 0",
+export const OpenAIUsageSchema = z.object({
+  prompt_tokens: z.number().int().nonnegative(),
+  total_tokens: z.number().int().nonnegative(),
 })
-export type OpenAIUsage = typeof OpenAIUsage.infer
+export type OpenAIUsage = z.infer<typeof OpenAIUsageSchema>
 
 /**
  * OpenAI API response structure for embedding requests
  */
-export const OpenAIEmbeddingResponse = type({
-  data: OpenAIEmbeddingData.array(),
-  model: "string",
-  object: "string",
-  usage: OpenAIUsage,
+export const OpenAIEmbeddingResponseSchema = z.object({
+  data: z.array(OpenAIEmbeddingDataSchema),
+  model: z.string(),
+  object: z.string(),
+  usage: OpenAIUsageSchema,
 })
-export type OpenAIEmbeddingResponse = typeof OpenAIEmbeddingResponse.infer
+export type OpenAIEmbeddingResponse = z.infer<
+  typeof OpenAIEmbeddingResponseSchema
+>
 
 // ============================================================================
 // Validators
@@ -320,45 +355,42 @@ export const EmbeddingConfigValidator = Object.freeze({
    * Validates if data conforms to EmbeddingCacheOptions schema
    */
   validateCacheOptions(data: unknown) {
-    return EmbeddingCacheOptions(data)
+    return EmbeddingCacheOptionsSchema.safeParse(data)
   },
 
   /**
    * Type guard: validates if data is EmbeddingCacheOptions
    */
   isCacheOptions(data: unknown): data is EmbeddingCacheOptions {
-    const result = EmbeddingCacheOptions(data)
-    return !(result instanceof type.errors)
+    return EmbeddingCacheOptionsSchema.safeParse(data).success
   },
 
   /**
    * Validates if data conforms to EmbeddingJobProcessingOptions schema
    */
   validateJobProcessingOptions(data: unknown) {
-    return EmbeddingJobProcessingOptions(data)
+    return EmbeddingJobProcessingOptionsSchema.safeParse(data)
   },
 
   /**
    * Type guard: validates if data is EmbeddingJobProcessingOptions
    */
   isJobProcessingOptions(data: unknown): data is EmbeddingJobProcessingOptions {
-    const result = EmbeddingJobProcessingOptions(data)
-    return !(result instanceof type.errors)
+    return EmbeddingJobProcessingOptionsSchema.safeParse(data).success
   },
 
   /**
    * Validates if data conforms to EmbeddingJobStatus schema
    */
   validateJobStatus(data: unknown) {
-    return EmbeddingJobStatus(data)
+    return EmbeddingJobStatusSchema.safeParse(data)
   },
 
   /**
    * Type guard: validates if data is a valid EmbeddingJobStatus
    */
   isJobStatus(data: unknown): data is EmbeddingJobStatus {
-    const result = EmbeddingJobStatus(data)
-    return !(result instanceof type.errors)
+    return EmbeddingJobStatusSchema.safeParse(data).success
   },
 })
 
@@ -369,7 +401,7 @@ export const EmbeddingConfigValidator = Object.freeze({
 /**
  * Get configuration for the LRU cache for embeddings with validation
  *
- * This function accepts partial options and fills in defaults using arktype.
+ * This function accepts partial options and fills in defaults using Zod.
  * If you pass an empty object {}, all defaults will be applied.
  *
  * @param options - Optional overrides for cache settings
@@ -379,20 +411,20 @@ export const EmbeddingConfigValidator = Object.freeze({
 export function getEmbeddingCacheConfig(
   options: Partial<EmbeddingCacheOptions> = {}
 ): EmbeddingCacheOptions {
-  // ArkType will apply defaults for missing properties
-  const result = EmbeddingCacheOptions(options)
+  // Zod will apply defaults for missing properties
+  const result = EmbeddingCacheOptionsSchema.safeParse(options)
 
-  if (result instanceof type.errors) {
-    throw new Error(`Invalid cache options: ${result.summary}`)
+  if (!result.success) {
+    throw new Error(`Invalid cache options: ${result.error.message}`)
   }
 
-  return result
+  return result.data
 }
 
 /**
  * Get configuration for embedding job processing with validation
  *
- * This function accepts partial options and fills in defaults using arktype.
+ * This function accepts partial options and fills in defaults using Zod.
  * If you pass an empty object {}, all defaults will be applied.
  *
  * @param options - Optional overrides for job processing settings
@@ -402,12 +434,12 @@ export function getEmbeddingCacheConfig(
 export function getJobProcessingConfig(
   options: Partial<EmbeddingJobProcessingOptions> = {}
 ): EmbeddingJobProcessingOptions {
-  // ArkType will apply defaults for missing properties
-  const result = EmbeddingJobProcessingOptions(options)
+  // Zod will apply defaults for missing properties
+  const result = EmbeddingJobProcessingOptionsSchema.safeParse(options)
 
-  if (result instanceof type.errors) {
-    throw new Error(`Invalid job processing options: ${result.summary}`)
+  if (!result.success) {
+    throw new Error(`Invalid job processing options: ${result.error.message}`)
   }
 
-  return result
+  return result.data
 }

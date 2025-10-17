@@ -128,6 +128,14 @@ export const logger: Logger = {
   debug: (message: string, meta?: Record<string, unknown>) => {
     winstonLogger.debug(message, meta)
   },
+
+  /**
+   * Log a trace message (lowest level, most detailed)
+   */
+  trace: (message: string, meta?: Record<string, unknown>) => {
+    // Winston doesn't have a trace level by default, map it to debug
+    winstonLogger.debug(message, { level: "trace", ...meta })
+  },
 }
 
 /**

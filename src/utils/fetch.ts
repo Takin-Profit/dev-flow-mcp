@@ -1,10 +1,9 @@
 /**
  * Generic type-safe fetch utility
- * Provides type-safe HTTP requests with validation using ArkType
+ * Provides type-safe HTTP requests with validation using Zod
  */
 
-import type { Type } from "arktype"
-import { type } from "arktype"
+import type { z } from "#config"
 
 /**
  * Custom error type for API errors
@@ -34,9 +33,9 @@ export type FetchConfig = {
 }
 
 /**
- * Generic type-safe fetch function with ArkType validation
+ * Generic type-safe fetch function with Zod validation
  * @param url - The URL to fetch from
- * @param validator - ArkType validator for the response data
+ * @param validator - Zod schema for the response data
  * @param config - Optional fetch configuration
  * @returns Promise resolving to ApiResponse with validated data or error
  */
@@ -44,7 +43,7 @@ export type FetchConfig = {
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: justified
 export async function fetchData<T>(
   url: string,
-  validator: Type<T>,
+  validator: z.ZodType<T>,
   config: FetchConfig = {}
 ): Promise<ApiResponse<T>> {
   let timeoutId: NodeJS.Timeout | undefined
@@ -92,21 +91,19 @@ export async function fetchData<T>(
     // Parse response
     const rawData: unknown = await response.json()
 
-    // Validate with ArkType
-    const validationResult = validator(rawData)
+    // Validate with Zod
+    const validationResult = validator.safeParse(rawData)
 
-    // Check if validation failed using arktype's error type
-    if (validationResult instanceof type.errors) {
+    if (!validationResult.success) {
       return {
         error: {
-          message: `Validation error: ${validationResult.summary}`,
+          message: `Validation error: ${validationResult.error.message}`,
           status: response.status,
         },
       }
     }
 
-    // Type assertion is safe here because arktype validates the structure
-    return { data: validationResult as T }
+    return { data: validationResult.data }
   } catch (error) {
     // Clear timeout on error
     if (timeoutId) {

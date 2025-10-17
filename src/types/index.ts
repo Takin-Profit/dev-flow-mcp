@@ -15,7 +15,7 @@ export type { Logger, LogMetadata } from "#types/logger"
 export { createNoOpLogger } from "#types/logger"
 
 // ============================================================================
-// ArkType Schemas and Types (Runtime Validation)
+// Zod Schemas and Types (Runtime Validation)
 // ============================================================================
 
 export type {
@@ -23,7 +23,11 @@ export type {
   EntityEmbedding as EntityEmbeddingType,
 } from "#types/entity"
 // Entity schemas and types
-export { Entity, EntityEmbedding, EntityValidator } from "#types/entity"
+export {
+  EntityEmbeddingSchema,
+  EntitySchema,
+  EntityValidator,
+} from "#types/entity"
 export type {
   KnowledgeGraph as KnowledgeGraphType,
   KnowledgeGraphManagerOptions,
@@ -34,10 +38,10 @@ export type {
 } from "#types/knowledge-graph"
 // Knowledge Graph schemas and types
 export {
-  KnowledgeGraph,
+  KnowledgeGraphSchema,
   KnowledgeGraphValidator,
-  SearchResponse,
-  SearchResult,
+  SearchResponseSchema,
+  SearchResultSchema,
 } from "#types/knowledge-graph"
 export type {
   Relation as RelationType,
@@ -46,18 +50,11 @@ export type {
 } from "#types/relation"
 // Relation schemas and types
 export {
-  Relation,
-  RelationMetadata,
-  RelationType as RelationTypeValidator,
+  RelationMetadataSchema,
+  RelationSchema,
+  RelationTypeSchema as RelationTypeValidator,
   RelationValidator,
 } from "#types/relation"
-export type {
-  EntityName as EntityNameType,
-  Observation as ObservationType,
-} from "#types/shared"
-// Shared schemas (no dependencies)
-export { EntityName, Observation } from "#types/shared"
-
 // Temporal types - entities and relations with versioning
 export type {
   TemporalEntity,
@@ -67,6 +64,12 @@ export {
   TemporalEntityValidator,
   TemporalRelationValidator,
 } from "#types/temporal"
+export type {
+  EntityName,
+  Observation,
+} from "#types/validation"
+// Shared schemas from validation.ts (Zod-based)
+export { EntityNameSchema, ObservationSchema } from "#types/validation"
 
 // Type alias for TemporalEntity (for backward compatibility)
 import type { TemporalEntity } from "#types/temporal"
@@ -74,6 +77,12 @@ export type TemporalEntityType = TemporalEntity
 
 // Application constants
 export * from "#types/constants"
+// Storage types (SearchOptions and SemanticSearchOptions)
+export type { SearchOptions, SemanticSearchOptions } from "#types/database"
+export {
+  SearchOptionsSchema as SearchOptionsValidator,
+  SemanticSearchOptionsSchema as SemanticSearchOptionsValidator,
+} from "#types/database"
 // Embedding types with defaults
 export type {
   CachedEmbedding,
@@ -98,38 +107,31 @@ export type {
   RateLimiterStatus,
 } from "#types/embedding"
 export {
-  CachedEmbedding as CachedEmbeddingValidator,
-  CacheOptions as CacheOptionsValidator,
-  CountResult as CountResultValidator,
+  CachedEmbeddingSchema as CachedEmbeddingValidator,
+  CacheOptionsSchema as CacheOptionsValidator,
+  CountResultSchema as CountResultValidator,
   DEFAULT_EMBEDDING_SETTINGS,
-  DefaultEmbeddingModel as DefaultEmbeddingModelValidator,
-  EmbeddingCacheOptions as EmbeddingCacheOptionsValidator,
+  DefaultEmbeddingModelSchema as DefaultEmbeddingModelValidator,
+  EmbeddingCacheOptionsSchema as EmbeddingCacheOptionsValidator,
   EmbeddingConfigValidator,
-  EmbeddingJob as EmbeddingJobValidator,
-  EmbeddingJobProcessingOptions as EmbeddingJobProcessingOptionsValidator,
-  EmbeddingJobStatus as EmbeddingJobStatusValidator,
-  EmbeddingModel as EmbeddingModelValidator,
-  EmbeddingModelInfo as EmbeddingModelInfoValidator,
-  EmbeddingProvider as EmbeddingProviderValidator,
-  EmbeddingProviderInfo as EmbeddingProviderInfoValidator,
+  EmbeddingJobProcessingOptionsSchema as EmbeddingJobProcessingOptionsValidator,
+  EmbeddingJobSchema as EmbeddingJobValidator,
+  EmbeddingJobStatusSchema as EmbeddingJobStatusValidator,
+  EmbeddingModelInfoSchema as EmbeddingModelInfoValidator,
+  EmbeddingModelSchema as EmbeddingModelValidator,
+  EmbeddingProviderInfoSchema as EmbeddingProviderInfoValidator,
+  EmbeddingProviderSchema as EmbeddingProviderValidator,
   getEmbeddingCacheConfig,
   getJobProcessingConfig,
   JOB_STATUS,
-  JobProcessResults as JobProcessResultsValidator,
-  OpenAIEmbeddingData as OpenAIEmbeddingDataValidator,
-  OpenAIEmbeddingModel as OpenAIEmbeddingModelValidator,
-  OpenAIEmbeddingResponse as OpenAIEmbeddingResponseValidator,
-  OpenAIUsage as OpenAIUsageValidator,
-  RateLimiterOptions as RateLimiterOptionsValidator,
-  RateLimiterStatus as RateLimiterStatusValidator,
+  JobProcessResultsSchema as JobProcessResultsValidator,
+  OpenAIEmbeddingDataSchema as OpenAIEmbeddingDataValidator,
+  OpenAIEmbeddingModelSchema as OpenAIEmbeddingModelValidator,
+  OpenAIEmbeddingResponseSchema as OpenAIEmbeddingResponseValidator,
+  OpenAIUsageSchema as OpenAIUsageValidator,
+  RateLimiterOptionsSchema as RateLimiterOptionsValidator,
+  RateLimiterStatusSchema as RateLimiterStatusValidator,
 } from "#types/embedding"
-
-// Storage types (SearchOptions and SemanticSearchOptions)
-export type { SearchOptions, SemanticSearchOptions } from "#types/database"
-export {
-  SearchOptions as SearchOptionsValidator,
-  SemanticSearchOptions as SemanticSearchOptionsValidator,
-} from "#types/database"
 // Vector search and storage types
 export type {
   VectorIndex,

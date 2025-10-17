@@ -8,10 +8,14 @@ import path from "node:path"
 import { consola } from "consola"
 import xdgAppPaths from "xdg-app-paths"
 import { z } from "zod"
-import {
-  DEFAULT_RATE_LIMIT_INTERVAL,
-  DEFAULT_RATE_LIMIT_TOKENS,
-} from "#types"
+
+// Re-export zod for convenience
+export { z }
+
+// Note: We inline these constants here to avoid circular dependencies
+// The canonical values are defined in #types/constants
+const DEFAULT_RATE_LIMIT_TOKENS = 150_000
+const DEFAULT_RATE_LIMIT_INTERVAL = 60_000
 
 // ============================================================================
 // Environment Variables
@@ -65,7 +69,10 @@ const envSchema = z.object({
 // Debug: Log raw process.env before parsing
 if (process.env.DFM_DEBUG === "true") {
   consola.debug("[CONFIG] Raw process.env.DFM_ENV:", process.env.DFM_ENV)
-  consola.debug("[CONFIG] Raw process.env.DFM_SQLITE_LOCATION:", process.env.DFM_SQLITE_LOCATION)
+  consola.debug(
+    "[CONFIG] Raw process.env.DFM_SQLITE_LOCATION:",
+    process.env.DFM_SQLITE_LOCATION
+  )
 }
 
 // Parse and validate environment variables
@@ -81,10 +88,16 @@ if (!parsedEnv.success) {
 
 export const env = parsedEnv.data
 
+// Re-export zod for convenience
+export { z }
+
 // Debug: Log what zod parsed
 if (env.DFM_DEBUG) {
   consola.debug("[CONFIG] Parsed env.DFM_ENV:", env.DFM_ENV)
-  consola.debug("[CONFIG] Parsed env.DFM_SQLITE_LOCATION:", env.DFM_SQLITE_LOCATION)
+  consola.debug(
+    "[CONFIG] Parsed env.DFM_SQLITE_LOCATION:",
+    env.DFM_SQLITE_LOCATION
+  )
 }
 
 export type Env = z.infer<typeof envSchema>

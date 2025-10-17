@@ -24,9 +24,8 @@ export async function getSharedClient() {
       env: {
         ...process.env,
         DFM_ENV: "testing",
-        NEO4J_URI: process.env.NEO4J_URI || "bolt://localhost:7687",
-        NEO4J_USERNAME: process.env.NEO4J_USERNAME || "neo4j",
-        NEO4J_PASSWORD: process.env.NEO4J_PASSWORD || "dfm_password",
+        DFM_SQLITE_LOCATION: process.env.DFM_SQLITE_LOCATION || ":memory:",
+        DFM_MOCK_EMBEDDINGS: "true", // Use mock embeddings in tests
       },
     })
 
