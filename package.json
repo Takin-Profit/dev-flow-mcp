@@ -32,12 +32,9 @@
     "test:verbose": "cross-env DFM_ENV=testing tsx --test src/**/*.test.ts",
     "test:integration": "bash scripts/run-integration-tests.sh",
     "test:e2e": "bash scripts/run-e2e-tests.sh",
-    "test:integration:keep": "bash scripts/run-integration-tests.sh --keep",
     "check": "ultracite check",
     "fix": "ultracite fix",
-    "doctor": "ultracite doctor",
-    "neo4j:test": "tsx src/cli/index.ts neo4j test",
-    "neo4j:init": "tsx src/cli/index.ts neo4j init"
+    "doctor": "ultracite doctor"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.20.0",
