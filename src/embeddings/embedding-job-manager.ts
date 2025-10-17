@@ -3,7 +3,7 @@ import crypto from "node:crypto"
 import { LRUCache } from "lru-cache"
 import { v4 as uuidv4 } from "uuid"
 import type { EmbeddingService } from "#embeddings/embedding-service"
-import type { StorageProvider } from "#db/storage-provider"
+import type { Database } from "#db/database"
 import type {
   CachedEmbedding,
   CacheOptions,
@@ -50,9 +50,9 @@ const DEFAULT_RATE_LIMIT_INTERVAL_MS =
 const DEFAULT_CLEANUP_THRESHOLD_MS = MILLISECONDS_PER_WEEK
 
 /**
- * Interface for embedding storage provider, extending the base provider
+ * Interface for embedding database, extending the base provider
  */
-interface EmbeddingStorageProvider extends StorageProvider {
+interface EmbeddingDatabase extends Database {
   /**
    * Access to the underlying database
    */
@@ -80,7 +80,7 @@ type QueueStatus = {
  * Manages embedding jobs for semantic search
  */
 export class EmbeddingJobManager {
-  private readonly storageProvider: EmbeddingStorageProvider
+  private readonly database: EmbeddingDatabase
   private readonly embeddingService: EmbeddingService
   rateLimiter: {
     tokens: number
@@ -98,13 +98,13 @@ export class EmbeddingJobManager {
    * @param options - Configuration options object
    */
   constructor(options: {
-    storageProvider: EmbeddingStorageProvider
+    database: EmbeddingDatabase
     embeddingService: EmbeddingService
     rateLimiterOptions?: RateLimiterOptions | null
     cacheOptions?: CacheOptions | null
     logger?: Logger | null
   }) {
-    this.storageProvider = options.storageProvider
+    this.database = options.database
     this.embeddingService = options.embeddingService
     this.logger = options.logger || createNoOpLogger()
 
@@ -207,8 +207,8 @@ export class EmbeddingJobManager {
     `
 
     try {
-      this.storageProvider.db.exec(createTableSql)
-      this.storageProvider.db.exec(createIndexSql)
+      this.database.db.exec(createTableSql)
+      this.database.db.exec(createIndexSql)
       this.logger.debug("Database schema initialized for embedding jobs")
     } catch (error) {
       this.logger.error("Failed to initialize database schema", { error })
@@ -228,7 +228,7 @@ export class EmbeddingJobManager {
     priority = 1
   ): Promise<string> {
     // Verify entity exists
-    const entity = await this.storageProvider.getEntity(entityName)
+    const entity = await this.database.getEntity(entityName)
     if (!entity) {
       const error = `Entity ${entityName} not found`
       this.logger.error("Failed to schedule embedding", { entityName, error })
@@ -239,7 +239,7 @@ export class EmbeddingJobManager {
     const jobId = uuidv4()
 
     // Insert a new job record
-    const stmt = this.storageProvider.db.prepare(`
+    const stmt = this.database.db.prepare(`
       INSERT INTO embedding_jobs (
         id, entity_name, status, priority, created_at, attempts, max_attempts
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -276,7 +276,7 @@ export class EmbeddingJobManager {
     this.logger.info("Starting job processing", { batchSize })
 
     // Get pending jobs, ordered by priority (highest first)
-    const stmt = this.storageProvider.db.prepare(`
+    const stmt = this.database.db.prepare(`
       SELECT * FROM embedding_jobs
       WHERE status = 'pending'
       ORDER BY priority DESC, created_at ASC
@@ -316,7 +316,7 @@ export class EmbeddingJobManager {
 
       try {
         // Get the entity
-        const entity = await this.storageProvider.getEntity(job.entity_name)
+        const entity = await this.database.getEntity(job.entity_name)
 
         if (!entity) {
           throw new Error(`Entity ${job.entity_name} not found`)
@@ -356,9 +356,9 @@ export class EmbeddingJobManager {
         })
 
         // Store the embedding vector
-        // Base StorageProvider.storeEntityVector expects just the vector array
-        if (this.storageProvider.storeEntityVector) {
-          await this.storageProvider.storeEntityVector(
+        // Base Database.storeEntityVector expects just the vector array
+        if (this.database.storeEntityVector) {
+          await this.database.storeEntityVector(
             job.entity_name,
             embedding
           )
@@ -441,7 +441,7 @@ export class EmbeddingJobManager {
         params.push(status)
       }
 
-      const stmt = this.storageProvider.db.prepare(sql)
+      const stmt = this.database.db.prepare(sql)
       const result: CountResult = stmt.get(...params)
 
       return result?.count || 0
@@ -472,7 +472,7 @@ export class EmbeddingJobManager {
    * @returns Number of jobs reset for retry
    */
   async retryFailedJobs(): Promise<number> {
-    const stmt = this.storageProvider.db.prepare(`
+    const stmt = this.database.db.prepare(`
       UPDATE embedding_jobs
       SET status = 'pending', attempts = 0
       WHERE status = 'failed'
@@ -496,7 +496,7 @@ export class EmbeddingJobManager {
     const cleanupThreshold = threshold || DEFAULT_CLEANUP_THRESHOLD_MS
     const cutoffTime = Date.now() - cleanupThreshold
 
-    const stmt = this.storageProvider.db.prepare(`
+    const stmt = this.database.db.prepare(`
       DELETE FROM embedding_jobs
       WHERE status = 'completed'
       AND processed_at < ?
@@ -558,7 +558,7 @@ export class EmbeddingJobManager {
     sql += " WHERE id = ?"
     params.push(jobId)
 
-    const stmt = this.storageProvider.db.prepare(sql)
+    const stmt = this.database.db.prepare(sql)
     return stmt.run(...params)
   }
 

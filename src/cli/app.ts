@@ -14,7 +14,6 @@ import {
 import type { CommandContext } from "@stricli/core"
 import { buildApplication, buildRouteMap } from "@stricli/core"
 import { mcpCommand } from "#cli/mcp"
-import { neo4jRoutes } from "#cli/neo4j"
 
 // Package info
 const name = "dfm"
@@ -68,7 +67,6 @@ export function buildCliContext(process: NodeJS.Process): AppContext {
 const routes = buildRouteMap({
   routes: {
     mcp: mcpCommand,
-    neo4j: neo4jRoutes,
     install: buildInstallCommand("dfm", { bash: "__dfm_bash_complete" }),
     uninstall: buildUninstallCommand("dfm", { bash: true }),
   },

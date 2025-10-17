@@ -28,12 +28,12 @@
 
 import { type } from "arktype"
 import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
-import type { StorageProvider } from "#db/storage-provider"
+import type { Database } from "#db/database"
 import { Entity } from "#types/entity"
 // Import types needed for KnowledgeGraphManagerOptions
 import type { Logger } from "#types/index"
 import { Relation as RelationSchema } from "#types/relation"
-import type { VectorStoreFactoryOptions } from "#types/storage"
+import type { VectorStoreFactoryOptions } from "#types/database"
 
 /**
  * KnowledgeGraph - the complete knowledge graph structure
@@ -167,11 +167,11 @@ export const KnowledgeGraphValidator = Object.freeze({
  * KnowledgeGraphManager configuration options
  *
  * Note: This uses a plain TypeScript type instead of arktype because
- * it contains complex interfaces (StorageProvider, Logger, etc.) that
+ * it contains complex interfaces (Database, Logger, etc.) that
  * cannot be runtime-validated with arktype.
  */
 export type KnowledgeGraphManagerOptions = {
-  storageProvider: StorageProvider
+  database: Database
   embeddingJobManager?: EmbeddingJobManager
   vectorStoreOptions?: VectorStoreFactoryOptions
   logger?: Logger

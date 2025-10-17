@@ -46,7 +46,7 @@ describe("SQLite Storage Provider Integration Tests", () => {
     schemaManager = new SqliteSchemaManager(db, logger, dimensions)
     await schemaManager.initializeSchema()
 
-    // Initialize storage provider with the embedding service
+    // Initialize database with the embedding service
     storage = new SqliteDb(db, logger, {
       vectorDimensions: dimensions,
     })

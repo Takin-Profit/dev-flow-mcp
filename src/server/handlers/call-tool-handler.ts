@@ -289,7 +289,7 @@ export async function handleCallToolRequest(
     case "get_decayed_graph":
       try {
         // Note: getDecayedGraph doesn't accept parameters
-        // Decay is configured at the storage provider level
+        // Decay is configured at the database level
         const graph = await knowledgeGraphManager.getDecayedGraph()
 
         return {
@@ -389,19 +389,19 @@ export async function handleCallToolRequest(
           }
         }
 
-        // If still not found, check if we can query by ID through the storage provider
-        const storageProvider = knowledgeGraphManager.getStorageProvider()
+        // If still not found, check if we can query by ID through the database
+        const database = knowledgeGraphManager.getDatabase()
         if (
           !entity &&
           isUUID &&
-          storageProvider &&
-          storageProvider.getEntityById
+          database &&
+          database.getEntityById
         ) {
           try {
             logger.debug("Trying direct database lookup by ID", {
               entityId: entityName,
             })
-            entity = await storageProvider.getEntityById(entityName)
+            entity = await database.getEntityById(entityName)
             if (entity) {
               logger.debug("Found entity by direct ID lookup", {
                 name: entity.name,
@@ -471,11 +471,11 @@ export async function handleCallToolRequest(
           entityName: entity.name,
         })
 
-        if (!storageProvider?.storeEntityVector) {
+        if (!database?.storeEntityVector) {
           throw new Error("Storage provider does not support vector operations")
         }
 
-        await storageProvider.storeEntityVector(entity.name, vector)
+        await database.storeEntityVector(entity.name, vector)
 
         const entityId = (entity as Record<string, unknown>).id
         if (entityId && typeof entityId === "string") {
@@ -483,7 +483,7 @@ export async function handleCallToolRequest(
             entityId,
           })
           try {
-            await storageProvider.storeEntityVector(entityId, vector)
+            await database.storeEntityVector(entityId, vector)
           } catch (idStoreError) {
             logger.warn(
               "Failed to store embedding by ID, but name storage succeeded",
@@ -594,9 +594,9 @@ export async function handleCallToolRequest(
         }
 
         // Access the embedding using appropriate interface
-        const storageProvider = knowledgeGraphManager.getStorageProvider()
-        if (storageProvider?.getEntityEmbedding) {
-          const embedding = await storageProvider.getEntityEmbedding(entityName)
+        const database = knowledgeGraphManager.getDatabase()
+        if (database?.getEntityEmbedding) {
+          const embedding = await database.getEntityEmbedding(entityName)
 
           if (!embedding) {
             return {
@@ -632,7 +632,7 @@ export async function handleCallToolRequest(
           content: [
             {
               type: "text",
-              text: "Embedding retrieval not supported by this storage provider",
+              text: "Embedding retrieval not supported by this database",
             },
           ],
         }
@@ -662,9 +662,9 @@ export async function handleCallToolRequest(
           knowledgeGraphManager.getEmbeddingJobManager()
         const hasEmbeddingJobManager = !!embeddingJobManager
 
-        // Get storage provider info
+        // Get database info
         const storageType = process.env.MEMORY_STORAGE_TYPE || "neo4j"
-        const storageProvider = knowledgeGraphManager.getStorageProvider()
+        const database = knowledgeGraphManager.getDatabase()
 
         // Get Neo4j specific configuration
         const neo4jInfo: {
@@ -692,11 +692,11 @@ export async function handleCallToolRequest(
 
         // Check if Neo4j connection manager is available
         if (
-          storageProvider &&
-          typeof storageProvider.getConnectionManager === "function"
+          database &&
+          typeof database.getConnectionManager === "function"
         ) {
           try {
-            const connectionManager = storageProvider.getConnectionManager()
+            const connectionManager = database.getConnectionManager()
             if (connectionManager) {
               neo4jInfo.connectionStatus = "available"
 
@@ -713,10 +713,10 @@ export async function handleCallToolRequest(
 
         // Count entities with embeddings via Neo4j vector store
         let entitiesWithEmbeddings = 0
-        if (storageProvider?.countEntitiesWithEmbeddings) {
+        if (database?.countEntitiesWithEmbeddings) {
           try {
             entitiesWithEmbeddings =
-              await storageProvider.countEntitiesWithEmbeddings()
+              await database.countEntitiesWithEmbeddings()
           } catch (error) {
             logger.error("Error checking embeddings count", {
               error,
@@ -746,7 +746,7 @@ export async function handleCallToolRequest(
         }
 
         // Note: Embedding provider info is accessed through job manager
-        // StorageProvider doesn't expose embedding service directly
+        // Database doesn't expose embedding service directly
         const embeddingProviderInfo = embeddingServiceInfo
 
         // Check pending embedding jobs if available
@@ -806,14 +806,14 @@ export async function handleCallToolRequest(
       }
 
     case "diagnose_vector_search": {
-      const storageProvider = knowledgeGraphManager.getStorageProvider()
-      if (storageProvider?.diagnoseVectorSearch) {
+      const database = knowledgeGraphManager.getDatabase()
+      if (database?.diagnoseVectorSearch) {
         return {
           content: [
             {
               type: "text",
               text: JSON.stringify(
-                await storageProvider.diagnoseVectorSearch(),
+                await database.diagnoseVectorSearch(),
                 null,
                 2
               ),
@@ -828,8 +828,8 @@ export async function handleCallToolRequest(
             text: JSON.stringify(
               {
                 error: "Diagnostic method not available",
-                storageType: storageProvider
-                  ? storageProvider.constructor.name
+                storageType: database
+                  ? database.constructor.name
                   : "unknown",
               },
               null,

@@ -123,26 +123,13 @@ export {
   RateLimiterOptions as RateLimiterOptionsValidator,
   RateLimiterStatus as RateLimiterStatusValidator,
 } from "#types/embedding"
-// Neo4j-specific types
-export type {
-  ExtendedEntity,
-  ExtendedRelation,
-  KnowledgeGraphWithDiagnostics,
-  Neo4jNode,
-  Neo4jRelationship,
-  Neo4jSemanticSearchOptions,
-} from "#types/neo4j"
-export {
-  Neo4jNode as Neo4jNodeValidator,
-  Neo4jRelationship as Neo4jRelationshipValidator,
-  Neo4jValidator,
-} from "#types/neo4j"
+
 // Storage types (SearchOptions and SemanticSearchOptions)
-export type { SearchOptions, SemanticSearchOptions } from "#types/storage"
+export type { SearchOptions, SemanticSearchOptions } from "#types/database"
 export {
   SearchOptions as SearchOptionsValidator,
   SemanticSearchOptions as SemanticSearchOptionsValidator,
-} from "#types/storage"
+} from "#types/database"
 // Vector search and storage types
 export type {
   VectorIndex,

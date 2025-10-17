@@ -9,18 +9,18 @@ import type {
 } from "#types"
 
 /**
- * Asynchronous interface for storage providers
- * All storage providers should implement this interface with Promise-based methods
+ * Asynchronous interface for database implementations
+ * All database implementations should implement this interface with Promise-based methods
  */
-export type StorageProvider = {
+export type Database = {
   /**
-   * Load a knowledge graph from storage
+   * Load a knowledge graph from the database
    * @returns Promise resolving to the loaded knowledge graph
    */
   loadGraph(): Promise<KnowledgeGraph>
 
   /**
-   * Save a knowledge graph to storage
+   * Save a knowledge graph to the database
    * @param graph The knowledge graph to save
    * @returns Promise that resolves when the save is complete
    */
@@ -182,14 +182,14 @@ export type StorageProvider = {
   getEntity(entityName: string): Promise<TemporalEntityType | null>
 
   /**
-   * Get the embedding for a specific entity (optional, for vector-enabled storage)
+   * Get the embedding for a specific entity (optional, for vector-enabled databases)
    * @param entityName Name of the entity
    * @returns Promise resolving to the embedding or null if not found
    */
   getEntityEmbedding?(entityName: string): Promise<EntityEmbedding | null>
 
   /**
-   * Store or update a vector for an entity (optional, for vector-enabled storage)
+   * Store or update a vector for an entity (optional, for vector-enabled databases)
    * @param entityName Name of the entity
    * @param vector The embedding vector
    * @returns Promise that resolves when the operation is complete
@@ -224,14 +224,14 @@ export type StorageProvider = {
 }
 
 /**
- * Validator for StorageProvider objects (synchronous version)
+ * Validator for Database objects (synchronous version)
  * Uses frozen object pattern for consistency with other validators
  */
-export const StorageProviderValidator = Object.freeze({
+export const DatabaseValidator = Object.freeze({
   /**
-   * Validates if an object conforms to the StorageProvider interface
+   * Validates if an object conforms to the Database interface
    */
-  isStorageProvider(obj: unknown): obj is StorageProvider {
+  isDatabase(obj: unknown): obj is Database {
     // Type guard: ensure obj is an object
     if (!obj || typeof obj !== "object") {
       return false

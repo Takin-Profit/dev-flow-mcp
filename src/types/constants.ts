@@ -169,7 +169,7 @@ export const MAX_ENTITY_NAME_LENGTH = 200
 export const MAX_OBSERVATION_LENGTH = 5000
 
 // ============================================================================
-// Neo4j Storage Constants
+// Database Constants
 // ============================================================================
 
 /**

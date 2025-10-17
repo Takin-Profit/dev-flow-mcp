@@ -1,6 +1,6 @@
 // Copyright 2025 Takin Profit. All rights reserved.
 /** biome-ignore-all lint/suspicious/useAwait: will be converted to async once nodejs implements the async api */
-// SQLite implementation of StorageProvider interface
+// SQLite implementation of Database interface
 
 import { randomUUID } from "node:crypto"
 import type { DB } from "@takinprofit/sqlite-x"
@@ -30,7 +30,7 @@ import {
   SQLITE_DEFAULT_SEARCH_LIMIT,
   SQLITE_DEFAULT_TRAVERSAL_DEPTH,
 } from "#types/constants"
-import type { StorageProvider } from "#types/storage"
+import type { Database } from "#types/database"
 import { SqliteVectorStore } from "#db/sqlite-vector-store"
 
 // Add at top of class or as module function
@@ -70,7 +70,7 @@ type RelationRow = {
   changed_by: string | null
 }
 
-export class SqliteDb implements StorageProvider {
+export class SqliteDb implements Database {
   private readonly db: DB
   private readonly logger: Logger
   private readonly vectorStore: SqliteVectorStore

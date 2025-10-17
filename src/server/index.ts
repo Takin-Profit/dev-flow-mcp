@@ -80,7 +80,7 @@ export default async function startMcpServer(): Promise<void> {
     await schemaManager.initializeSchema()
 
     // Create database instances (explicit SQLite classes)
-    logger.debug("Creating storage provider...")
+    logger.debug("Creating database...")
     const sqliteDb = new SqliteDb(db, logger)
     const vectorStore = new SqliteVectorStore({ db, logger })
 
@@ -89,7 +89,7 @@ export default async function startMcpServer(): Promise<void> {
     // ========================================================================
     logger.debug("Creating knowledge graph manager...")
     const knowledgeGraphManager = new KnowledgeGraphManager({
-      storageProvider: sqliteDb,
+      database: sqliteDb,
       logger,
     })
 

@@ -1,5 +1,5 @@
 import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
-import type { StorageProvider } from "#db/storage-provider"
+import type { Database } from "#db/database"
 import type {
   Entity,
   KnowledgeGraph,
@@ -15,8 +15,8 @@ import {
   KG_MANAGER_MIN_SIMILARITY,
 } from "#types"
 
-// Extended storage provider interfaces for optional methods
-interface StorageProviderWithSearchVectors extends StorageProvider {
+// Extended database interfaces for optional methods
+interface DatabaseWithSearchVectors extends Database {
   searchVectors(
     embedding: number[],
     limit: number,
@@ -24,44 +24,44 @@ interface StorageProviderWithSearchVectors extends StorageProvider {
   ): Promise<Array<{ name: string; score: number }>>
 }
 
-interface StorageProviderWithSemanticSearch extends StorageProvider {
+interface DatabaseWithSemanticSearch extends Database {
   semanticSearch(
     query: string,
     options: Record<string, unknown>
   ): Promise<KnowledgeGraph>
 }
 
-// This interface doesn't extend StorageProvider because the return types are incompatible
-type StorageProviderWithUpdateRelation = {
+// This interface doesn't extend Database because the return types are incompatible
+type DatabaseWithUpdateRelation = {
   updateRelation(relation: Relation): Promise<Relation>
 }
 
 // Type guard functions
 function hasSearchVectors(
-  provider: StorageProvider
-): provider is StorageProviderWithSearchVectors {
+  provider: Database
+): provider is DatabaseWithSearchVectors {
   return (
     "searchVectors" in provider &&
-    typeof (provider as StorageProviderWithSearchVectors).searchVectors ===
+    typeof (provider as DatabaseWithSearchVectors).searchVectors ===
       "function"
   )
 }
 
 function hasSemanticSearch(
-  provider: StorageProvider
-): provider is StorageProviderWithSemanticSearch {
+  provider: Database
+): provider is DatabaseWithSemanticSearch {
   return (
     "semanticSearch" in provider &&
-    typeof (provider as StorageProviderWithSemanticSearch).semanticSearch ===
+    typeof (provider as DatabaseWithSemanticSearch).semanticSearch ===
       "function"
   )
 }
 
 // Check if a provider has an updateRelation method that returns a Relation
-function hasUpdateRelation(provider: StorageProvider): boolean {
+function hasUpdateRelation(provider: Database): boolean {
   return (
     "updateRelation" in provider &&
-    typeof (provider as unknown as StorageProviderWithUpdateRelation)
+    typeof (provider as unknown as DatabaseWithUpdateRelation)
       .updateRelation === "function"
   )
 }
@@ -70,25 +70,25 @@ function hasUpdateRelation(provider: StorageProvider): boolean {
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
 export class KnowledgeGraphManager {
-  private readonly storageProvider: StorageProvider
+  private readonly database: Database
   private readonly logger: Logger
   private readonly embeddingJobManager?: EmbeddingJobManager
   private vectorStore?: VectorStore
 
   constructor(options: KnowledgeGraphManagerOptions) {
-    this.storageProvider = options.storageProvider
+    this.database = options.database
     this.logger = options.logger ?? createNoOpLogger()
     this.embeddingJobManager = options.embeddingJobManager
 
-    // Vector store initialization removed - SQLite storage provider has its own vector store
+    // Vector store initialization removed - SQLite database has its own vector store
   }
 
   /**
-   * Get the storage provider instance
-   * @returns The storage provider or null if not available
+   * Get the database instance
+   * @returns The database or null if not available
    */
-  getStorageProvider(): StorageProvider | null {
-    return this.storageProvider ?? null
+  getDatabase(): Database | null {
+    return this.database ?? null
   }
 
   /**
@@ -101,7 +101,7 @@ export class KnowledgeGraphManager {
 
   /**
    * Initialize the vector store with the given options
-   * NOTE: This method is deprecated - SQLite storage provider has its own vector store
+   * NOTE: This method is deprecated - SQLite database has its own vector store
    *
    * @param options - Options for the vector store
    */
@@ -109,21 +109,21 @@ export class KnowledgeGraphManager {
     _options: any
   ): Promise<void> {
     // Vector store factory removed - using SQLite provider's internal vector store
-    this.logger.info("Vector store initialization skipped - using storage provider's vector store")
+    this.logger.info("Vector store initialization skipped - using database's vector store")
   }
 
   /**
    * Ensure vector store is initialized
-   * NOTE: This now returns the storage provider's vector store (for SQLite)
+   * NOTE: This now returns the database's vector store (for SQLite)
    *
    * @returns Promise that resolves when the vector store is initialized
    */
   private async ensureVectorStore(): Promise<VectorStore> {
     if (!this.vectorStore) {
-      // Vector store is managed by the storage provider (SQLite)
+      // Vector store is managed by the database (SQLite)
       // This method is kept for backward compatibility but won't be used
       throw new Error(
-        "Vector store is not initialized - storage provider should handle vector operations"
+        "Vector store is not initialized - database should handle vector operations"
       )
     }
 
@@ -138,8 +138,8 @@ export class KnowledgeGraphManager {
 
     let createdEntities: Entity[] = []
 
-    // Use storage provider for creating entities
-    createdEntities = await this.storageProvider.createEntities(entities)
+    // Use database for creating entities
+    createdEntities = await this.database.createEntities(entities)
 
     // Add entities with existing embeddings to vector store
     for (const entity of createdEntities) {
@@ -189,9 +189,9 @@ export class KnowledgeGraphManager {
       return []
     }
 
-    // Use storage provider for creating relations
+    // Use database for creating relations
     const createdRelations =
-      await this.storageProvider.createRelations(relations)
+      await this.database.createRelations(relations)
     return createdRelations
   }
 
@@ -200,8 +200,8 @@ export class KnowledgeGraphManager {
       return
     }
 
-    // Use storage provider for deleting entities
-    await this.storageProvider.deleteEntities(entityNames)
+    // Use database for deleting entities
+    await this.database.deleteEntities(entityNames)
 
     // Remove entities from vector store if available
     try {
@@ -239,8 +239,8 @@ export class KnowledgeGraphManager {
       return
     }
 
-    // Use storage provider for deleting observations
-    await this.storageProvider.deleteObservations(deletions)
+    // Use database for deleting observations
+    await this.database.deleteObservations(deletions)
 
     // Schedule re-embedding for affected entities if manager is provided
     if (this.embeddingJobManager) {
@@ -258,16 +258,16 @@ export class KnowledgeGraphManager {
       return
     }
 
-    // Use storage provider for deleting relations
-    await this.storageProvider.deleteRelations(relations)
+    // Use database for deleting relations
+    await this.database.deleteRelations(relations)
   }
 
   searchNodes(query: string): Promise<KnowledgeGraph> {
-    return this.storageProvider.searchNodes(query)
+    return this.database.searchNodes(query)
   }
 
   openNodes(names: string[]): Promise<KnowledgeGraph> {
-    return this.storageProvider.openNodes(names)
+    return this.database.openNodes(names)
   }
 
   /**
@@ -279,7 +279,7 @@ export class KnowledgeGraphManager {
     observations: Array<{
       entityName: string
       contents: string[]
-      // Additional parameters that may be present in the MCP schema but ignored by storage providers
+      // Additional parameters that may be present in the MCP schema but ignored by databases
       strength?: number
       confidence?: number
       metadata?: Record<string, unknown>
@@ -290,15 +290,15 @@ export class KnowledgeGraphManager {
       return []
     }
 
-    // Extract only the fields needed by storage providers
-    // Keep the simplified format for compatibility with existing storage providers
+    // Extract only the fields needed by databases
+    // Keep the simplified format for compatibility with existing databases
     const simplifiedObservations = observations.map((obs) => ({
       entityName: obs.entityName,
       contents: obs.contents,
     }))
 
-    // Use storage provider for adding observations
-    const results = await this.storageProvider.addObservations(
+    // Use database for adding observations
+    const results = await this.database.addObservations(
       simplifiedObservations
     )
 
@@ -367,9 +367,9 @@ export class KnowledgeGraphManager {
       // Fall through to other methods
     }
 
-    // If we have a vector search method in the storage provider, use it
-    if (this.storageProvider && hasSearchVectors(this.storageProvider)) {
-      return this.storageProvider.searchVectors(
+    // If we have a vector search method in the database, use it
+    if (this.database && hasSearchVectors(this.database)) {
+      return this.database.searchVectors(
         embedding,
         options.limit || DEFAULT_SEARCH_LIMIT,
         options.threshold || KG_MANAGER_MIN_SIMILARITY
@@ -387,18 +387,18 @@ export class KnowledgeGraphManager {
    * @returns The knowledge graph
    */
   readGraph(): Promise<KnowledgeGraph> {
-    return this.storageProvider.loadGraph()
+    return this.database.loadGraph()
   }
 
   /**
-   * Try to perform semantic search using the storage provider
+   * Try to perform semantic search using the database
    * @private
    */
   private async tryProviderSemanticSearch(
     query: string,
     effectiveOptions: Record<string, unknown>
   ): Promise<KnowledgeGraph | null> {
-    if (!(this.storageProvider && hasSemanticSearch(this.storageProvider))) {
+    if (!(this.database && hasSemanticSearch(this.database))) {
       return null
     }
 
@@ -408,7 +408,7 @@ export class KnowledgeGraphManager {
         const embeddingService = this.embeddingJobManager.getEmbeddingService()
         if (embeddingService) {
           const queryVector = await embeddingService.generateEmbedding(query)
-          return this.storageProvider.semanticSearch(query, {
+          return this.database.semanticSearch(query, {
             ...effectiveOptions,
             queryVector,
           })
@@ -416,13 +416,13 @@ export class KnowledgeGraphManager {
       }
 
       // Fall back to text search if no embedding service
-      return this.storageProvider.searchNodes(query)
+      return this.database.searchNodes(query)
     } catch (error) {
       this.logger.error(
         "Provider semanticSearch failed, falling back to basic search",
         error
       )
-      return this.storageProvider.searchNodes(query)
+      return this.database.searchNodes(query)
     }
   }
 
@@ -465,8 +465,8 @@ export class KnowledgeGraphManager {
       )
 
       // Explicitly call searchNodes if available in the provider
-      if (this.storageProvider) {
-        return this.storageProvider.searchNodes(query)
+      if (this.database) {
+        return this.database.searchNodes(query)
       }
       return null
     }
@@ -508,9 +508,9 @@ export class KnowledgeGraphManager {
         return providerResult
       }
 
-      // Fall back to storage provider's basic search if available
-      if (this.storageProvider) {
-        return this.storageProvider.searchNodes(query)
+      // Fall back to database's basic search if available
+      if (this.database) {
+        return this.database.searchNodes(query)
       }
 
       // Try internal semantic search
@@ -603,8 +603,8 @@ export class KnowledgeGraphManager {
     to: string,
     relationType: string
   ): Promise<Relation | null> | null {
-    if (typeof this.storageProvider.getRelation === "function") {
-      return this.storageProvider.getRelation(from, to, relationType)
+    if (typeof this.database.getRelation === "function") {
+      return this.database.getRelation(from, to, relationType)
     }
     return null
   }
@@ -616,10 +616,10 @@ export class KnowledgeGraphManager {
    * @returns The updated relation
    */
   updateRelation(relation: Relation): Promise<Relation> {
-    if (hasUpdateRelation(this.storageProvider)) {
+    if (hasUpdateRelation(this.database)) {
       // Cast to the extended interface to access the method
       const provider = this
-        .storageProvider as unknown as StorageProviderWithUpdateRelation
+        .database as unknown as DatabaseWithUpdateRelation
       return provider.updateRelation(relation)
     }
 
@@ -638,9 +638,9 @@ export class KnowledgeGraphManager {
     updates: Partial<Entity>
   ): Promise<Entity> {
     if (
-      "updateEntity" in this.storageProvider &&
+      "updateEntity" in this.database &&
       typeof (
-        this.storageProvider as {
+        this.database as {
           updateEntity?: (
             name: string,
             updates: Partial<Entity>
@@ -649,7 +649,7 @@ export class KnowledgeGraphManager {
       ).updateEntity === "function"
     ) {
       const result = await (
-        this.storageProvider as {
+        this.database as {
           updateEntity: (
             name: string,
             updates: Partial<Entity>
@@ -677,13 +677,13 @@ export class KnowledgeGraphManager {
     KnowledgeGraph & { decay_info?: Record<string, unknown> }
   > {
     if (
-      !this.storageProvider ||
-      typeof this.storageProvider.getDecayedGraph !== "function"
+      !this.database ||
+      typeof this.database.getDecayedGraph !== "function"
     ) {
       throw new Error("Storage provider does not support decay operations")
     }
 
-    return this.storageProvider.getDecayedGraph()
+    return this.database.getDecayedGraph()
   }
 
   /**
@@ -694,15 +694,15 @@ export class KnowledgeGraphManager {
    */
   getEntityHistory(entityName: string): Promise<Entity[]> {
     if (
-      !this.storageProvider ||
-      typeof this.storageProvider.getEntityHistory !== "function"
+      !this.database ||
+      typeof this.database.getEntityHistory !== "function"
     ) {
       throw new Error(
         "Storage provider does not support entity history operations"
       )
     }
 
-    return this.storageProvider.getEntityHistory(entityName)
+    return this.database.getEntityHistory(entityName)
   }
 
   /**
@@ -719,15 +719,15 @@ export class KnowledgeGraphManager {
     relationType: string
   ): Promise<Relation[]> {
     if (
-      !this.storageProvider ||
-      typeof this.storageProvider.getRelationHistory !== "function"
+      !this.database ||
+      typeof this.database.getRelationHistory !== "function"
     ) {
       throw new Error(
         "Storage provider does not support relation history operations"
       )
     }
 
-    return this.storageProvider.getRelationHistory(from, to, relationType)
+    return this.database.getRelationHistory(from, to, relationType)
   }
 
   /**
@@ -738,14 +738,14 @@ export class KnowledgeGraphManager {
    */
   getGraphAtTime(timestamp: number): Promise<KnowledgeGraph> {
     if (
-      !this.storageProvider ||
-      typeof this.storageProvider.getGraphAtTime !== "function"
+      !this.database ||
+      typeof this.database.getGraphAtTime !== "function"
     ) {
       throw new Error(
         "Storage provider does not support temporal graph operations"
       )
     }
 
-    return this.storageProvider.getGraphAtTime(timestamp)
+    return this.database.getGraphAtTime(timestamp)
   }
 }

@@ -85,9 +85,9 @@ export type VectorStoreFactoryOptions =
 // ============================================================================
 
 /**
- * Interface for storage providers that can load and save knowledge graphs
+ * Interface for databases that can load and save knowledge graphs
  */
-export type StorageProvider = {
+export type Database = {
   /**
    * Load a knowledge graph from storage
    * @returns Promise resolving to the loaded knowledge graph
