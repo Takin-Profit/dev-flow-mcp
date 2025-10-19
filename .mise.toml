@@ -17,3 +17,91 @@ ls-lint = "latest"
 [env]
 # Set pnpm to use the project's node_modules
 _.path = ["./node_modules/.bin"]
+
+# ============================================================================
+# Build Tasks
+# ============================================================================
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "rm -rf dist"
+
+[tasks.build]
+description = "Build the project for production"
+depends = ["clean"]
+sources = ["src/**/*.ts", "tsconfig.json", "tsdown.config.ts", "package.json"]
+outputs = ["dist/**/*"]
+run = "tsdown && chmod +x dist/cli/*.js"
+
+[tasks.typecheck]
+description = "Type check TypeScript without building"
+sources = ["src/**/*.ts", "tsconfig.json"]
+run = "tsc --noEmit"
+
+# ============================================================================
+# Test Tasks
+# ============================================================================
+
+[tasks."test:unit"]
+description = "Run unit and integration tests (fast, no build required)"
+env = { DFM_ENV = "testing" }
+run = "tsx --test src/**/*.test.ts"
+
+[tasks."test:e2e"]
+description = "Run E2E tests against built distribution"
+depends = ["build"]
+env = { DFM_ENV = "testing", DFM_SQLITE_LOCATION = ":memory:", DFM_MOCK_EMBEDDINGS = "true" }
+run = "node --test src/tests/integration/e2e/run-all-e2e.test.js"
+
+[tasks."test:e2e:debug"]
+description = "Run E2E tests with verbose output for debugging"
+depends = ["build"]
+env = { DFM_ENV = "testing", DFM_SQLITE_LOCATION = ":memory:", DFM_MOCK_EMBEDDINGS = "true", DFM_DEBUG = "true", DFM_ENABLE_CONSOLE_LOGS = "true" }
+run = "node --test src/tests/integration/e2e/run-all-e2e.test.js"
+
+[tasks.test]
+description = "Run all tests (unit + e2e)"
+depends = ["test:unit", "test:e2e"]
+
+# ============================================================================
+# Development Tasks
+# ============================================================================
+
+[tasks.dev]
+description = "Run development server with watch mode"
+run = "tsx watch src/server/index.ts"
+
+[tasks."dev:cli"]
+description = "Run CLI in development mode"
+run = "tsx src/cli/index.ts"
+
+# ============================================================================
+# Linting Tasks
+# ============================================================================
+
+[tasks.lint]
+description = "Lint code with Biome"
+run = "biome check ."
+
+[tasks.fix]
+description = "Fix linting issues with Biome"
+run = "biome check --write ."
+
+# ============================================================================
+# Debug Tasks
+# ============================================================================
+
+[tasks."debug:cli"]
+description = "Test if the built CLI can start and capture ALL output"
+depends = ["build"]
+env = { DFM_ENV = "testing", DFM_SQLITE_LOCATION = ":memory:", DFM_MOCK_EMBEDDINGS = "true" }
+run = '''
+echo "Testing built CLI with full error output..."
+./dist/cli/index.js mcp 2>&1 | head -50 &
+PID=$!
+sleep 2
+kill $PID 2>/dev/null || true
+wait $PID 2>/dev/null
+EXIT_CODE=$?
+echo "CLI exited with code: $EXIT_CODE"
+'''

@@ -48,18 +48,3 @@ export type Logger = {
    */
   trace(message: string, meta?: LogMetadata): void
 }
-
-/**
- * No-op logger for testing or when logging is disabled
- */
-export const createNoOpLogger = (): Logger => ({
-  info: (_message: string, _meta?: LogMetadata): void => {},
-  error: (
-    _message: string,
-    _error?: Error | unknown,
-    _meta?: LogMetadata
-  ): void => {},
-  warn: (_message: string, _meta?: LogMetadata): void => {},
-  debug: (_message: string, _meta?: LogMetadata): void => {},
-  trace: (_message: string, _meta?: LogMetadata): void => {},
-})

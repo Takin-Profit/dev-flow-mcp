@@ -38,6 +38,17 @@ type RelationRow = {
   changed_by: string | null
 }
 
+type EmbeddingJobRow = {
+  id: string
+  entity_name: string
+  status: "pending" | "processing" | "completed" | "failed"
+  created_at: number
+  processed_at: number | null
+  error: string | null
+  attempts: number
+  max_attempts: number
+}
+
 // Helper function to create tables using sqlite-x API
 function createTable<T extends DataRow>({
   db,
@@ -58,7 +69,7 @@ export class SqliteSchemaManager {
   private readonly logger: Logger
   private readonly vectorDimensions: number
 
-  constructor(db: DB, logger: Logger, vectorDimensions: number = 1536) {
+  constructor(db: DB, logger: Logger, vectorDimensions = 1536) {
     this.db = db
     this.logger = logger
     this.vectorDimensions = vectorDimensions
@@ -78,6 +89,7 @@ export class SqliteSchemaManager {
       this.createEntitiesTable()
       this.createRelationsTable()
       this.createEmbeddingsTable()
+      this.createEmbeddingJobsTable()
 
       // Create indexes for performance
       this.createIndexes()
@@ -96,27 +108,34 @@ export class SqliteSchemaManager {
    * Loads the sqlite-vec extension for vector operations
    * Note: DB must be constructed with allowExtension: true
    */
-  private async loadVectorExtension(): Promise<void> {
-    try {
-      this.logger.debug("Loading sqlite-vec extension using nativeDb getter...")
+  private loadVectorExtension(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        this.logger.debug(
+          "Loading sqlite-vec extension using nativeDb getter..."
+        )
 
-      // Use the new `nativeDb` getter to pass the raw db instance to the loader
-      load(this.db.nativeDb)
+        // Use the new `nativeDb` getter to pass the raw db instance to the loader
+        load(this.db.nativeDb)
 
-      this.logger.info("sqlite-vec extension loaded successfully via nativeDb")
+        this.logger.info(
+          "sqlite-vec extension loaded successfully via nativeDb"
+        )
 
-      // Verify extension is loaded by checking vec_version()
-      const version = this.db.sql`SELECT vec_version() as version`.get<{
-        version: string
-      }>()
-      this.logger.info("sqlite-vec version", { version: version?.version })
-    } catch (error) {
-      this.logger.error(
-        "Could not load sqlite-vec extension. Ensure the library is installed and the environment supports native extensions.",
-        { error }
-      )
-      throw error
-    }
+        // Verify extension is loaded by checking vec_version()
+        const version = this.db.sql`SELECT vec_version() as version`.get<{
+          version: string
+        }>()
+        this.logger.info("sqlite-vec version", { version: version?.version })
+        resolve()
+      } catch (error) {
+        this.logger.error(
+          "Could not load sqlite-vec extension. Ensure the library is installed and the environment supports native extensions.",
+          { error }
+        )
+        reject(error)
+      }
+    })
   }
 
   /**
@@ -243,7 +262,9 @@ export class SqliteSchemaManager {
    * Creates the embeddings virtual table using sqlite-vec
    */
   private createEmbeddingsTable(): void {
-    this.logger.debug("Creating embeddings table", { dimensions: this.vectorDimensions })
+    this.logger.debug("Creating embeddings table", {
+      dimensions: this.vectorDimensions,
+    })
 
     // Create vec0 virtual table with just the embedding column
     // vec0 only supports vector columns, not custom metadata
@@ -270,7 +291,43 @@ export class SqliteSchemaManager {
       ON embedding_metadata(entity_name)
     `)
 
-    this.logger.info("Embeddings virtual table and metadata created", { dimensions: this.vectorDimensions })
+    this.logger.info("Embeddings virtual table and metadata created", {
+      dimensions: this.vectorDimensions,
+    })
+  }
+
+  /**
+   * Creates the embedding_jobs table for managing background embedding generation
+   */
+  private createEmbeddingJobsTable(): void {
+    this.logger.debug("Creating embedding_jobs table")
+
+    const schema: Schema<EmbeddingJobRow> = {
+      id: "TEXT PRIMARY KEY",
+      entity_name: "TEXT NOT NULL",
+      status:
+        "TEXT NOT NULL CHECK(status IN ('pending', 'processing', 'completed', 'failed'))",
+      created_at: "INTEGER NOT NULL",
+      processed_at: "INTEGER",
+      error: "TEXT",
+      attempts: "INTEGER NOT NULL DEFAULT 0",
+      max_attempts: "INTEGER NOT NULL DEFAULT 3",
+    }
+
+    createTable<EmbeddingJobRow>({
+      db: this.db,
+      name: "embedding_jobs",
+      schema,
+    }).run()
+
+    // Create index for efficient job retrieval in FIFO order
+    this.db.createIndex<EmbeddingJobRow>({
+      name: "idx_embedding_jobs_status_created",
+      tableName: "embedding_jobs",
+      columns: ["status", "created_at"],
+    })
+
+    this.logger.info("Embedding jobs table created")
   }
 
   /**
@@ -375,6 +432,8 @@ export class SqliteSchemaManager {
   resetSchema(): void {
     this.logger.warn("Resetting SQLite schema - all data will be lost")
 
+    this.db.exec("DROP TABLE IF EXISTS embedding_jobs")
+    this.db.exec("DROP TABLE IF EXISTS embedding_metadata")
     this.db.exec("DROP TABLE IF EXISTS embeddings")
     this.db.exec("DROP TABLE IF EXISTS relations")
     this.db.exec("DROP TABLE IF EXISTS entities")

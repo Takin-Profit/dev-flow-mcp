@@ -3,8 +3,9 @@
 // SQLite Vector Store Implementation using sqlite-vec
 
 import type { DB } from "@takinprofit/sqlite-x"
+import { createNoOpLogger } from "#logger"
 import type { Logger, VectorSearchResult, VectorStore } from "#types"
-import { createNoOpLogger, DEFAULT_VECTOR_DIMENSIONS } from "#types"
+import { DEFAULT_VECTOR_DIMENSIONS } from "#types/constants"
 
 // ============================================================================
 // Constants
@@ -133,7 +134,10 @@ export class SqliteVectorStore implements VectorStore {
       const vectorBlob = new Uint8Array(float32Vector.buffer)
 
       // Check if this entity+observation already exists
-      const existing = this.db.sql<{ entity_name: string; observation_index: number }>`
+      const existing = this.db.sql<{
+        entity_name: string
+        observation_index: number
+      }>`
         SELECT rowid FROM embedding_metadata
         WHERE entity_name = ${"$entity_name"} AND observation_index = ${"$observation_index"}
       `.get<{ rowid: number }>({
@@ -160,10 +164,14 @@ export class SqliteVectorStore implements VectorStore {
         })
 
         // Get the rowid of the inserted embedding
-        const rowid = result.lastInsertRowid
+        const rowid = Number(result.lastInsertRowid)
 
         // Insert metadata with the same rowid
-        this.db.sql<{ rowid: number; entity_name: string; observation_index: number }>`
+        this.db.sql<{
+          rowid: number
+          entity_name: string
+          observation_index: number
+        }>`
           INSERT INTO embedding_metadata (rowid, entity_name, observation_index)
           VALUES (${"$rowid"}, ${"$entity_name"}, ${"$observation_index"})
         `.run({
@@ -210,7 +218,10 @@ export class SqliteVectorStore implements VectorStore {
         `.run({ rowid: row.rowid })
       }
 
-      this.logger.debug("Vector removed successfully", { entityName, count: rows.length })
+      this.logger.debug("Vector removed successfully", {
+        entityName,
+        count: rows.length,
+      })
     } catch (error) {
       this.logger.error("Failed to remove vector", { error, id })
       throw error

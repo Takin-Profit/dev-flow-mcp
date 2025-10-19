@@ -6,6 +6,7 @@
  * This module provides concrete implementations of the Logger interface.
  * Business logic should depend on the Logger type, not these implementations directly.
  */
+/** biome-ignore-all lint/suspicious/noEmptyBlockStatements: noOpLogger */
 
 import path from "node:path"
 import { consola } from "consola"
@@ -176,3 +177,18 @@ export const cliLogger = {
 }
 
 export type CliLogger = typeof cliLogger
+
+/**
+ * No-op logger for testing or when logging is disabled
+ */
+export const createNoOpLogger = (): Logger => ({
+  info: (_message: string, _meta?: Record<string, unknown>): void => {},
+  error: (
+    _message: string,
+    _error?: Error | unknown,
+    _meta?: Record<string, unknown>
+  ): void => {},
+  warn: (_message: string, _meta?: Record<string, unknown>): void => {},
+  debug: (_message: string, _meta?: Record<string, unknown>): void => {},
+  trace: (_message: string, _meta?: Record<string, unknown>): void => {},
+})

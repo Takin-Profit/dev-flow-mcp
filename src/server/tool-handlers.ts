@@ -6,18 +6,18 @@
  */
 
 import type { KnowledgeGraphManager } from "#knowledge-graph-manager"
-import type { Logger } from "#types"
-import type { MCPToolResponse } from "#types/responses"
+import type { Logger, MCPToolResponse } from "#types"
 import {
   AddObservationsInputSchema,
   CreateEntitiesInputSchema,
   CreateRelationsInputSchema,
   DeleteEntitiesInputSchema,
 } from "#types/validation"
-import { handleError } from "#utils/error-handler"
 import {
+  buildErrorResponse,
   buildSuccessResponse,
   buildValidationErrorResponse,
+  handleError,
 } from "#utils/response-builders"
 
 /**
@@ -193,32 +193,32 @@ export async function handleAddObservations(
       return buildValidationErrorResponse(result.error)
     }
 
-    const { observations } = result.data
+    const { entityName, contents } = result.data
 
     logger?.debug("add_observations called", {
-      observationCount: observations.length,
+      entityName,
+      observationCount: contents.length,
     })
 
     // 2. Perform operation
-    const results = await knowledgeGraphManager.addObservations(observations)
+    const results = await knowledgeGraphManager.addObservations([
+      { entityName, contents },
+    ])
 
     logger?.info("add_observations completed", {
       entitiesAffected: results.length,
     })
 
-    // 3. Build response (simplified!)
-    // The manager returns an array of results, aggregate them
-    const totalAdded = results.reduce((sum, r) => sum + r.added, 0)
-    const totalObservations = results.reduce(
-      (sum, r) => sum + r.totalObservations,
-      0
-    )
+    // 3. Build response
+    const firstResult = results[0]
+    if (!firstResult) {
+      return buildErrorResponse("Failed to add observations")
+    }
 
-    // For now, return the first entity's info (or improve this to handle multiple)
     return buildSuccessResponse({
-      entityName: results[0]?.entityName || ("" as never), // Branded type
-      added: totalAdded,
-      totalObservations,
+      entityName: firstResult.entityName,
+      addedObservations: firstResult.addedObservations,
+      count: firstResult.addedObservations.length,
     })
   } catch (error) {
     return handleError(error, logger)

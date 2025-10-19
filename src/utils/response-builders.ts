@@ -1,13 +1,14 @@
 /**
  * Response Builder Utilities
  *
- * Standardized functions for building MCP tool responses.
+ * Standardized functions for building MCP tool responses and error handling.
  * Updated to match MCP specification with isError flag and structuredContent.
  */
 
 import type { ZodError } from "zod"
-import { fromZodError } from "zod-validation-error"
-import type { MCPToolResponse } from "#types/responses"
+import { fromZodError, isValidationErrorLike } from "zod-validation-error"
+import { DFMError } from "#errors"
+import type { Logger, MCPToolResponse } from "#types"
 
 /**
  * Build a successful MCP tool response
@@ -73,8 +74,7 @@ export function buildErrorResponse(message: string): MCPToolResponse {
  * ```
  */
 export function buildValidationErrorResponse(
-  // biome-ignore lint/suspicious/noExplicitAny: ZodError compatibility
-  zodError: ZodError<any>
+  zodError: ZodError<unknown>
 ): MCPToolResponse {
   const validationError = fromZodError(zodError, {
     prefix: "Validation failed",
@@ -84,4 +84,54 @@ export function buildValidationErrorResponse(
   })
 
   return buildErrorResponse(validationError.message)
+}
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+/**
+ * Type guard to check if error is a Zod error
+ * Uses instanceof check since ZodError extends Error
+ */
+// biome-ignore lint/suspicious/noExplicitAny: ZodError generic compatibility
+function isZodError(error: unknown): error is ZodError<any> {
+  return (
+    error instanceof Error && "issues" in error && Array.isArray(error.issues)
+  )
+}
+
+/**
+ * Convert any error to a standard MCP error response
+ *
+ * @param error - Unknown error object
+ * @param logger - Logger instance for error logging
+ * @returns MCP-formatted error response
+ */
+export function handleError(error: unknown, logger?: Logger): MCPToolResponse {
+  // Log full error internally
+  logger?.error("Tool error", error)
+
+  // Handle custom DFM errors
+  if (error instanceof DFMError) {
+    return buildErrorResponse(error.toMCPMessage())
+  }
+
+  // Handle Zod validation errors
+  if (isZodError(error)) {
+    return buildValidationErrorResponse(error)
+  }
+
+  // Handle zod-validation-error ValidationError
+  if (isValidationErrorLike(error)) {
+    return buildErrorResponse(error.message)
+  }
+
+  // Handle standard Error
+  if (error instanceof Error) {
+    return buildErrorResponse(error.message)
+  }
+
+  // Unknown error type
+  return buildErrorResponse("An unexpected error occurred")
 }

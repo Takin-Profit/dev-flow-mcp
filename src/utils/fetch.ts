@@ -3,7 +3,7 @@
  * Provides type-safe HTTP requests with validation using Zod
  */
 
-import type { z } from "#config"
+import type { ZodType } from "zod"
 
 /**
  * Custom error type for API errors
@@ -43,7 +43,7 @@ export type FetchConfig = {
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: justified
 export async function fetchData<T>(
   url: string,
-  validator: z.ZodType<T>,
+  validator: ZodType<T>,
   config: FetchConfig = {}
 ): Promise<ApiResponse<T>> {
   let timeoutId: NodeJS.Timeout | undefined

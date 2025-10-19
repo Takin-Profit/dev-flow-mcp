@@ -1,9 +1,10 @@
 /** biome-ignore-all lint/suspicious/useAwait: functions need to return promises */
 import crypto from "node:crypto"
+import { raw } from "@takinprofit/sqlite-x"
 import { LRUCache } from "lru-cache"
 import { v4 as uuidv4 } from "uuid"
+import type { SqliteDb } from "#db/sqlite-db"
 import type { EmbeddingService } from "#embeddings/embedding-service"
-import type { Database } from "#db/database"
 import type {
   CachedEmbedding,
   CacheOptions,
@@ -15,7 +16,6 @@ import type {
   Logger,
   RateLimiterOptions,
   RateLimiterStatus,
-  TemporalEntityType,
 } from "#types"
 import {
   CACHE_KEY_PREVIEW_LENGTH,
@@ -30,6 +30,7 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from "#types"
+import { TimestampSchema } from "#types/validation"
 
 // ============================================================================
 // Constants
@@ -50,22 +51,6 @@ const DEFAULT_RATE_LIMIT_INTERVAL_MS =
 const DEFAULT_CLEANUP_THRESHOLD_MS = MILLISECONDS_PER_WEEK
 
 /**
- * Interface for embedding database, extending the base provider
- */
-interface EmbeddingDatabase extends Database {
-  /**
-   * Access to the underlying database
-   */
-  // biome-ignore lint/suspicious/noExplicitAny: database type varies by implementation
-  db: any
-
-  /**
-   * Get an entity by name (returns TemporalEntity for compatibility)
-   */
-  getEntity(entityName: string): Promise<TemporalEntityType | null>
-}
-
-/**
  * Return structure for queue status
  */
 type QueueStatus = {
@@ -80,8 +65,9 @@ type QueueStatus = {
  * Manages embedding jobs for semantic search
  */
 export class EmbeddingJobManager {
-  private readonly database: EmbeddingDatabase
-  private readonly embeddingService: EmbeddingService
+  readonly #db
+  readonly #database
+  readonly #embeddingService
   rateLimiter: {
     tokens: number
     lastRefill: number
@@ -89,8 +75,8 @@ export class EmbeddingJobManager {
     interval: number
   }
   cache: LRUCache<string, CachedEmbedding>
-  private readonly cacheOptions: CacheOptions = { size: 1000, ttl: 3_600_000 }
-  private readonly logger: Logger
+  readonly #cacheOptions: CacheOptions = { size: 1000, ttl: 3_600_000 }
+  readonly #logger
 
   /**
    * Creates a new embedding job manager
@@ -98,15 +84,16 @@ export class EmbeddingJobManager {
    * @param options - Configuration options object
    */
   constructor(options: {
-    database: EmbeddingDatabase
+    database: SqliteDb
     embeddingService: EmbeddingService
     rateLimiterOptions?: RateLimiterOptions | null
     cacheOptions?: CacheOptions | null
     logger?: Logger | null
   }) {
-    this.database = options.database
-    this.embeddingService = options.embeddingService
-    this.logger = options.logger || createNoOpLogger()
+    this.#database = options.database
+    this.#db = options.database.dbInstance
+    this.#embeddingService = options.embeddingService
+    this.#logger = options.logger || createNoOpLogger()
 
     // Setup rate limiter with defaults
     const defaultRateLimiter = {
@@ -126,7 +113,7 @@ export class EmbeddingJobManager {
     // Setup LRU cache
     if (options.cacheOptions) {
       // Support both API styles (tests use maxItems/ttlHours)
-      this.cacheOptions = {
+      this.#cacheOptions = {
         size:
           options.cacheOptions.size ||
           options.cacheOptions.maxItems ||
@@ -144,20 +131,17 @@ export class EmbeddingJobManager {
     }
 
     this.cache = new LRUCache({
-      max: this.cacheOptions.size,
-      ttl: Math.max(1, Math.round(this.cacheOptions.ttl)),
+      max: this.#cacheOptions.size,
+      ttl: Math.max(1, Math.round(this.#cacheOptions.ttl)),
       updateAgeOnGet: true,
       allowStale: false,
       // Use a ttlAutopurge option to ensure items are purged when TTL expires
       ttlAutopurge: true,
     })
 
-    // Initialize database schema
-    this._initializeDatabase()
-
-    this.logger.info("EmbeddingJobManager initialized", {
-      cacheSize: this.cacheOptions.size,
-      cacheTtl: this.cacheOptions.ttl,
+    this.#logger.info("EmbeddingJobManager initialized", {
+      cacheSize: this.#cacheOptions.size,
+      cacheTtl: this.#cacheOptions.ttl,
       rateLimit: `${this.rateLimiter.tokensPerInterval} per ${this.rateLimiter.interval}ms`,
     })
   }
@@ -167,71 +151,31 @@ export class EmbeddingJobManager {
    * @returns The embedding service
    */
   getEmbeddingService(): EmbeddingService {
-    return this.embeddingService
+    return this.#embeddingService
   }
 
   /**
    * Prepare entity text for embedding generation
-   * Public wrapper for the private _prepareEntityText method
+   * Public wrapper for the private #prepareEntityText method
    * @param entity The entity to prepare text for
    * @returns The prepared text representation
    */
   prepareEntityText(entity: Entity): string {
-    return this._prepareEntityText(entity)
-  }
-
-  /**
-   * Initialize the database schema for embedding jobs
-   *
-   * @private
-   */
-  private _initializeDatabase(): void {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS embedding_jobs (
-        id TEXT PRIMARY KEY,
-        entity_name TEXT NOT NULL,
-        status TEXT NOT NULL,
-        priority INTEGER NOT NULL DEFAULT 1,
-        created_at INTEGER NOT NULL,
-        processed_at INTEGER,
-        error TEXT,
-        attempts INTEGER NOT NULL DEFAULT 0,
-        max_attempts INTEGER NOT NULL DEFAULT 3
-      )
-    `
-
-    // Create an index for efficient job retrieval
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_embedding_jobs_status_priority
-      ON embedding_jobs (status, priority DESC)
-    `
-
-    try {
-      this.database.db.exec(createTableSql)
-      this.database.db.exec(createIndexSql)
-      this.logger.debug("Database schema initialized for embedding jobs")
-    } catch (error) {
-      this.logger.error("Failed to initialize database schema", { error })
-      throw error
-    }
+    return this.#prepareEntityText(entity)
   }
 
   /**
    * Schedule an entity for embedding generation
    *
    * @param entityName - Name of the entity to generate embedding for
-   * @param priority - Optional priority (higher priority jobs are processed first)
    * @returns Job ID
    */
-  async scheduleEntityEmbedding(
-    entityName: string,
-    priority = 1
-  ): Promise<string> {
+  async scheduleEntityEmbedding(entityName: string): Promise<string> {
     // Verify entity exists
-    const entity = await this.database.getEntity(entityName)
+    const entity = await this.#database.getEntity(entityName)
     if (!entity) {
       const error = `Entity ${entityName} not found`
-      this.logger.error("Failed to schedule embedding", { entityName, error })
+      this.#logger.error("Failed to schedule embedding", { entityName, error })
       throw new Error(error)
     }
 
@@ -239,26 +183,29 @@ export class EmbeddingJobManager {
     const jobId = uuidv4()
 
     // Insert a new job record
-    const stmt = this.database.db.prepare(`
+    this.#db.sql<{
+      id: string
+      entity_name: string
+      status: string
+      created_at: number
+      attempts: number
+      max_attempts: number
+    }>`
       INSERT INTO embedding_jobs (
-        id, entity_name, status, priority, created_at, attempts, max_attempts
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
+        id, entity_name, status, created_at, attempts, max_attempts
+      ) VALUES (${"$id"}, ${"$entity_name"}, ${"$status"}, ${"$created_at"}, ${"$attempts"}, ${"$max_attempts"})
+    `.run({
+      id: jobId,
+      entity_name: entityName,
+      status: "pending",
+      created_at: Date.now(),
+      attempts: DEFAULT_INITIAL_ATTEMPTS,
+      max_attempts: DEFAULT_MAX_ATTEMPTS,
+    })
 
-    stmt.run(
+    this.#logger.info("Scheduled embedding job", {
       jobId,
       entityName,
-      "pending",
-      priority,
-      Date.now(),
-      DEFAULT_INITIAL_ATTEMPTS,
-      DEFAULT_MAX_ATTEMPTS
-    )
-
-    this.logger.info("Scheduled embedding job", {
-      jobId,
-      entityName,
-      priority,
     })
 
     return jobId
@@ -273,18 +220,19 @@ export class EmbeddingJobManager {
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: will fix on next refactor
   async processJobs(batchSize = 10): Promise<JobProcessResults> {
-    this.logger.info("Starting job processing", { batchSize })
+    this.#logger.info("Starting job processing", { batchSize })
 
-    // Get pending jobs, ordered by priority (highest first)
-    const stmt = this.database.db.prepare(`
+    // Get pending jobs in FIFO order (oldest first)
+    const jobs = this.#db.sql<{ status: string; limit: number }>`
       SELECT * FROM embedding_jobs
-      WHERE status = 'pending'
-      ORDER BY priority DESC, created_at ASC
-      LIMIT ?
-    `)
-
-    const jobs: EmbeddingJob[] = stmt.all(batchSize)
-    this.logger.debug("Found pending jobs", { count: jobs.length })
+      WHERE status = ${"$status"}
+      ORDER BY created_at ASC
+      LIMIT ${"$limit"}
+    `.all<EmbeddingJob>({
+      status: "pending",
+      limit: batchSize,
+    })
+    this.#logger.debug("Found pending jobs", { count: jobs.length })
 
     // Initialize counters
     const result: JobProcessResults = {
@@ -298,13 +246,13 @@ export class EmbeddingJobManager {
       // Check rate limiter before processing
       const rateLimitCheck = this._checkRateLimiter()
       if (!rateLimitCheck.success) {
-        this.logger.warn("Rate limit reached, pausing job processing", {
+        this.#logger.warn("Rate limit reached, pausing job processing", {
           remaining: jobs.length - result.processed,
         })
         break // Stop processing jobs if rate limit is reached
       }
 
-      this.logger.info("Processing embedding job", {
+      this.#logger.info("Processing embedding job", {
         jobId: job.id,
         entityName: job.entity_name,
         attempt: job.attempts + 1,
@@ -312,18 +260,18 @@ export class EmbeddingJobManager {
       })
 
       // Update job status to processing
-      this._updateJobStatus(job.id, "processing", job.attempts + 1)
+      this.#updateJobStatus(job.id, "processing", job.attempts + 1)
 
       try {
         // Get the entity
-        const entity = await this.database.getEntity(job.entity_name)
+        const entity = await this.#database.getEntity(job.entity_name)
 
         if (!entity) {
           throw new Error(`Entity ${job.entity_name} not found`)
         }
 
         // Log entity details for debugging
-        this.logger.debug("Retrieved entity for embedding", {
+        this.#logger.debug("Retrieved entity for embedding", {
           entityName: job.entity_name,
           entityType: entity.entityType,
           hasObservations: entity.observations ? "yes" : "no",
@@ -337,37 +285,35 @@ export class EmbeddingJobManager {
         })
 
         // Prepare text for embedding
-        const text = this._prepareEntityText(entity)
+        const text = this.#prepareEntityText(entity)
 
         // Try to get from cache or generate new embedding
-        this.logger.debug("Generating embedding for entity", {
+        this.#logger.debug("Generating embedding for entity", {
           entityName: job.entity_name,
         })
         const embedding = await this._getCachedEmbeddingOrGenerate(text)
 
         // Get model info for embedding metadata
-        const modelInfo = this.embeddingService.getModelInfo()
+        const modelInfo = this.#embeddingService.getModelInfo()
 
         // Store the embedding with the entity
-        this.logger.debug("Storing entity vector", {
+        this.#logger.debug("Storing entity vector", {
           entityName: job.entity_name,
           vectorLength: embedding.length,
           model: modelInfo.name,
         })
 
         // Store the embedding vector
-        // Base Database.storeEntityVector expects just the vector array
-        if (this.database.storeEntityVector) {
-          await this.database.storeEntityVector(
-            job.entity_name,
-            embedding
-          )
-        }
+        await this.#database.updateEntityEmbedding(job.entity_name, {
+          vector: embedding,
+          model: modelInfo.name,
+          lastUpdated: TimestampSchema.parse(Date.now()),
+        })
 
         // Update job status to completed
-        this._updateJobStatus(job.id, "completed")
+        this.#updateJobStatus(job.id, "completed")
 
-        this.logger.info("Successfully processed embedding job", {
+        this.#logger.info("Successfully processed embedding job", {
           jobId: job.id,
           entityName: job.entity_name,
           model: modelInfo.name,
@@ -381,7 +327,7 @@ export class EmbeddingJobManager {
           error instanceof Error ? error.message : String(error)
         const errorStack = error instanceof Error ? error.stack : undefined
 
-        this.logger.error("Failed to process embedding job", {
+        this.#logger.error("Failed to process embedding job", {
           jobId: job.id,
           entityName: job.entity_name,
           error: errorMessage,
@@ -392,14 +338,14 @@ export class EmbeddingJobManager {
 
         // Determine if we should mark as failed or keep for retry
         if (job.attempts + 1 >= job.max_attempts) {
-          this._updateJobStatus(
+          this.#updateJobStatus(
             job.id,
             "failed",
             job.attempts + 1,
             errorMessage
           )
         } else {
-          this._updateJobStatus(
+          this.#updateJobStatus(
             job.id,
             "pending",
             job.attempts + 1,
@@ -415,7 +361,7 @@ export class EmbeddingJobManager {
 
     // Log job processing results
     const queueStatus = await this.getQueueStatus()
-    this.logger.info("Job processing complete", {
+    this.#logger.info("Job processing complete", {
       processed: result.processed,
       successful: result.successful,
       failed: result.failed,
@@ -433,16 +379,18 @@ export class EmbeddingJobManager {
 
   async getQueueStatus(): Promise<QueueStatus> {
     const getCountForStatus = (status?: string): number => {
-      let sql = "SELECT COUNT(*) as count FROM embedding_jobs"
-      const params: string[] = []
-
       if (status) {
-        sql += " WHERE status = ?"
-        params.push(status)
+        const result = this.#db.sql<{ status: string }>`
+          SELECT COUNT(*) as count FROM embedding_jobs
+          WHERE status = ${"$status"}
+        `.get<CountResult>({ status })
+
+        return result?.count || 0
       }
 
-      const stmt = this.database.db.prepare(sql)
-      const result: CountResult = stmt.get(...params)
+      const result = this.#db.sql`
+        SELECT COUNT(*) as count FROM embedding_jobs
+      `.get<CountResult>()
 
       return result?.count || 0
     }
@@ -461,7 +409,7 @@ export class EmbeddingJobManager {
       totalJobs: total,
     }
 
-    this.logger.debug("Retrieved queue status", result)
+    this.#logger.debug("Retrieved queue status", result)
 
     return result
   }
@@ -472,16 +420,23 @@ export class EmbeddingJobManager {
    * @returns Number of jobs reset for retry
    */
   async retryFailedJobs(): Promise<number> {
-    const stmt = this.database.db.prepare(`
+    const result = this.#db.sql<{
+      new_status: string
+      attempts: number
+      old_status: string
+    }>`
       UPDATE embedding_jobs
-      SET status = 'pending', attempts = 0
-      WHERE status = 'failed'
-    `)
+      SET status = ${"$new_status"}, attempts = ${"$attempts"}
+      WHERE status = ${"$old_status"}
+    `.run({
+      new_status: "pending",
+      attempts: 0,
+      old_status: "failed",
+    })
 
-    const result = stmt.run()
-    const resetCount = result.changes || 0
+    const resetCount = Number(result.changes || 0)
 
-    this.logger.info("Reset failed jobs for retry", { count: resetCount })
+    this.#logger.info("Reset failed jobs for retry", { count: resetCount })
 
     return resetCount
   }
@@ -496,16 +451,21 @@ export class EmbeddingJobManager {
     const cleanupThreshold = threshold || DEFAULT_CLEANUP_THRESHOLD_MS
     const cutoffTime = Date.now() - cleanupThreshold
 
-    const stmt = this.database.db.prepare(`
+    const result = this.#db.sql<{
+      status: string
+      cutoff_time: number
+    }>`
       DELETE FROM embedding_jobs
-      WHERE status = 'completed'
-      AND processed_at < ?
-    `)
+      WHERE status = ${"$status"}
+      AND processed_at < ${"$cutoff_time"}
+    `.run({
+      status: "completed",
+      cutoff_time: cutoffTime,
+    })
 
-    const result = stmt.run(cutoffTime)
-    const deletedCount = result.changes || 0
+    const deletedCount = Number(result.changes || 0)
 
-    this.logger.info("Cleaned up old completed jobs", {
+    this.#logger.info("Cleaned up old completed jobs", {
       count: deletedCount,
       threshold: cleanupThreshold,
       olderThan: new Date(cutoffTime).toISOString(),
@@ -524,42 +484,54 @@ export class EmbeddingJobManager {
    * @param error - Optional error message
    * @returns Database result
    */
-  private _updateJobStatus(
+  #updateJobStatus(
     jobId: string,
     status: EmbeddingJobStatus,
     attempts?: number,
     error?: string
-  ): Record<string, unknown> {
-    let sql = `
-      UPDATE embedding_jobs
-      SET status = ?
-    `
+  ) {
+    type Params = {
+      status: string
+      id: string
+      processed_at?: number
+      attempts?: number
+      error?: string | null
+    }
 
-    const params: (string | number)[] = [status]
+    const params: Params = {
+      status,
+      id: jobId,
+    }
+
+    // Build dynamic SET clause
+    const setClauses: string[] = [`status = ${"$status"}`]
 
     // Add processed_at timestamp for completed/failed statuses
     if (status === "completed" || status === "failed") {
-      sql += ", processed_at = ?"
-      params.push(Date.now())
+      params.processed_at = Date.now()
+      setClauses.push(`processed_at = ${"$processed_at"}`)
     }
 
     // Update attempts if provided
     if (attempts !== undefined) {
-      sql += ", attempts = ?"
-      params.push(attempts)
+      params.attempts = attempts
+      setClauses.push(`attempts = ${"$attempts"}`)
     }
 
     // Include error message if provided
-    if (error) {
-      sql += ", error = ?"
-      params.push(error)
+    if (error !== undefined) {
+      params.error = error
+      setClauses.push(`error = ${"$error"}`)
     }
 
-    sql += " WHERE id = ?"
-    params.push(jobId)
+    // Compose the UPDATE query with type safety
+    const updateStmt = this.#db.sql`UPDATE embedding_jobs`
+    const setClause = this.#db.sql<Params>`SET ${raw`${setClauses.join(", ")}`}`
+    const whereClause = this.#db.sql<Params>`WHERE id = ${"$id"}`
+    const query = this.#db
+      .sql<Params>`${updateStmt} ${setClause} ${whereClause}`
 
-    const stmt = this.database.db.prepare(sql)
-    return stmt.run(...params)
+    return query.run(params)
   }
 
   /**
@@ -584,7 +556,7 @@ export class EmbeddingJobManager {
       // Update last refill time, keeping track of remaining time
       this.rateLimiter.lastRefill = now
 
-      this.logger.debug("Refilled rate limiter tokens", {
+      this.#logger.debug("Refilled rate limiter tokens", {
         current: this.rateLimiter.tokens,
         max: this.rateLimiter.tokensPerInterval,
         intervals,
@@ -595,7 +567,7 @@ export class EmbeddingJobManager {
     if (this.rateLimiter.tokens > 0) {
       this.rateLimiter.tokens--
 
-      this.logger.debug("Consumed rate limiter token", {
+      this.#logger.debug("Consumed rate limiter token", {
         remaining: this.rateLimiter.tokens,
         max: this.rateLimiter.tokensPerInterval,
       })
@@ -604,7 +576,7 @@ export class EmbeddingJobManager {
     }
 
     // No tokens available
-    this.logger.warn("Rate limit exceeded", {
+    this.#logger.warn("Rate limit exceeded", {
       availableTokens: 0,
       maxTokens: this.rateLimiter.tokensPerInterval,
       nextRefillIn:
@@ -653,27 +625,27 @@ export class EmbeddingJobManager {
     const cachedValue = this.cache.get(cacheKey)
 
     if (cachedValue) {
-      this.logger.debug("Cache hit", {
+      this.#logger.debug("Cache hit", {
         textHash: cacheKey.substring(0, CACHE_KEY_PREVIEW_LENGTH),
         age: Date.now() - cachedValue.timestamp,
       })
       return cachedValue.embedding
     }
 
-    this.logger.debug("Cache miss", {
+    this.#logger.debug("Cache miss", {
       textHash: cacheKey.substring(0, CACHE_KEY_PREVIEW_LENGTH),
     })
 
     try {
       // Generate new embedding
-      const embedding = await this.embeddingService.generateEmbedding(text)
+      const embedding = await this.#embeddingService.generateEmbedding(text)
 
       // Store in cache
-      this._cacheEmbedding(text, embedding)
+      this.#cacheEmbedding(text, embedding)
 
       return embedding
     } catch (error) {
-      this.logger.error("Failed to generate embedding", {
+      this.#logger.error("Failed to generate embedding", {
         error,
         textLength: text.length,
       })
@@ -688,9 +660,9 @@ export class EmbeddingJobManager {
    * @param text - Original text
    * @param embedding - Embedding vector
    */
-  private _cacheEmbedding(text: string, embedding: number[]): void {
+  #cacheEmbedding(text: string, embedding: number[]): void {
     const cacheKey = this._generateCacheKey(text)
-    const modelInfo = this.embeddingService.getModelInfo()
+    const modelInfo = this.#embeddingService.getModelInfo()
 
     this.cache.set(cacheKey, {
       embedding,
@@ -698,7 +670,7 @@ export class EmbeddingJobManager {
       model: modelInfo.name,
     })
 
-    this.logger.debug("Cached embedding", {
+    this.#logger.debug("Cached embedding", {
       textHash: cacheKey.substring(0, CACHE_KEY_PREVIEW_LENGTH),
       model: modelInfo.name,
       dimensions: embedding.length,
@@ -723,7 +695,7 @@ export class EmbeddingJobManager {
    * @param entity - Entity to prepare text from
    * @returns Processed text ready for embedding
    */
-  private _prepareEntityText(entity: Entity): string {
+  #prepareEntityText(entity: Entity): string {
     // Create a descriptive text from entity data
     const lines = [
       `Name: ${entity.name}`,
@@ -764,7 +736,7 @@ export class EmbeddingJobManager {
     const text = lines.join("\n")
 
     // Log the prepared text for debugging
-    this.logger.debug("Prepared entity text for embedding", {
+    this.#logger.debug("Prepared entity text for embedding", {
       entityName: entity.name,
       entityType: entity.entityType,
       observationCount: Array.isArray(entity.observations)

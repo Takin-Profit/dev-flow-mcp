@@ -17,8 +17,6 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { DB } from "@takinprofit/sqlite-x"
-import { load as loadSqliteVec } from "sqlite-vec"
 import { env } from "#config"
 import { SqliteDb } from "#db/sqlite-db"
 import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
@@ -54,33 +52,14 @@ export default async function startMcpServer(): Promise<void> {
     // ========================================================================
     // Step 1: Initialize SQLite Database
     // ========================================================================
-    logger.debug("Initializing SQLite database...")
-    const db = new DB({
-      location: env.DFM_SQLITE_LOCATION,
-      logger,
-      allowExtension: true,
-    })
-
-    // Load sqlite-vec extension
-    logger.debug("Loading sqlite-vec extension...")
-    loadSqliteVec(db.nativeDb)
-
-    // Apply internal optimizations (not user-configurable)
-    logger.debug("Applying SQLite optimizations...")
-    db.exec("PRAGMA journal_mode = WAL")
-    db.exec("PRAGMA cache_size = -64000") // 64MB
-    db.exec("PRAGMA busy_timeout = 5000")
-    db.exec("PRAGMA synchronous = NORMAL")
-    db.exec("PRAGMA temp_store = MEMORY")
+    // Create database instances (explicit SQLite classes)
+    logger.debug("Creating database...")
+    const sqliteDb = new SqliteDb(env.DFM_SQLITE_LOCATION, logger)
 
     // Initialize schema
     logger.debug("Initializing database schema...")
-    const schemaManager = new SqliteSchemaManager(db, logger)
+    const schemaManager = new SqliteSchemaManager(sqliteDb.dbInstance, logger)
     await schemaManager.initializeSchema()
-
-    // Create database instances (explicit SQLite classes)
-    logger.debug("Creating database...")
-    const sqliteDb = new SqliteDb(db, logger)
 
     // ========================================================================
     // Step 2: Create Knowledge Graph Manager

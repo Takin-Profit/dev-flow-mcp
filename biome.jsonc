@@ -1,6 +1,39 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "extends": ["ultracite"],
+  "files": {
+    "ignoreUnknown": false
+  },
+  "linter": {
+    "includes": [
+      "src/cli/**/*",
+      "src/config.ts",
+      "src/db/**/*",
+      "src/embeddings/**/*",
+      "src/errors.ts",
+      "src/knowledge-graph-manager.ts",
+      "src/logger.ts",
+      "src/prompts/**/*",
+      "src/server/**/*",
+      "src/types/**/*",
+      "src/utils/**/*"
+    ]
+  },
+  "formatter": {
+    "includes": [
+      "src/cli/**/*",
+      "src/config.ts",
+      "src/db/**/*",
+      "src/embeddings/**/*",
+      "src/errors.ts",
+      "src/knowledge-graph-manager.ts",
+      "src/logger.ts",
+      "src/prompts/**/*",
+      "src/server/**/*",
+      "src/types/**/*",
+      "src/utils/**/*"
+    ]
+  },
   "javascript": {
     "formatter": {
       "semicolons": "asNeeded"

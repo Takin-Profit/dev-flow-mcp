@@ -1,10 +1,9 @@
-import type { Database } from "#db/database"
+import type { SqliteDb } from "#db/sqlite-db"
 import type { EmbeddingJobManager } from "#embeddings/embedding-job-manager"
 import { DatabaseError } from "#errors"
 import type {
   Entity,
   KnowledgeGraph,
-  KnowledgeGraphManagerOptions,
   Logger,
   Relation,
   VectorStore,
@@ -16,64 +15,32 @@ import {
   KG_MANAGER_MIN_SIMILARITY,
 } from "#types"
 
-// Extended database interfaces for optional methods
-interface DatabaseWithSearchVectors extends Database {
-  searchVectors(
-    embedding: number[],
-    limit: number,
-    threshold: number
-  ): Promise<Array<{ name: string; score: number }>>
-}
+/**
+ * Knowledge Graph Manager Configuration Options
+ */
+export type KnowledgeGraphManagerOptions = {
+  /**
+   * SQLite database for persisting entities and relations
+   */
+  database: SqliteDb
 
-interface DatabaseWithSemanticSearch extends Database {
-  semanticSearch(
-    query: string,
-    options: Record<string, unknown>
-  ): Promise<KnowledgeGraph>
-}
+  /**
+   * Optional embedding job manager for scheduling and processing embeddings
+   */
+  embeddingJobManager?: EmbeddingJobManager
 
-// This interface doesn't extend Database because the return types are incompatible
-type DatabaseWithUpdateRelation = {
-  updateRelation(relation: Relation): Promise<Relation>
+  /**
+   * Optional logger instance
+   */
+  logger?: Logger
 }
-
-// Type guard functions
-function hasSearchVectors(
-  provider: Database
-): provider is DatabaseWithSearchVectors {
-  return (
-    "searchVectors" in provider &&
-    typeof (provider as DatabaseWithSearchVectors).searchVectors === "function"
-  )
-}
-
-function hasSemanticSearch(
-  provider: Database
-): provider is DatabaseWithSemanticSearch {
-  return (
-    "semanticSearch" in provider &&
-    typeof (provider as DatabaseWithSemanticSearch).semanticSearch ===
-      "function"
-  )
-}
-
-// Check if a provider has an updateRelation method that returns a Relation
-function hasUpdateRelation(provider: Database): boolean {
-  return (
-    "updateRelation" in provider &&
-    typeof (provider as unknown as DatabaseWithUpdateRelation)
-      .updateRelation === "function"
-  )
-}
-
-// Constants for semantic search defaults are imported from #types
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
 export class KnowledgeGraphManager {
-  private readonly database: Database
+  private readonly database: SqliteDb
   private readonly logger: Logger
   private readonly embeddingJobManager?: EmbeddingJobManager
-  private vectorStore?: VectorStore
+  private readonly vectorStore?: VectorStore
 
   constructor(options: KnowledgeGraphManagerOptions) {
     this.database = options.database
@@ -87,7 +54,7 @@ export class KnowledgeGraphManager {
    * Get the database instance
    * @returns The database or null if not available
    */
-  getDatabase(): Database | null {
+  getDatabase(): SqliteDb | null {
     return this.database ?? null
   }
 
@@ -100,25 +67,12 @@ export class KnowledgeGraphManager {
   }
 
   /**
-   * Initialize the vector store with the given options
-   * NOTE: This method is deprecated - SQLite database has its own vector store
-   *
-   * @param options - Options for the vector store
-   */
-  private async initializeVectorStore(_options: any): Promise<void> {
-    // Vector store factory removed - using SQLite provider's internal vector store
-    this.logger.info(
-      "Vector store initialization skipped - using database's vector store"
-    )
-  }
-
-  /**
    * Ensure vector store is initialized
    * NOTE: This now returns the database's vector store (for SQLite)
    *
    * @returns Promise that resolves when the vector store is initialized
    */
-  private async ensureVectorStore(): Promise<VectorStore> {
+  private ensureVectorStore(): VectorStore {
     if (!this.vectorStore) {
       // Vector store is managed by the database (SQLite)
       // This method is kept for backward compatibility but won't be used
@@ -145,25 +99,21 @@ export class KnowledgeGraphManager {
     for (const entity of createdEntities) {
       if (entity.embedding?.vector) {
         try {
-          const vectorStore = await this.ensureVectorStore().catch(() => {
-            // Vector store initialization failed, continue without it
-          })
-          if (vectorStore) {
-            // Add metadata for filtering
-            const metadata = {
-              name: entity.name,
-              entityType: entity.entityType,
-            }
-
-            await vectorStore.addVector(
-              entity.name,
-              entity.embedding.vector,
-              metadata
-            )
-            this.logger.debug(
-              `Added vector for entity ${entity.name} to vector store`
-            )
+          const vectorStore = this.ensureVectorStore()
+          // Add metadata for filtering
+          const metadata = {
+            name: entity.name,
+            entityType: entity.entityType,
           }
+
+          await vectorStore.addVector(
+            entity.name,
+            entity.embedding.vector,
+            metadata
+          )
+          this.logger.debug(
+            `Added vector for entity ${entity.name} to vector store`
+          )
         } catch (error) {
           this.logger.error(
             `Failed to add vector for entity ${entity.name} to vector store`,
@@ -177,7 +127,7 @@ export class KnowledgeGraphManager {
     // Schedule embedding jobs if manager is provided
     if (this.embeddingJobManager) {
       for (const entity of createdEntities) {
-        await this.embeddingJobManager.scheduleEntityEmbedding(entity.name, 1)
+        await this.embeddingJobManager.scheduleEntityEmbedding(entity.name)
       }
     }
 
@@ -205,9 +155,7 @@ export class KnowledgeGraphManager {
     // Remove entities from vector store if available
     try {
       // Ensure vector store is available
-      const vectorStore = await this.ensureVectorStore().catch(() => {
-        // Vector store initialization failed, continue without it
-      })
+      const vectorStore = this.ensureVectorStore()
 
       if (vectorStore) {
         for (const entityName of entityNames) {
@@ -245,8 +193,7 @@ export class KnowledgeGraphManager {
     if (this.embeddingJobManager) {
       for (const deletion of deletions) {
         await this.embeddingJobManager.scheduleEntityEmbedding(
-          deletion.entityName,
-          1
+          deletion.entityName
         )
       }
     }
@@ -304,8 +251,7 @@ export class KnowledgeGraphManager {
       for (const result of results) {
         if (result.addedObservations.length > 0) {
           await this.embeddingJobManager.scheduleEntityEmbedding(
-            result.entityName,
-            1
+            result.entityName
           )
         }
       }
@@ -339,9 +285,7 @@ export class KnowledgeGraphManager {
     // If we have a vector store, use it directly
     try {
       // Ensure vector store is available
-      const vectorStore = await this.ensureVectorStore().catch(() => {
-        // Vector store initialization failed, continue without it
-      })
+      const vectorStore = this.ensureVectorStore()
 
       if (vectorStore) {
         const limit = options.limit || DEFAULT_SEARCH_LIMIT
@@ -354,26 +298,19 @@ export class KnowledgeGraphManager {
         })
 
         // Convert to the expected format
-        return results.map((result) => ({
-          name: result.id.toString(),
-          score: result.similarity,
-        }))
+        return results.map(
+          (result: { id: string | number; similarity: number }) => ({
+            name: result.id.toString(),
+            score: result.similarity,
+          })
+        )
       }
     } catch (error) {
       this.logger.error("Failed to search vector store", error)
-      // Fall through to other methods
+      // Return empty result if vector search fails
     }
 
-    // If we have a vector search method in the database, use it
-    if (this.database && hasSearchVectors(this.database)) {
-      return this.database.searchVectors(
-        embedding,
-        options.limit || DEFAULT_SEARCH_LIMIT,
-        options.threshold || KG_MANAGER_MIN_SIMILARITY
-      )
-    }
-
-    // Otherwise, return an empty result
+    // Return empty array if no vector store available
     return []
   }
 
@@ -395,10 +332,6 @@ export class KnowledgeGraphManager {
     query: string,
     effectiveOptions: Record<string, unknown>
   ): Promise<KnowledgeGraph | null> {
-    if (!(this.database && hasSemanticSearch(this.database))) {
-      return null
-    }
-
     try {
       // Generate query vector if we have an embedding service
       if (this.embeddingJobManager) {
@@ -564,7 +497,7 @@ export class KnowledgeGraphManager {
     const graph = await this.openNodes(entityNames)
 
     // Add scores to entities for client use
-    const scoredEntities = graph.entities.map((entity) => {
+    const scoredEntities = graph.entities.map((entity: Entity) => {
       const matchScore =
         similarEntities.find((e) => e.name === entity.name)?.score || 0
       return {
@@ -574,16 +507,17 @@ export class KnowledgeGraphManager {
     })
 
     // Sort by score descending
-    scoredEntities.sort((a, b) => {
-      const scoreA = "score" in a ? (a as Entity & { score: number }).score : 0
-      const scoreB = "score" in b ? (b as Entity & { score: number }).score : 0
-      return scoreB - scoreA
-    })
+    scoredEntities.sort(
+      (a: Entity & { score: number }, b: Entity & { score: number }) => {
+        const scoreA = a.score
+        const scoreB = b.score
+        return scoreB - scoreA
+      }
+    )
 
     return {
       entities: scoredEntities,
       relations: graph.relations,
-      total: similarEntities.length,
     }
   }
 
@@ -610,16 +544,10 @@ export class KnowledgeGraphManager {
    * Update a relation with new properties
    *
    * @param relation The relation to update
-   * @returns The updated relation
+   * @returns Promise that resolves when update is complete
    */
-  updateRelation(relation: Relation): Promise<Relation> {
-    if (hasUpdateRelation(this.database)) {
-      // Cast to the extended interface to access the method
-      const provider = this.database as unknown as DatabaseWithUpdateRelation
-      return provider.updateRelation(relation)
-    }
-
-    throw new Error("Storage provider does not support updateRelation")
+  updateRelation(relation: Relation): Promise<void> {
+    return this.database.updateRelation(relation)
   }
 
   /**
@@ -655,7 +583,7 @@ export class KnowledgeGraphManager {
 
       // Schedule embedding generation if observations were updated
       if (this.embeddingJobManager && updates.observations) {
-        await this.embeddingJobManager.scheduleEntityEmbedding(entityName, 2)
+        await this.embeddingJobManager.scheduleEntityEmbedding(entityName)
       }
 
       return result

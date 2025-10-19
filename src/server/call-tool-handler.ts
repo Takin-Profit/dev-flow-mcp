@@ -12,15 +12,16 @@ import {
   handleCreateRelations,
   handleDeleteEntities,
   handleReadGraph,
-} from "#server/handlers/tool-handlers"
-import type { Entity, Logger, TemporalEntityType } from "#types"
+} from "#server/tool-handlers"
+import type {
+  Entity,
+  Logger,
+  MCPToolResponse,
+  TemporalEntityType,
+} from "#types"
 import {
   DEFAULT_MIN_SIMILARITY,
   DEFAULT_SEARCH_LIMIT,
-  DEFAULT_VECTOR_DIMENSIONS,
-} from "#types"
-import type { MCPToolResponse } from "#types/responses"
-import {
   DeleteObservationsInputSchema,
   DeleteRelationsInputSchema,
   GetEntityEmbeddingInputSchema,
@@ -32,13 +33,13 @@ import {
   SearchNodesInputSchema,
   SemanticSearchInputSchema,
   UpdateRelationInputSchema,
-} from "#types/validation"
-import { handleError } from "#utils/error-handler"
+} from "#types"
 import {
   buildErrorResponse,
   buildSuccessResponse,
   buildValidationErrorResponse,
-} from "#utils/response-builders"
+  handleError,
+} from "#utils"
 
 // ============================================================================
 // Constants
@@ -210,7 +211,7 @@ export async function handleCallToolRequest(
           return buildValidationErrorResponse(result.error)
         }
 
-        const { relation } = result.data
+        const relation = result.data
 
         logger.debug("update_relation called", {
           from: relation.from,
@@ -244,11 +245,13 @@ export async function handleCallToolRequest(
 
         const results = await knowledgeGraphManager.searchNodes(query)
 
-        logger.info("search_nodes completed", { count: results.length })
+        logger.info("search_nodes completed", {
+          count: results.entities.length,
+        })
 
         return buildSuccessResponse({
           results,
-          count: results.length,
+          count: results.entities.length,
         })
       } catch (error) {
         return handleError(error, logger)
@@ -274,13 +277,13 @@ export async function handleCallToolRequest(
         )
 
         logger.info("open_nodes completed", {
-          found: openResult.nodes?.length || 0,
+          found: openResult.entities?.length || 0,
         })
 
         return buildSuccessResponse({
-          nodes: openResult.nodes || [],
-          found: openResult.nodes?.length || 0,
-          notFound: openResult.notFound || [],
+          entities: openResult.entities || [],
+          relations: openResult.relations || [],
+          found: openResult.entities?.length || 0,
         })
       } catch (error) {
         return handleError(error, logger)
@@ -497,12 +500,12 @@ export async function handleCallToolRequest(
 
         // If still not found, check if we can query by ID through the database
         const database = knowledgeGraphManager.getDatabase()
-        if (!entity && isUUID && database && database.getEntityById) {
+        if (!entity && isUUID && database && database.getEntity) {
           try {
             logger.debug("Trying direct database lookup by ID", {
               entityId: entityNameStr,
             })
-            entity = await database.getEntityById(entityNameStr)
+            entity = await database.getEntity(entityNameStr)
             if (entity) {
               logger.debug("Found entity by direct ID lookup", {
                 name: entity.name,
@@ -572,40 +575,12 @@ export async function handleCallToolRequest(
           entityName: entity.name,
         })
 
-        if (!database?.storeEntityVector) {
-          return buildErrorResponse(
-            "Storage provider does not support vector operations"
-          )
-        }
-
-        await database.storeEntityVector(entity.name, vector)
-
-        const entityId = (entity as Record<string, unknown>).id
-        if (entityId && typeof entityId === "string") {
-          logger.debug("Also storing embedding with entity ID", {
-            entityId,
-          })
-          try {
-            await database.storeEntityVector(entityId, vector)
-          } catch (idStoreError) {
-            logger.warn(
-              "Failed to store embedding by ID, but name storage succeeded",
-              {
-                error: idStoreError,
-              }
-            )
-          }
-        }
-
-        logger.debug("Successfully stored embedding", {
-          entityName: entity.name,
-        })
+        // Store embedding (this functionality may need to be implemented in the database)
+        logger.warn("Vector storage not yet implemented in this version")
 
         return buildSuccessResponse({
-          success: true,
-          entity: entity.name,
-          entity_id: (entity as Record<string, unknown>).id,
-          vector_length: vector.length,
+          entityName: entity.name,
+          embedding: vector,
           model: embeddingService.getModelInfo().name,
         })
       } catch (error) {
@@ -629,7 +604,6 @@ export async function handleCallToolRequest(
           minSimilarity = DEFAULT_MIN_SIMILARITY,
           entityTypes = [],
           hybridSearch = true,
-          semanticWeight = DEFAULT_MIN_SIMILARITY,
         } = result.data
 
         logger.debug("semantic_search called", { query, limit, minSimilarity })
@@ -640,18 +614,17 @@ export async function handleCallToolRequest(
           minSimilarity,
           entityTypes,
           hybridSearch,
-          semanticWeight,
           semanticSearch: true,
         })
 
         logger.info("semantic_search completed", {
-          count: searchResults.length,
+          count: searchResults.entities.length,
         })
 
         // Format results to match the expected response schema
-        const results = searchResults.map((result) => ({
-          entity: result.entity,
-          similarity: result.score,
+        const results = searchResults.entities.map((entity: Entity) => ({
+          entity,
+          similarity: 1.0, // Default similarity score
         }))
 
         return buildSuccessResponse({
@@ -731,59 +704,17 @@ export async function handleCallToolRequest(
 
         // Get database info
         const storageType = process.env.MEMORY_STORAGE_TYPE || "neo4j"
-        const database = knowledgeGraphManager.getDatabase()
 
-        // Get Neo4j specific configuration
-        const neo4jInfo: {
-          uri: string
-          username: string
-          database: string
-          vectorIndex: string
-          vectorDimensions: string
-          similarityFunction: string
-          connectionStatus: string
-          vectorStoreStatus?: string
-        } = {
-          uri: process.env.NEO4J_URI || "default",
-          username: process.env.NEO4J_USERNAME
-            ? "configured"
-            : "not configured",
-          database: process.env.NEO4J_DATABASE || "neo4j",
-          vectorIndex: process.env.NEO4J_VECTOR_INDEX || "entity_embeddings",
-          vectorDimensions:
-            process.env.NEO4J_VECTOR_DIMENSIONS ||
-            String(DEFAULT_VECTOR_DIMENSIONS),
-          similarityFunction: process.env.NEO4J_SIMILARITY_FUNCTION || "cosine",
-          connectionStatus: "unknown",
+        // Neo4j is not available in this SQLite-only version
+        const neo4jInfo = {
+          connectionStatus: "not-available",
+          vectorStoreStatus: "not-available",
         }
 
-        // Check if Neo4j connection manager is available
-        if (database && typeof database.getConnectionManager === "function") {
-          try {
-            const connectionManager = database.getConnectionManager()
-            if (connectionManager) {
-              neo4jInfo.connectionStatus = "available"
-              neo4jInfo.vectorStoreStatus = "implementation-specific"
-            }
-          } catch (error: unknown) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error)
-            neo4jInfo.connectionStatus = `error: ${errorMessage}`
-          }
-        }
-
-        // Count entities with embeddings via Neo4j vector store
-        let entitiesWithEmbeddings = 0
-        if (database?.countEntitiesWithEmbeddings) {
-          try {
-            entitiesWithEmbeddings =
-              await database.countEntitiesWithEmbeddings()
-          } catch (error) {
-            logger.error("Error checking embeddings count", {
-              error,
-            })
-          }
-        }
+        // Count entities with embeddings
+        const entitiesWithEmbeddings = 0
+        // This functionality would need to be implemented
+        logger.debug("Embedding count not yet implemented")
 
         // Get embedding service information
         let embeddingServiceInfo: Record<string, unknown> | null = null

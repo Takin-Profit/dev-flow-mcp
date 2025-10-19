@@ -4,8 +4,8 @@
  * These define the arguments that each prompt accepts,
  * with completable fields for better UX in AI clients.
  *
- * Note: We use Zod here (not ArkType) because MCP SDK's Completable
- * feature is tightly coupled with Zod's type system.
+ * Note: We use Zod v4 (main) and Zod v3 (for completable) because MCP SDK's
+ * Completable feature requires Zod v3. Zod v4 provides v3 export for compatibility.
  */
 
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js"

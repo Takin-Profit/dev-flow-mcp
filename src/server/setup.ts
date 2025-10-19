@@ -18,8 +18,8 @@ import {
   RememberWorkArgsSchema,
   ReviewContextArgsSchema,
 } from "#prompts/schemas"
-import { handleCallToolRequest } from "#server/handlers/call-tool-handler"
-import { handleListToolsRequest } from "#server/handlers/list-tools-handler"
+import { handleCallToolRequest } from "#server/call-tool-handler"
+import { handleListToolsRequest } from "#server/list-tools-handler"
 import type { Logger } from "#types"
 
 /**

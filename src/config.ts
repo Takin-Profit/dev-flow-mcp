@@ -7,9 +7,46 @@ import { existsSync, mkdirSync } from "node:fs"
 import path from "node:path"
 import { consola } from "consola"
 import xdgAppPaths from "xdg-app-paths"
+// biome-ignore lint/style/noExportedImports: export the configured version
 import { z } from "zod"
+import { createErrorMap } from "zod-validation-error"
 
-// Re-export zod for convenience
+// ============================================================================
+// Zod Configuration
+// ============================================================================
+
+/**
+ * Configure Zod v4 with user-friendly error messages using the config API
+ *
+ * See: https://github.com/causaly/zod-validation-error#createerrormap
+ */
+z.config({
+  customError: createErrorMap({
+    // Show detailed format information in error messages
+    displayInvalidFormatDetails: false, // Set to true in dev mode if needed
+
+    // Display configuration for allowed values
+    maxAllowedValuesToDisplay: 10,
+    allowedValuesSeparator: ", ",
+    allowedValuesLastSeparator: " or ",
+    wrapAllowedValuesInQuote: true,
+
+    // Display configuration for unrecognized keys
+    maxUnrecognizedKeysToDisplay: 5,
+    unrecognizedKeysSeparator: ", ",
+    unrecognizedKeysLastSeparator: " and ",
+    wrapUnrecognizedKeysInQuote: true,
+
+    // Localization for dates and numbers
+    dateLocalization: true,
+    numberLocalization: true,
+  }),
+})
+
+/**
+ * Export configured Zod instance
+ * Import this throughout the codebase instead of importing 'zod' directly
+ */
 export { z }
 
 // Note: We inline these constants here to avoid circular dependencies
@@ -87,9 +124,6 @@ if (!parsedEnv.success) {
 }
 
 export const env = parsedEnv.data
-
-// Re-export zod for convenience
-export { z }
 
 // Debug: Log what zod parsed
 if (env.DFM_DEBUG) {

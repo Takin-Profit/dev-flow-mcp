@@ -10,51 +10,26 @@
 // Logger Types
 // ============================================================================
 
-export type { Logger, LogMetadata } from "#types/logger"
 // biome-ignore lint/performance/noBarrelFile: node
-export { createNoOpLogger } from "#types/logger"
+export { createNoOpLogger } from "#logger"
+export type { Logger, LogMetadata } from "#types/logger"
 
 // ============================================================================
 // Zod Schemas and Types (Runtime Validation)
 // ============================================================================
 
+// Knowledge Graph types - export both direct and aliased for compatibility
 export type {
-  Entity as EntityType,
-  EntityEmbedding as EntityEmbeddingType,
-} from "#types/entity"
-// Entity schemas and types
-export {
-  EntityEmbeddingSchema,
-  EntitySchema,
-  EntityValidator,
-} from "#types/entity"
-export type {
-  KnowledgeGraph as KnowledgeGraphType,
-  KnowledgeGraphManagerOptions,
-  SearchMatch as SearchMatchType,
-  SearchResponse as SearchResponseType,
-  SearchResult as SearchResultType,
-  TextMatch as TextMatchType,
+  SearchMatch,
+  SearchResponse,
+  SearchResult,
+  TextMatch,
 } from "#types/knowledge-graph"
-// Knowledge Graph schemas and types
 export {
-  KnowledgeGraphSchema,
   KnowledgeGraphValidator,
   SearchResponseSchema,
   SearchResultSchema,
 } from "#types/knowledge-graph"
-export type {
-  Relation as RelationType,
-  RelationMetadata as RelationMetadataType,
-  RelationType as RelationTypeType,
-} from "#types/relation"
-// Relation schemas and types
-export {
-  RelationMetadataSchema,
-  RelationSchema,
-  RelationTypeSchema as RelationTypeValidator,
-  RelationValidator,
-} from "#types/relation"
 // Temporal types - entities and relations with versioning
 export type {
   TemporalEntity,
@@ -64,17 +39,110 @@ export {
   TemporalEntityValidator,
   TemporalRelationValidator,
 } from "#types/temporal"
+// Entity types - export both direct and aliased for compatibility
+// Relation types - export both direct and aliased for compatibility
+// Input/Output types for MCP tools
 export type {
+  AddObservationsInput,
+  AddObservationsOutput,
+  CreateEntitiesInput,
+  CreateEntitiesOutput,
+  CreateRelationsInput,
+  CreateRelationsOutput,
+  DeleteEntitiesInput,
+  DeleteEntitiesOutput,
+  DeleteObservationsInput,
+  DeleteObservationsOutput,
+  DeleteRelationsInput,
+  DeleteRelationsOutput,
+  Entity,
+  EntityEmbedding,
   EntityName,
+  EntityType,
+  GetDecayedGraphInput,
+  GetDecayedGraphOutput,
+  GetEntityEmbeddingInput,
+  GetEntityEmbeddingOutput,
+  GetEntityHistoryInput,
+  GetEntityHistoryOutput,
+  GetGraphAtTimeInput,
+  GetGraphAtTimeOutput,
+  GetRelationHistoryInput,
+  GetRelationHistoryOutput,
+  GetRelationInput,
+  GetRelationOutput,
+  KnowledgeGraph,
+  MCPToolResponse,
   Observation,
+  OpenNodesInput,
+  OpenNodesOutput,
+  ReadGraphInput,
+  ReadGraphOutput,
+  Relation,
+  RelationMetadata,
+  RelationType as RelationTypeEnum,
+  SearchNodesInput,
+  SearchNodesOutput,
+  SemanticSearchInput,
+  SemanticSearchOutput,
+  UpdateRelationInput,
+  UpdateRelationOutput,
 } from "#types/validation"
+
 // Shared schemas from validation.ts (Zod-based)
-export { EntityNameSchema, ObservationSchema } from "#types/validation"
+export {
+  AddObservationsInputSchema,
+  AddObservationsOutputSchema,
+  CreateEntitiesInputSchema,
+  CreateEntitiesOutputSchema,
+  CreateRelationsInputSchema,
+  CreateRelationsOutputSchema,
+  DeleteEntitiesInputSchema,
+  DeleteEntitiesOutputSchema,
+  DeleteObservationsInputSchema,
+  DeleteObservationsOutputSchema,
+  DeleteRelationsInputSchema,
+  DeleteRelationsOutputSchema,
+  EntityEmbeddingSchema,
+  EntityNameSchema,
+  EntitySchema,
+  GetDecayedGraphInputSchema,
+  GetDecayedGraphOutputSchema,
+  GetEntityEmbeddingInputSchema,
+  GetEntityEmbeddingOutputSchema,
+  GetEntityHistoryInputSchema,
+  GetEntityHistoryOutputSchema,
+  GetGraphAtTimeInputSchema,
+  GetGraphAtTimeOutputSchema,
+  GetRelationHistoryInputSchema,
+  GetRelationHistoryOutputSchema,
+  GetRelationInputSchema,
+  GetRelationOutputSchema,
+  KnowledgeGraphSchema,
+  MCPToolResponseSchema,
+  ObservationSchema,
+  OpenNodesInputSchema,
+  OpenNodesOutputSchema,
+  ReadGraphInputSchema,
+  ReadGraphOutputSchema,
+  RelationMetadataSchema,
+  RelationSchema,
+  RelationTypeSchema as RelationTypeValidator,
+  RelationValidator,
+  SearchNodesInputSchema,
+  SearchNodesOutputSchema,
+  SemanticSearchInputSchema,
+  SemanticSearchOutputSchema,
+  UpdateRelationInputSchema,
+  UpdateRelationOutputSchema,
+} from "#types/validation"
 
 // Type alias for TemporalEntity (for backward compatibility)
 import type { TemporalEntity } from "#types/temporal"
 export type TemporalEntityType = TemporalEntity
 
+// Service types
+export type { IEmbeddingService as EmbeddingService } from "#embeddings/embedding-service"
 // Application constants
 export * from "#types/constants"
 // Storage types (SearchOptions and SemanticSearchOptions)

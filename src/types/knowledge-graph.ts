@@ -5,10 +5,17 @@
 
 import { z } from "#config"
 import type { Entity } from "#types/validation"
+import {
+  CharacterOffsetSchema,
+  ConfidenceScoreSchema,
+  CountSchema,
+  DurationSchema,
+  EntityFieldSchema,
+  EntitySchema,
+} from "#types/validation"
 
 // Re-export core knowledge graph types from validation
 export type { KnowledgeGraph } from "#types/validation"
-export { KnowledgeGraphSchema } from "#types/validation"
 
 import { type KnowledgeGraph, KnowledgeGraphSchema } from "#types/validation"
 
@@ -36,8 +43,8 @@ export const KnowledgeGraphValidator = Object.freeze({
  */
 export const TextMatchSchema = z.object({
   text: z.string(),
-  start: z.number(),
-  end: z.number(),
+  start: CharacterOffsetSchema,
+  end: CharacterOffsetSchema,
 })
 export type TextMatch = z.infer<typeof TextMatchSchema>
 
@@ -45,8 +52,8 @@ export type TextMatch = z.infer<typeof TextMatchSchema>
  * Match details for a specific field in search results
  */
 export const SearchMatchSchema = z.object({
-  field: z.string(),
-  score: z.number(),
+  field: EntityFieldSchema,
+  score: ConfidenceScoreSchema,
   textMatches: z.array(TextMatchSchema).optional(),
 })
 export type SearchMatch = z.infer<typeof SearchMatchSchema>
@@ -55,8 +62,8 @@ export type SearchMatch = z.infer<typeof SearchMatchSchema>
  * SearchResult - a single search result with relevance information
  */
 export const SearchResultSchema = z.object({
-  entity: z.any(), // Entity schema imported from validation
-  score: z.number(),
+  entity: EntitySchema, // Entity schema imported from validation
+  score: ConfidenceScoreSchema,
   matches: z.array(SearchMatchSchema).optional(),
   explanation: z.unknown().optional(),
 })
@@ -72,28 +79,8 @@ export type SearchResult = {
  */
 export const SearchResponseSchema = z.object({
   results: z.array(SearchResultSchema),
-  total: z.number(),
-  facets: z.record(z.unknown()).optional(),
-  timeTaken: z.number(),
+  total: CountSchema,
+  facets: z.record(z.string(), z.unknown()).optional(),
+  timeTaken: DurationSchema,
 })
 export type SearchResponse = z.infer<typeof SearchResponseSchema>
-
-/**
- * Knowledge Graph Manager Configuration Options
- */
-export type KnowledgeGraphManagerOptions = {
-  /**
-   * Storage adapter for persisting entities and relations
-   */
-  database: unknown
-
-  /**
-   * Optional embedding service for semantic search
-   */
-  embeddingService?: unknown
-
-  /**
-   * Optional logger instance
-   */
-  logger?: unknown
-}

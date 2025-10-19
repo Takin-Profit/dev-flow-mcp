@@ -35,64 +35,99 @@ export const VALIDATION_CONSTANTS = {
 } as const
 
 /**
- * Branded Primitive Types
+ * Primitive Types
  *
  * These types prevent mixing up similar primitive values (e.g., timestamp vs version number).
- * Zod's .brand() creates a nominal type that's incompatible with plain numbers/strings at compile time.
+ * Zod's schemas provide validation for these primitive types.
  */
 
 /**
  * Unix timestamp in milliseconds
  * Must be a non-negative integer
  */
-export const TimestampSchema = z
-  .number()
-  .int()
-  .nonnegative()
-  .brand<"Timestamp">()
+export const TimestampSchema = z.number().int().nonnegative()
 export type Timestamp = z.infer<typeof TimestampSchema>
 
 /**
  * Version number (1-based)
  * Must be a positive integer
  */
-export const VersionSchema = z.number().int().positive().brand<"Version">()
+export const VersionSchema = z.number().int().positive()
 export type Version = z.infer<typeof VersionSchema>
 
 /**
  * Confidence score (0.0 to 1.0)
  * Represents certainty or confidence in a relation or classification
  */
-export const ConfidenceScoreSchema = z
-  .number()
-  .min(0)
-  .max(1)
-  .brand<"ConfidenceScore">()
+export const ConfidenceScoreSchema = z.number().min(0).max(1)
 export type ConfidenceScore = z.infer<typeof ConfidenceScoreSchema>
 
 /**
  * Strength score (0.0 to 1.0)
  * Represents intensity or importance of a relation
  */
-export const StrengthScoreSchema = z
-  .number()
-  .min(0)
-  .max(1)
-  .brand<"StrengthScore">()
+export const StrengthScoreSchema = z.number().min(0).max(1)
 export type StrengthScore = z.infer<typeof StrengthScoreSchema>
 
 /**
  * UUID-based entity identifier
  */
-export const EntityIdSchema = z.string().uuid().brand<"EntityId">()
+export const EntityIdSchema = z.uuidv4()
 export type EntityId = z.infer<typeof EntityIdSchema>
 
 /**
  * Relation identifier
  * Format: "{from}_{relationType}_{to}"
  */
-export const RelationIdSchema = z.string().brand<"RelationId">()
+export const RelationIdSchema = z.string()
 export type RelationId = z.infer<typeof RelationIdSchema>
+
+/**
+ * Character offset in a string
+ * Must be a non-negative integer
+ */
+export const CharacterOffsetSchema = z.number().int().nonnegative()
+export type CharacterOffset = z.infer<typeof CharacterOffsetSchema>
+
+/**
+ * A field name in an entity
+ */
+export const EntityFieldSchema = z.string()
+export type EntityField = z.infer<typeof EntityFieldSchema>
+
+/**
+ * A count of items
+ * Must be a non-negative integer
+ */
+export const CountSchema = z.number().int().nonnegative()
+export type Count = z.infer<typeof CountSchema>
+
+/**
+ * A duration in milliseconds
+ * Must be a non-negative integer
+ */
+export const DurationSchema = z.number().int().nonnegative()
+export type Duration = z.infer<typeof DurationSchema>
+
+/**
+ * A priority value for job processing
+ * Must be an integer
+ */
+export const PrioritySchema = z.number().int()
+export type Priority = z.infer<typeof PrioritySchema>
+
+/**
+ * A batch size for processing operations
+ * Must be a positive integer
+ */
+export const BatchSizeSchema = z.number().int().positive()
+export type BatchSize = z.infer<typeof BatchSizeSchema>
+
+/**
+ * A job identifier (UUID)
+ */
+export const JobIdSchema = z.uuidv4()
+export type JobId = z.infer<typeof JobIdSchema>
 
 /**
  * Entity Name Schema
@@ -118,7 +153,6 @@ export const EntityNameSchema = z
     VALIDATION_CONSTANTS.ENTITY_NAME_PATTERN,
     "Entity name must start with a letter or underscore, followed by alphanumeric characters, underscores, or hyphens"
   )
-  .brand<"EntityName">()
 
 export type EntityName = z.infer<typeof EntityNameSchema>
 
@@ -189,7 +223,7 @@ export type RelationType = z.infer<typeof RelationTypeSchema>
 export const EntityEmbeddingSchema = z
   .object({
     vector: z
-      .array(z.number().finite())
+      .array(z.number())
       .min(1, "Vector must have at least 1 dimension")
       .max(
         VALIDATION_CONSTANTS.MAX_VECTOR_DIMENSIONS,
@@ -810,10 +844,50 @@ export type SemanticSearchOutput = z.infer<typeof SemanticSearchOutputSchema>
  */
 export const GetEntityEmbeddingOutputSchema = z.object({
   entityName: EntityNameSchema,
-  embedding: z.array(z.number().finite()).min(1),
+  embedding: z.array(z.number()).min(1),
   model: z.string().min(1, "Model identifier cannot be empty"),
 })
 
 export type GetEntityEmbeddingOutput = z.infer<
   typeof GetEntityEmbeddingOutputSchema
 >
+
+/**
+ * Relation validator utilities using Zod
+ */
+export const RelationValidator = Object.freeze({
+  /**
+   * Type guard: validates if data is a Relation
+   */
+  isRelation(data: unknown): data is Relation {
+    return RelationSchema.safeParse(data).success
+  },
+
+  /**
+   * Validates if data conforms to Relation schema
+   */
+  validateRelation(data: unknown) {
+    return RelationSchema.safeParse(data)
+  },
+})
+
+// ============================================================================
+// MCP Protocol Types
+// ============================================================================
+
+/**
+ * Standard MCP Tool Response envelope
+ * Matches MCP specification with isError and structuredContent
+ */
+export const MCPToolResponseSchema = z.object({
+  content: z.array(
+    z.object({
+      type: z.literal("text"),
+      text: z.string(),
+    })
+  ),
+  isError: z.boolean().optional(),
+  structuredContent: z.record(z.string(), z.unknown()).optional(),
+})
+
+export type MCPToolResponse = z.infer<typeof MCPToolResponseSchema>

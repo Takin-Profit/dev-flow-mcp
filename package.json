@@ -22,7 +22,6 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsdown && shx chmod +x dist/cli/*.js",
     "typecheck": "tsc --noEmit",
     "start": "tsx src/server/index.ts",
     "dev": "tsx watch src/server/index.ts",
@@ -37,12 +36,10 @@
     "doctor": "ultracite doctor"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.20.0",
+    "@modelcontextprotocol/sdk": "npm:@socotra/modelcontextprotocol-sdk",
     "@stricli/auto-complete": "^1.2.4",
     "@stricli/core": "^1.2.4",
     "@takinprofit/sqlite-x": "^1.2.3",
-    "arkenv": "^0.7.3",
-    "arktype": "^2.1.23",
     "consola": "^3.4.2",
     "dotenv": "^17.2.3",
     "lru-cache": "^11.2.2",
@@ -52,28 +49,21 @@
     "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0",
     "xdg-app-paths": "^8.3.0",
-    "zod": "^3.25.76"
+    "zod": "^4.1.12",
+    "zod-validation-error": "^4.0.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.6",
     "@commitlint/config-conventional": "^20.0.0",
     "@types/node": "^24.8.0",
     "@types/uuid": "^11.0.0",
-    "cross-env": "^10.1.0",
-    "glob": "^11.0.3",
     "lefthook": "^1.13.6",
-    "rimraf": "^6.0.1",
-    "shx": "^0.4.0",
     "tsdown": "^0.15.7",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "ultracite": "^5.6.4"
   },
-  "overrides": {
-    "glob": "^11.0.1",
-    "rimraf": "^6.0.1"
-  },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=23.5.0"
   }
 }

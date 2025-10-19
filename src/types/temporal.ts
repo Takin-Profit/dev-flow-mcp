@@ -11,8 +11,8 @@
  * - Validation utilities for temporal data
  */
 
-import type { Entity, EntityEmbedding } from "#types/entity"
-import { type Relation, RelationValidator } from "#types/relation"
+import type { Entity, EntityEmbedding } from "#types/validation"
+import { type Relation, RelationValidator } from "#types/validation"
 
 // ============================================================================
 // Temporal Entity

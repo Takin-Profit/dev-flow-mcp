@@ -2,33 +2,34 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-import { test, describe, beforeEach, afterEach } from "node:test"
 import assert from "node:assert/strict"
-import { DB } from "@takinprofit/sqlite-x"
-import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
-import { SqliteDb } from "#db/sqlite-db"
-import type { Entity, Relation } from "#types"
+import { afterEach, beforeEach, describe, test } from "node:test"
 import { ConsoleLogger, LogLevel } from "@takinprofit/sqlite-x"
+import { SqliteDb } from "#db/sqlite-db"
+import { SqliteSchemaManager } from "#db/sqlite-schema-manager"
+import type { Entity, Relation } from "#types"
 
 describe("SqliteDb Unit Tests", () => {
-  let db: DB
   let storage: SqliteDb
   let logger: ConsoleLogger
 
   beforeEach(async () => {
     logger = new ConsoleLogger(LogLevel.DEBUG)
-    db = new DB({ location: ":memory:", logger, allowExtension: true })
-    const schemaManager = new SqliteSchemaManager(db, logger)
+    storage = new SqliteDb(":memory:", logger)
+    const schemaManager = new SqliteSchemaManager(storage.dbInstance, logger)
     await schemaManager.initializeSchema()
-    storage = new SqliteDb(db, logger)
   })
 
   afterEach(() => {
-    db.close()
+    storage.dbInstance.close()
   })
 
   test("Temporal Versioning: create entity sets version 1", async () => {
-    const entity: Entity = { name: "test", entityType: "task", observations: [] }
+    const entity: Entity = {
+      name: "test",
+      entityType: "task",
+      observations: [],
+    }
     const [created] = await storage.createEntities([entity])
     assert.ok(created, "Entity should be created")
     assert.equal(created.version, 1)
@@ -37,12 +38,14 @@ describe("SqliteDb Unit Tests", () => {
   })
 
   test("Temporal Versioning: addObservations creates new version", async () => {
-    const entity: Entity = { name: "test", entityType: "task", observations: [] }
+    const entity: Entity = {
+      name: "test",
+      entityType: "task",
+      observations: [],
+    }
     await storage.createEntities([entity])
 
-    await storage.addObservations([
-      { entityName: "test", contents: ["obs1"] },
-    ])
+    await storage.addObservations([{ entityName: "test", contents: ["obs1"] }])
 
     const history = await storage.getEntityHistory("test")
     assert.equal(history.length, 2)
@@ -60,7 +63,11 @@ describe("SqliteDb Unit Tests", () => {
     const entityB: Entity = { name: "B", entityType: "task", observations: [] }
     await storage.createEntities([entityA, entityB])
 
-    const relation: Relation = { from: "A", to: "B", relationType: "relates_to" }
+    const relation: Relation = {
+      from: "A",
+      to: "B",
+      relationType: "relates_to",
+    }
     await storage.createRelations([relation])
 
     await storage.updateRelation({ ...relation, strength: 0.8 })
@@ -70,7 +77,11 @@ describe("SqliteDb Unit Tests", () => {
   })
 
   test("Soft Deletes: deleteEntities sets valid_to", async () => {
-    const entity: Entity = { name: "test", entityType: "task", observations: [] }
+    const entity: Entity = {
+      name: "test",
+      entityType: "task",
+      observations: [],
+    }
     await storage.createEntities([entity])
 
     await storage.deleteEntities(["test"])
@@ -99,21 +110,32 @@ describe("SqliteDb Unit Tests", () => {
 
     // Manually update valid_from to be in the past
     const pastDate = Date.now() - 1000 * 60 * 60 * 24 * 30 // 30 days ago
-    db.exec(`UPDATE relations SET valid_from = ${pastDate}`)
+    storage.dbInstance.exec(`UPDATE relations SET valid_from = ${pastDate}`)
 
     const decayedGraph = await storage.getDecayedGraph()
     const decayedRelation = decayedGraph.relations[0]
 
     assert.ok(decayedRelation, "Decayed relation should exist")
-    assert.ok(decayedRelation.confidence !== undefined, "Confidence should be defined")
+    assert.ok(
+      decayedRelation.confidence !== undefined,
+      "Confidence should be defined"
+    )
     assert.ok(decayedRelation.confidence! < 0.9)
   })
 
   test("Embeddings: update and get entity embedding", async () => {
-    const entity: Entity = { name: "test", entityType: "task", observations: [] }
+    const entity: Entity = {
+      name: "test",
+      entityType: "task",
+      observations: [],
+    }
     await storage.createEntities([entity])
 
-    const embedding = { vector: [1, 2, 3], model: "test-model", lastUpdated: Date.now() }
+    const embedding = {
+      vector: [1, 2, 3],
+      model: "test-model",
+      lastUpdated: Date.now(),
+    }
     await storage.updateEntityEmbedding("test", embedding)
 
     const retrieved = await storage.getEntityEmbedding("test")
@@ -121,11 +143,23 @@ describe("SqliteDb Unit Tests", () => {
   })
 
   test("diagnoseVectorSearch provides correct counts", async () => {
-    const entity1: Entity = { name: "test1", entityType: "task", observations: [] }
-    const entity2: Entity = { name: "test2", entityType: "task", observations: [] }
+    const entity1: Entity = {
+      name: "test1",
+      entityType: "task",
+      observations: [],
+    }
+    const entity2: Entity = {
+      name: "test2",
+      entityType: "task",
+      observations: [],
+    }
     await storage.createEntities([entity1, entity2])
 
-    const embedding = { vector: [1, 2, 3], model: "test-model", lastUpdated: Date.now() }
+    const embedding = {
+      vector: [1, 2, 3],
+      model: "test-model",
+      lastUpdated: Date.now(),
+    }
     await storage.updateEntityEmbedding("test1", embedding)
 
     const updatedEntity = await storage.getEntity("test1")

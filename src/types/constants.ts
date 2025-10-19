@@ -198,6 +198,11 @@ export const DEFAULT_RELATION_CONFIDENCE = 0.95
 export const DIAGNOSTIC_SAMPLE_SIZE = 3
 
 /**
+ * Number of vector dimensions to sample for diagnostics
+ */
+export const DIAGNOSTIC_VECTOR_SAMPLE_SIZE = 5
+
+/**
  * Half-life decay constant (ln(2) / half-life)
  */
 export const HALF_LIFE_DECAY_CONSTANT = 0.5

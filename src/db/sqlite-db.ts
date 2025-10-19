@@ -3,25 +3,30 @@
 // SQLite implementation of Database interface
 
 import { randomUUID } from "node:crypto"
-import type { DB } from "@takinprofit/sqlite-x"
-import { raw } from "@takinprofit/sqlite-x"
+import { DB, raw } from "@takinprofit/sqlite-x"
+import { load as loadSqliteVec } from "sqlite-vec"
+import { env } from "#config"
+import { SqliteVectorStore } from "#db/sqlite-vector-store"
+import { handleSqliteError } from "#errors"
 import type {
   Entity,
   EntityEmbedding,
-  ExtendedEntity,
-  ExtendedRelation,
   KnowledgeGraph,
   Logger,
   Relation,
   SearchOptions,
   SemanticSearchOptions,
-  TemporalEntityType,
+  TemporalEntity,
+  TemporalRelation,
 } from "#types"
 import {
   DEFAULT_HALF_LIFE_DAYS,
   DEFAULT_MIN_CONFIDENCE,
   DEFAULT_RELATION_CONFIDENCE,
   DEFAULT_RELATION_STRENGTH,
+  DEFAULT_VECTOR_DIMENSIONS,
+  DIAGNOSTIC_SAMPLE_SIZE,
+  DIAGNOSTIC_VECTOR_SAMPLE_SIZE,
   HALF_LIFE_DECAY_CONSTANT,
   HOURS_PER_DAY,
   MILLISECONDS_PER_SECOND,
@@ -30,12 +35,89 @@ import {
   SQLITE_DEFAULT_SEARCH_LIMIT,
   SQLITE_DEFAULT_TRAVERSAL_DEPTH,
 } from "#types/constants"
-import type { Database } from "#types/database"
-import { SqliteVectorStore } from "#db/sqlite-vector-store"
 
 // Add at top of class or as module function
 function generateUUID(): string {
   return randomUUID()
+}
+
+/**
+ * Pragma configurations for different environments
+ */
+const PRAGMA_DEFAULTS = {
+  development: {
+    journalMode: "WAL" as const,
+    synchronous: "NORMAL" as const,
+    cacheSize: -64_000, // 64MB cache
+    tempStore: "MEMORY" as const,
+    mmapSize: 64_000_000, // 64MB mmap
+    busyTimeout: 5000,
+    foreignKeys: true,
+  },
+  testing: {
+    journalMode: "WAL" as const,
+    synchronous: "OFF" as const, // Less durable but faster for testing
+    cacheSize: -32_000, // 32MB cache is enough for testing
+    tempStore: "MEMORY" as const,
+    lockingMode: "EXCLUSIVE" as const, // Reduce lock conflicts
+    busyTimeout: 5000,
+    foreignKeys: true,
+  },
+  production: {
+    journalMode: "WAL" as const,
+    synchronous: "NORMAL" as const,
+    cacheSize: -64_000, // 64MB cache
+    tempStore: "MEMORY" as const,
+    mmapSize: 268_435_456, // 256MB mmap
+    busyTimeout: 10_000,
+    foreignKeys: true,
+  },
+}
+
+/**
+ * Create logger adapter for sqlite-x compatibility
+ */
+function createSqliteLogger(logger: Logger) {
+  return {
+    error: (message: string, ...meta: unknown[]) =>
+      logger.error(message, undefined, { meta }),
+    warn: (message: string, ...meta: unknown[]) =>
+      logger.warn(message, { meta }),
+    info: (message: string, ...meta: unknown[]) =>
+      logger.info(message, { meta }),
+    debug: (message: string, ...meta: unknown[]) =>
+      logger.debug(message, { meta }),
+    trace: (message: string, ...meta: unknown[]) =>
+      logger.trace(message, { meta }),
+  }
+}
+
+/**
+ * Initialize SQLite database with proper configuration
+ */
+export function initializeSqliteDatabase(
+  location: string,
+  logger: Logger,
+  environment: "development" | "testing" | "production" = "development"
+): DB {
+  logger.debug("Initializing SQLite database...")
+
+  const sqliteLogger = createSqliteLogger(logger)
+  const pragmaConfig = PRAGMA_DEFAULTS[environment]
+
+  const db = new DB({
+    location,
+    logger: sqliteLogger,
+    allowExtension: true,
+    pragma: pragmaConfig,
+  })
+
+  // Load sqlite-vec extension
+  logger.debug("Loading sqlite-vec extension...")
+  loadSqliteVec(db.nativeDb)
+
+  logger.debug("SQLite database initialized successfully")
+  return db
 }
 
 type EntityRow = {
@@ -70,11 +152,11 @@ type RelationRow = {
   changed_by: string | null
 }
 
-export class SqliteDb implements Database {
+export class SqliteDb {
   private readonly db: DB
   private readonly logger: Logger
   private readonly vectorStore: SqliteVectorStore
-  private vectorStoreInitialized: boolean = false
+  private vectorStoreInitialized = false
   private readonly decayConfig: {
     enabled: boolean
     halfLifeDays: number
@@ -82,7 +164,7 @@ export class SqliteDb implements Database {
   }
 
   constructor(
-    db: DB,
+    location: string,
     logger: Logger,
     options?: {
       decayConfig?: {
@@ -93,22 +175,37 @@ export class SqliteDb implements Database {
       vectorDimensions?: number
     }
   ) {
-    this.db = db
     this.logger = logger
+
+    // Get environment from config, map 'test' to 'testing'
+    const environment =
+      env.DFM_ENV === "test"
+        ? "testing"
+        : (env.DFM_ENV as "development" | "testing" | "production")
+    this.db = initializeSqliteDatabase(location, logger, environment)
 
     // Initialize vector store
     this.vectorStore = new SqliteVectorStore({
-      db,
-      dimensions: options?.vectorDimensions ?? 1536,
+      db: this.db,
+      dimensions: options?.vectorDimensions ?? DEFAULT_VECTOR_DIMENSIONS,
       logger,
     })
 
     // Configure decay settings
     this.decayConfig = {
       enabled: options?.decayConfig?.enabled ?? true,
-      halfLifeDays: options?.decayConfig?.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS,
-      minConfidence: options?.decayConfig?.minConfidence ?? DEFAULT_MIN_CONFIDENCE,
+      halfLifeDays:
+        options?.decayConfig?.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS,
+      minConfidence:
+        options?.decayConfig?.minConfidence ?? DEFAULT_MIN_CONFIDENCE,
     }
+  }
+
+  /**
+   * Get the underlying DB instance for typed SQL operations
+   */
+  get dbInstance(): DB {
+    return this.db
   }
 
   /**
@@ -122,26 +219,14 @@ export class SqliteDb implements Database {
   }
 
   /**
-   * Resolves entity name to current entity ID
-   * @param name - Entity name to resolve
-   * @returns Current entity ID or null if not found
-   */
-  private resolveEntityNameToCurrentId(name: string): string | null {
-    const result = this.db.sql<{ name: string }>`
-      SELECT id FROM entities
-      WHERE name = ${"$name"} AND valid_to IS NULL
-    `.get<{ id: string }>({ name })
-
-    return result?.id ?? null
-  }
-
-  /**
    * Batch resolves entity names to current IDs
    * @param names - Array of entity names
    * @returns Map of name -> id (excludes not found)
    */
   private resolveEntityNamesToIds(names: string[]): Map<string, string> {
-    if (names.length === 0) return new Map()
+    if (names.length === 0) {
+      return new Map()
+    }
 
     const uniqueNames = [...new Set(names)]
 
@@ -158,30 +243,7 @@ export class SqliteDb implements Database {
       }
     }
 
-    return new Map(results.map(r => [r.name, r.id]))
-  }
-
-  /**
-   * Updates denormalized entity names in relations when entity is renamed
-   * @param entityId - Entity ID (doesn't change)
-   * @param newName - New entity name
-   */
-  private updateRelationEntityNames(entityId: string, newName: string): void {
-    const now = Date.now()
-
-    // Update all current relations where this entity appears as source
-    this.db.sql<{ name: string; id: string; updated_at: number }>`
-      UPDATE relations
-      SET from_entity_name = ${"$name"}, updated_at = ${"$updated_at"}
-      WHERE from_entity_id = ${"$id"} AND valid_to IS NULL
-    `.run({ name: newName, id: entityId, updated_at: now })
-
-    // Update all current relations where this entity appears as target
-    this.db.sql<{ name: string; id: string; updated_at: number }>`
-      UPDATE relations
-      SET to_entity_name = ${"$name"}, updated_at = ${"$updated_at"}
-      WHERE to_entity_id = ${"$id"} AND valid_to IS NULL
-    `.run({ name: newName, id: entityId, updated_at: now })
+    return new Map(results.map((r) => [r.name, r.id]))
   }
 
   async loadGraph(): Promise<KnowledgeGraph> {
@@ -209,8 +271,8 @@ export class SqliteDb implements Database {
 
       return { entities, relations }
     } catch (error) {
-      this.logger.error("Failed to load knowledge graph", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -230,7 +292,7 @@ export class SqliteDb implements Database {
       // Insert entities in batches
       if (graph.entities.length > 0) {
         const entityRows = graph.entities.map((entity) => {
-          const extendedEntity = entity as ExtendedEntity
+          const extendedEntity = entity as TemporalEntity
           return {
             id: extendedEntity.id || generateUUID(),
             name: entity.name,
@@ -264,7 +326,7 @@ export class SqliteDb implements Database {
         const nameToIdMap = this.resolveEntityNamesToIds([...allNames])
 
         const relationRows = graph.relations.map((relation) => {
-          const extendedRelation = relation as ExtendedRelation
+          const extendedRelation = relation as TemporalRelation
           return {
             id: extendedRelation.id || generateUUID(),
             from_entity_id: nameToIdMap.get(relation.from) || generateUUID(),
@@ -291,8 +353,8 @@ export class SqliteDb implements Database {
 
       this.logger.info("Knowledge graph saved successfully")
     } catch (error) {
-      this.logger.error("Failed to save knowledge graph", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -357,8 +419,8 @@ export class SqliteDb implements Database {
 
       return { entities, relations }
     } catch (error) {
-      this.logger.error("Failed to search nodes", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -398,12 +460,12 @@ export class SqliteDb implements Database {
 
       return { entities, relations }
     } catch (error) {
-      this.logger.error("Failed to open nodes", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
-  async createEntities(entities: Entity[]): Promise<ExtendedEntity[]> {
+  async createEntities(entities: Entity[]): Promise<TemporalEntity[]> {
     this.logger.info("Creating entities", { count: entities.length })
 
     try {
@@ -434,7 +496,7 @@ export class SqliteDb implements Database {
     `.run(entityRows)
 
       // Return entities with temporal metadata
-      const result: ExtendedEntity[] = entityRows.map((row) => ({
+      const result: TemporalEntity[] = entityRows.map((row) => ({
         name: row.name,
         entityType: row.entity_type,
         observations: JSON.parse(row.observations) as string[],
@@ -452,13 +514,15 @@ export class SqliteDb implements Database {
       })
       return result
     } catch (error) {
-      this.logger.error("Failed to create entities", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
   async createRelations(relations: Relation[]): Promise<Relation[]> {
-    if (relations.length === 0) return []
+    if (relations.length === 0) {
+      return []
+    }
 
     this.logger.info("Creating relations", { count: relations.length })
 
@@ -490,23 +554,31 @@ export class SqliteDb implements Database {
       }
 
       // Build relation rows with both IDs and names
-      const relationRows: RelationRow[] = relations.map(rel => ({
-        id: generateUUID(),
-        from_entity_id: nameToIdMap.get(rel.from)!,
-        to_entity_id: nameToIdMap.get(rel.to)!,
-        from_entity_name: rel.from,
-        to_entity_name: rel.to,
-        relation_type: rel.relationType,
-        strength: rel.strength ?? DEFAULT_RELATION_STRENGTH,
-        confidence: rel.confidence ?? DEFAULT_RELATION_CONFIDENCE,
-        metadata: JSON.stringify(rel.metadata ?? {}),
-        version: 1,
-        created_at: now,
-        updated_at: now,
-        valid_from: now,
-        valid_to: null,
-        changed_by: null,
-      }))
+      const relationRows: RelationRow[] = relations.map((rel) => {
+        const fromId = nameToIdMap.get(rel.from)
+        const toId = nameToIdMap.get(rel.to)
+        if (!(fromId && toId)) {
+          // This should not happen due to the check above, but as a safeguard:
+          throw new Error("Internal error: entity ID not found after check.")
+        }
+        return {
+          id: generateUUID(),
+          from_entity_id: fromId,
+          to_entity_id: toId,
+          from_entity_name: rel.from,
+          to_entity_name: rel.to,
+          relation_type: rel.relationType,
+          strength: rel.strength ?? DEFAULT_RELATION_STRENGTH,
+          confidence: rel.confidence ?? DEFAULT_RELATION_CONFIDENCE,
+          metadata: JSON.stringify(rel.metadata ?? {}),
+          version: 1,
+          created_at: now,
+          updated_at: now,
+          valid_from: now,
+          valid_to: null,
+          changed_by: null,
+        }
+      })
 
       // Insert using sqlite-x type-safe batch insert
       for (const row of relationRows) {
@@ -523,12 +595,13 @@ export class SqliteDb implements Database {
         `.run(row)
       }
 
-      this.logger.info("Relations created successfully", { count: relations.length })
+      this.logger.info("Relations created successfully", {
+        count: relations.length,
+      })
       return relations
-
     } catch (error) {
-      this.logger.error("Failed to create relations", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -621,8 +694,8 @@ export class SqliteDb implements Database {
       })
       return results
     } catch (error) {
-      this.logger.error("Failed to add observations", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -662,8 +735,8 @@ export class SqliteDb implements Database {
 
       this.logger.info("Entities deleted successfully")
     } catch (error) {
-      this.logger.error("Failed to delete entities", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -735,13 +808,15 @@ export class SqliteDb implements Database {
 
       this.logger.info("Observations deleted successfully")
     } catch (error) {
-      this.logger.error("Failed to delete observations", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
   async deleteRelations(relations: Relation[]): Promise<void> {
-    if (relations.length === 0) return
+    if (relations.length === 0) {
+      return
+    }
 
     this.logger.info("Deleting relations", { count: relations.length })
 
@@ -750,7 +825,12 @@ export class SqliteDb implements Database {
 
       for (const rel of relations) {
         // Mark relation as invalid using denormalized names
-        this.db.sql<{ from: string; to: string; type: string; valid_to: number }>`
+        this.db.sql<{
+          from: string
+          to: string
+          type: string
+          valid_to: number
+        }>`
         UPDATE relations
         SET valid_to = ${"$valid_to"}
         WHERE from_entity_name = ${"$from"}
@@ -765,11 +845,12 @@ export class SqliteDb implements Database {
         })
       }
 
-      this.logger.info("Relations deleted successfully", { count: relations.length })
-
+      this.logger.info("Relations deleted successfully", {
+        count: relations.length,
+      })
     } catch (error) {
-      this.logger.error("Failed to delete relations", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -799,8 +880,8 @@ export class SqliteDb implements Database {
 
       return this.rowToRelation(row)
     } catch (error) {
-      this.logger.error("Failed to get relation", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -844,14 +925,16 @@ export class SqliteDb implements Database {
       // Insert new version (IDs stay the same, data changes)
       const newRelation: RelationRow = {
         id: newId,
-        from_entity_id: current.from_entity_id,      // Same ID
-        to_entity_id: current.to_entity_id,          // Same ID
-        from_entity_name: current.from_entity_name,  // Same name
-        to_entity_name: current.to_entity_name,      // Same name
+        from_entity_id: current.from_entity_id, // Same ID
+        to_entity_id: current.to_entity_id, // Same ID
+        from_entity_name: current.from_entity_name, // Same name
+        to_entity_name: current.to_entity_name, // Same name
         relation_type: current.relation_type,
         strength: relation.strength ?? current.strength,
         confidence: relation.confidence ?? current.confidence,
-        metadata: JSON.stringify(relation.metadata ?? JSON.parse(current.metadata)),
+        metadata: JSON.stringify(
+          relation.metadata ?? JSON.parse(current.metadata)
+        ),
         version: newVersion,
         created_at: current.created_at,
         updated_at: now,
@@ -873,14 +956,13 @@ export class SqliteDb implements Database {
     `.run(newRelation)
 
       this.logger.info("Relation updated successfully")
-
     } catch (error) {
-      this.logger.error("Failed to update relation", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
-  async getEntity(entityName: string): Promise<TemporalEntityType | null> {
+  async getEntity(entityName: string): Promise<TemporalEntity | null> {
     this.logger.debug("Getting entity", { entityName })
 
     try {
@@ -895,8 +977,8 @@ export class SqliteDb implements Database {
 
       return this.rowToEntity(row)
     } catch (error) {
-      this.logger.error("Failed to get entity", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -941,7 +1023,8 @@ export class SqliteDb implements Database {
         const age = now - row.valid_from
 
         // Apply exponential decay
-        let decayedConfidence = relation.confidence! * Math.exp(decayFactor * age)
+        const confidence = relation.confidence ?? DEFAULT_RELATION_CONFIDENCE
+        let decayedConfidence = confidence * Math.exp(decayFactor * age)
 
         // Don't let confidence decay below minimum
         if (decayedConfidence < this.decayConfig.minConfidence) {
@@ -963,12 +1046,12 @@ export class SqliteDb implements Database {
 
       return { entities, relations }
     } catch (error) {
-      this.logger.error("Failed to get decayed graph", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
-  async getEntityHistory(entityName: string): Promise<TemporalEntityType[]> {
+  async getEntityHistory(entityName: string): Promise<TemporalEntity[]> {
     this.logger.debug("Getting entity history", { entityName })
 
     try {
@@ -991,8 +1074,8 @@ export class SqliteDb implements Database {
         changedBy: row.changed_by ?? undefined,
       }))
     } catch (error) {
-      this.logger.error("Failed to get entity history", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -1018,8 +1101,8 @@ export class SqliteDb implements Database {
 
       return rows.map((row) => this.rowToRelation(row))
     } catch (error) {
-      this.logger.error("Failed to get relation history", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -1052,8 +1135,8 @@ export class SqliteDb implements Database {
 
       return { entities, relations }
     } catch (error) {
-      this.logger.error("Failed to get graph at time", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -1079,9 +1162,9 @@ export class SqliteDb implements Database {
 
       const result = this.db.sql`
       UPDATE entities
-      SET embedding = ${'$embedding'},
-          updated_at = ${'$updated_at'}
-      WHERE name = ${'$name'} AND valid_to IS NULL
+      SET embedding = ${"$embedding"},
+          updated_at = ${"$updated_at"}
+      WHERE name = ${"$name"} AND valid_to IS NULL
     `.run({
         embedding: embeddingJson,
         updated_at: Date.now(),
@@ -1097,14 +1180,14 @@ export class SqliteDb implements Database {
         })
       }
 
-      this.logger.info("Entity embedding updated", { 
-        entityName, 
+      this.logger.info("Entity embedding updated", {
+        entityName,
         changes: result.changes,
         vectorStoreUpdated: true,
       })
     } catch (error) {
-      this.logger.error("Failed to update entity embedding", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -1117,9 +1200,11 @@ export class SqliteDb implements Database {
       const row = this.db.sql<{ name: string }>`
       SELECT embedding, updated_at FROM entities
       WHERE name = ${"$name"} AND valid_to IS NULL
-    `.get<{ embedding: string | null; updated_at: number }>({ name: entityName })
+    `.get<{ embedding: string | null; updated_at: number }>({
+        name: entityName,
+      })
 
-      if (!row || !row.embedding) {
+      if (!row?.embedding) {
         return null
       }
 
@@ -1139,7 +1224,7 @@ export class SqliteDb implements Database {
   async findSimilarEntities(
     queryVector: number[],
     limit = 10
-  ): Promise<Array<TemporalEntityType & { similarity: number }>> {
+  ): Promise<Array<TemporalEntity & { similarity: number }>> {
     this.logger.debug("Finding similar entities", { limit })
 
     try {
@@ -1163,10 +1248,11 @@ export class SqliteDb implements Database {
       })
 
       // Map vector search results to entities
-      const results: Array<TemporalEntityType & { similarity: number }> = []
-      
+      const results: Array<TemporalEntity & { similarity: number }> = []
+
       for (const result of vectorResults) {
-        const entityName = typeof result.id === 'string' ? result.id : String(result.id)
+        const entityName =
+          typeof result.id === "string" ? result.id : String(result.id)
         const entity = await this.getEntity(entityName)
         if (entity) {
           results.push({
@@ -1196,7 +1282,7 @@ export class SqliteDb implements Database {
 
       // For semantic search, we need a query embedding
       // This should come from an EmbeddingService via queryVector option
-      
+
       if (!options?.queryVector) {
         this.logger.warn(
           "No query vector provided for semantic search, falling back to text search"
@@ -1213,7 +1299,7 @@ export class SqliteDb implements Database {
       )
 
       // Convert temporal entities to Entity type for KnowledgeGraph
-      const entities: Entity[] = similarEntities.map(entity => ({
+      const entities: Entity[] = similarEntities.map((entity) => ({
         name: entity.name,
         entityType: entity.entityType,
         observations: entity.observations,
@@ -1221,7 +1307,7 @@ export class SqliteDb implements Database {
 
       // Build minimal knowledge graph with entities only
       // Relations can be fetched separately if needed
-      const entityNames = new Set(entities.map(e => e.name))
+      const entityNames = new Set(entities.map((e) => e.name))
       const relations: Relation[] = []
 
       // Query for relations between found entities
@@ -1232,9 +1318,12 @@ export class SqliteDb implements Database {
           SELECT * FROM relations
           WHERE valid_to IS NULL
         `.all<RelationRow>()
-        
+
         for (const row of allRelationRows) {
-          if (entityNames.has(row.from_entity_name) && entityNames.has(row.to_entity_name)) {
+          if (
+            entityNames.has(row.from_entity_name) &&
+            entityNames.has(row.to_entity_name)
+          ) {
             relations.push(this.rowToRelation(row))
           }
         }
@@ -1360,8 +1449,8 @@ export class SqliteDb implements Database {
 
       return { entities, relations }
     } catch (error) {
-      this.logger.error("Failed to traverse graph", { error })
-      throw error
+      const handled = handleSqliteError(error, this.logger)
+      throw handled
     }
   }
 
@@ -1374,7 +1463,9 @@ export class SqliteDb implements Database {
       SELECT * FROM entities
       WHERE valid_to IS NULL
     `.all<EntityRow>()
-      const entitiesWithEmbeddings = allEntities.filter(e => e.embedding != null).length
+      const entitiesWithEmbeddings = allEntities.filter(
+        (e) => e.embedding != null
+      ).length
 
       // Check if sqlite-vec extension is available
       let vecExtensionAvailable = false
@@ -1390,7 +1481,7 @@ export class SqliteDb implements Database {
       const sampleEmbeddings = this.db.sql`
       SELECT name, embedding FROM entities
       WHERE embedding IS NOT NULL AND valid_to IS NULL
-      LIMIT 3
+      LIMIT ${raw`${DIAGNOSTIC_SAMPLE_SIZE}`}
     `.all<{ name: string; embedding: string }>()
 
       const samples = sampleEmbeddings.map((row) => {
@@ -1398,13 +1489,13 @@ export class SqliteDb implements Database {
         return {
           entityName: row.name,
           dimensions: vector.length,
-          sampleValues: vector.slice(0, 5),
+          sampleValues: vector.slice(0, DIAGNOSTIC_VECTOR_SAMPLE_SIZE),
         }
       })
 
       return {
         vectorSearchAvailable: vecExtensionAvailable,
-        entitiesWithEmbeddings: entitiesWithEmbeddings,
+        entitiesWithEmbeddings,
         totalEntities: allEntities.length,
         sampleEmbeddings: samples,
         storageType: "SQLite",
@@ -1425,7 +1516,7 @@ export class SqliteDb implements Database {
 
   // Helper methods to convert between domain types and database rows
 
-  private rowToEntity(row: EntityRow): ExtendedEntity {
+  private rowToEntity(row: EntityRow): TemporalEntity {
     return {
       name: row.name,
       entityType: row.entity_type,
@@ -1463,5 +1554,4 @@ export class SqliteDb implements Database {
       },
     }
   }
-
 }

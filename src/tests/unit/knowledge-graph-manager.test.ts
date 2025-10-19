@@ -7,8 +7,8 @@
 
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict"
 import { afterEach, beforeEach, describe, it, mock } from "node:test"
+import type { SqliteDb } from "#db/sqlite-db"
 import { KnowledgeGraphManager } from "#knowledge-graph-manager"
-import type { Database } from "#db/database"
 import type {
   Entity,
   KnowledgeGraph,
@@ -35,7 +35,7 @@ const UPDATED_STRENGTH = 0.9
 const UPDATED_CONFIDENCE = 0.95
 
 describe("KnowledgeGraphManager with Enhanced Relations", () => {
-  it("should use Database getRelation for retrieving a relation", async (t) => {
+  it("should use SqliteDb getRelation for retrieving a relation", async (t) => {
     const timestamp = Date.now()
     const enhancedRelation: Relation = {
       from: "entity1",
@@ -54,12 +54,12 @@ describe("KnowledgeGraphManager with Enhanced Relations", () => {
     const getRelationMock = t.mock.fn((..._args: unknown[]) =>
       Promise.resolve(enhancedRelation)
     )
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       getRelation: getRelationMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
 
     const relation = await manager.getRelation("entity1", "entity2", "knows")
@@ -73,7 +73,7 @@ describe("KnowledgeGraphManager with Enhanced Relations", () => {
     deepStrictEqual(relation, enhancedRelation)
   })
 
-  it("should use Database updateRelation for updating a relation", async (t) => {
+  it("should use SqliteDb updateRelation for updating a relation", async (t) => {
     const timestamp = Date.now()
     const updatedRelation: Relation = {
       from: "entity1",
@@ -92,12 +92,12 @@ describe("KnowledgeGraphManager with Enhanced Relations", () => {
     const updateRelationMock = t.mock.fn((..._args: unknown[]) =>
       Promise.resolve(undefined)
     )
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       updateRelation: updateRelationMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
 
     await manager.updateRelation(updatedRelation)
@@ -109,32 +109,32 @@ describe("KnowledgeGraphManager with Enhanced Relations", () => {
   })
 })
 
-describe("KnowledgeGraphManager with Database", () => {
-  it("should accept a Database in constructor", (t) => {
+describe("KnowledgeGraphManager with SqliteDb", () => {
+  it("should accept a SqliteDb in constructor", (t) => {
     const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       loadGraph: loadGraphMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
     ok(manager instanceof KnowledgeGraphManager)
   })
 
-  it("should use Database loadGraph when reading graph", async (t) => {
+  it("should use SqliteDb loadGraph when reading graph", async (t) => {
     const mockGraph: KnowledgeGraph = {
       entities: [{ name: "test", entityType: "test", observations: [] }],
       relations: [],
     }
 
     const loadGraphMock = t.mock.fn(() => Promise.resolve(mockGraph))
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       loadGraph: loadGraphMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
     const result = await manager.readGraph()
 
@@ -142,7 +142,7 @@ describe("KnowledgeGraphManager with Database", () => {
     deepStrictEqual(result, mockGraph)
   })
 
-  it("should use Database createEntities when creating entities", async (t) => {
+  it("should use SqliteDb createEntities when creating entities", async (t) => {
     const createEntitiesMock = t.mock.fn(
       async (entities: Entity[]): Promise<TemporalEntityType[]> =>
         entities.map((e) => ({
@@ -157,13 +157,13 @@ describe("KnowledgeGraphManager with Database", () => {
           embedding: e.embedding,
         })) as TemporalEntityType[]
     )
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       createEntities: createEntitiesMock,
       loadGraph: t.mock.fn(() => Promise.resolve(EMPTY_GRAPH)),
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
     const newEntity: Entity = {
       name: "newEntity",
@@ -176,19 +176,19 @@ describe("KnowledgeGraphManager with Database", () => {
     deepStrictEqual(createEntitiesMock.mock.calls[0]?.arguments, [[newEntity]])
   })
 
-  it("should use Database searchNodes when searching", async (t) => {
+  it("should use SqliteDb searchNodes when searching", async (t) => {
     const mockSearchResult: KnowledgeGraph = {
       entities: [{ name: "test", entityType: "test", observations: [] }],
       relations: [],
     }
 
     const searchNodesMock = t.mock.fn(() => Promise.resolve(mockSearchResult))
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       searchNodes: searchNodesMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
     const query = "test"
     const result = await manager.searchNodes(query)
@@ -198,19 +198,19 @@ describe("KnowledgeGraphManager with Database", () => {
     deepStrictEqual(result, mockSearchResult)
   })
 
-  it("should use Database openNodes when opening nodes", async (t) => {
+  it("should use SqliteDb openNodes when opening nodes", async (t) => {
     const mockOpenResult: KnowledgeGraph = {
       entities: [{ name: "test", entityType: "test", observations: [] }],
       relations: [],
     }
 
     const openNodesMock = t.mock.fn(() => Promise.resolve(mockOpenResult))
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       openNodes: openNodesMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
     const nodeNames = ["test"]
     const result = await manager.openNodes(nodeNames)
@@ -220,20 +220,20 @@ describe("KnowledgeGraphManager with Database", () => {
     deepStrictEqual(result, mockOpenResult)
   })
 
-  it("should use Database when creating relations", async (t) => {
+  it("should use SqliteDb when creating relations", async (t) => {
     const createRelationsMock = t.mock.fn(
       async (relations: Relation[]) => relations
     )
     const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
     const saveGraphMock = t.mock.fn(() => Promise.resolve())
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       createRelations: createRelationsMock,
       loadGraph: loadGraphMock,
       saveGraph: saveGraphMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
     const newRelation: Relation = {
       from: "entity1",
@@ -250,7 +250,7 @@ describe("KnowledgeGraphManager with Database", () => {
     strictEqual(saveGraphMock.mock.callCount(), 0)
   })
 
-  it("should use Database when adding observations", async (t) => {
+  it("should use SqliteDb when adding observations", async (t) => {
     const observations: EntityObservation[] = [
       {
         entityName: "entity1",
@@ -268,14 +268,14 @@ describe("KnowledgeGraphManager with Database", () => {
     const addObservationsMock = t.mock.fn(() => Promise.resolve(expectedResult))
     const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
     const saveGraphMock = t.mock.fn(() => Promise.resolve())
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       addObservations: addObservationsMock,
       loadGraph: loadGraphMock,
       saveGraph: saveGraphMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
     const result = await manager.addObservations(observations)
 
@@ -300,14 +300,14 @@ describe("KnowledgeGraphManager with Database", () => {
     )
     const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
     const saveGraphMock = t.mock.fn(() => Promise.resolve())
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       createRelations: createRelationsMock,
       loadGraph: loadGraphMock,
       saveGraph: saveGraphMock,
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
 
     const result = await manager.createRelations([newRelation])
@@ -325,7 +325,7 @@ describe("KnowledgeGraphManager with Database", () => {
 // From src/__vitest__/KnowledgeGraphManagerSearch.test.ts
 describe("KnowledgeGraphManager Search", () => {
   let manager: KnowledgeGraphManager
-  let mockDatabase: Partial<Database>
+  let mockDatabase: Partial<SqliteDb>
   let searchNodesMock: any
   let semanticSearchMock: any
 
@@ -377,7 +377,7 @@ describe("KnowledgeGraphManager Search", () => {
     }
 
     manager = new KnowledgeGraphManager({
-      database: mockDatabase as Database,
+      database: mockDatabase as SqliteDb,
       embeddingJobManager: mockEmbeddingJobManager as any,
     })
   })
@@ -452,12 +452,12 @@ describe("KnowledgeGraphManager Search", () => {
       })
     )
 
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       searchNodes: fileSearchNodesMock,
     }
 
     const fileBasedManager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
 
     const result = await fileBasedManager.search("test query", {
@@ -530,13 +530,13 @@ describe("KnowledgeGraphManager with VectorStore", () => {
         )
     )
 
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       createEntities: createEntitiesMock,
       loadGraph: t.mock.fn(() => Promise.resolve(EMPTY_GRAPH)),
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
 
     // Manually inject the mock vector store (in a real scenario, this would use dependency injection)
@@ -582,13 +582,13 @@ describe("KnowledgeGraphManager with VectorStore", () => {
       search: t.mock.fn(() => Promise.resolve([])),
     }
 
-    const mockProvider: Partial<Database> = {
+    const mockProvider: Partial<SqliteDb> = {
       deleteEntities: deleteEntitiesMock,
       loadGraph: t.mock.fn(() => Promise.resolve(EMPTY_GRAPH)),
     }
 
     const manager = new KnowledgeGraphManager({
-      database: mockProvider as Database,
+      database: mockProvider as SqliteDb,
     })
 
     // Manually inject the mock vector store
@@ -638,13 +638,13 @@ describe("Neo4j Storage Provider Unit Tests", () => {
       const createRelationsMock = t.mock.fn(() => Promise.resolve([relation]))
       const getRelationMock = t.mock.fn(() => Promise.resolve(relation))
 
-      const mockProvider: Partial<Database> = {
+      const mockProvider: Partial<SqliteDb> = {
         createRelations: createRelationsMock,
         getRelation: getRelationMock,
       }
 
       const manager = new KnowledgeGraphManager({
-        database: mockProvider as Database,
+        database: mockProvider as SqliteDb,
       })
 
       const [created] = await manager.createRelations([relation])
@@ -687,13 +687,13 @@ describe("Neo4j Storage Provider Unit Tests", () => {
       const createRelationsMock = t.mock.fn(() => Promise.resolve([relation]))
       const getRelationMock = t.mock.fn(() => Promise.resolve(relation))
 
-      const mockProvider: Partial<Database> = {
+      const mockProvider: Partial<SqliteDb> = {
         createRelations: createRelationsMock,
         getRelation: getRelationMock,
       }
 
       const manager = new KnowledgeGraphManager({
-        database: mockProvider as Database,
+        database: mockProvider as SqliteDb,
       })
 
       const [created] = await manager.createRelations([relation])
@@ -733,12 +733,12 @@ describe("Neo4j Storage Provider Unit Tests", () => {
 
       const createRelationsMock = t.mock.fn(() => Promise.resolve([relation]))
 
-      const mockProvider: Partial<Database> = {
+      const mockProvider: Partial<SqliteDb> = {
         createRelations: createRelationsMock,
       }
 
       const manager = new KnowledgeGraphManager({
-        database: mockProvider as Database,
+        database: mockProvider as SqliteDb,
       })
 
       const [created] = await manager.createRelations([relation])
@@ -782,16 +782,16 @@ describe("Neo4j Storage Provider Unit Tests", () => {
       )
       const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
 
-      const mockProvider: Partial<Database> = {
+      const mockProvider: Partial<SqliteDb> = {
         createEntities:
-          createEntitiesMock as unknown as Database["createEntities"],
-        getEntity: getEntityMock as unknown as Database["getEntity"],
+          createEntitiesMock as unknown as SqliteDb["createEntities"],
+        getEntity: getEntityMock as unknown as SqliteDb["getEntity"],
         deleteEntities: deleteEntitiesMock,
         loadGraph: loadGraphMock,
       }
 
       const manager = new KnowledgeGraphManager({
-        database: mockProvider as Database,
+        database: mockProvider as SqliteDb,
       })
 
       // Create
@@ -832,14 +832,14 @@ describe("Neo4j Storage Provider Unit Tests", () => {
       )
       const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
 
-      const mockProvider: Partial<Database> = {
+      const mockProvider: Partial<SqliteDb> = {
         createEntities:
-          createEntitiesMock as unknown as Database["createEntities"],
+          createEntitiesMock as unknown as SqliteDb["createEntities"],
         loadGraph: loadGraphMock,
       }
 
       const manager = new KnowledgeGraphManager({
-        database: mockProvider as Database,
+        database: mockProvider as SqliteDb,
       })
 
       const created = await manager.createEntities([temporalEntity])
@@ -890,12 +890,12 @@ describe("Neo4j Storage Provider Unit Tests", () => {
         Promise.resolve(relations)
       )
 
-      const mockProvider: Partial<Database> = {
+      const mockProvider: Partial<SqliteDb> = {
         createRelations: createRelationsMock,
       }
 
       const manager = new KnowledgeGraphManager({
-        database: mockProvider as Database,
+        database: mockProvider as SqliteDb,
       })
 
       const created = await manager.createRelations(relations)
@@ -938,14 +938,14 @@ describe("Neo4j Storage Provider Unit Tests", () => {
       )
       const loadGraphMock = t.mock.fn(() => Promise.resolve(EMPTY_GRAPH))
 
-      const mockProvider: Partial<Database> = {
+      const mockProvider: Partial<SqliteDb> = {
         createEntities:
-          createEntitiesMock as unknown as Database["createEntities"],
+          createEntitiesMock as unknown as SqliteDb["createEntities"],
         loadGraph: loadGraphMock,
       }
 
       const manager = new KnowledgeGraphManager({
-        database: mockProvider as Database,
+        database: mockProvider as SqliteDb,
       })
 
       const created = await manager.createEntities(entities)
