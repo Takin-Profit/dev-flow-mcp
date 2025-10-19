@@ -4,9 +4,6 @@
 .scripts/
 .specstory/
 .vscode/
-neo4j-data/
-neo4j-import/
-neo4j-logs/
 node_modules/
 src/
 test-output/

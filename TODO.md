@@ -7,7 +7,7 @@
 - [ ] Update `src/types/shared.ts` - replace EntityName and Observation arktype schemas
 - [ ] Update `src/types/entity.ts` - replace Entity and EntityEmbedding schemas
 - [ ] Update `src/types/relation.ts` - replace Relation and RelationMetadata schemas
-- [ ] Update `src/types/neo4j.ts` - replace Neo4j-specific validators
+- [ ] Update SQLite-specific validators
 - [ ] Remove arktype dependency from package.json
 - [ ] Update all imports across codebase (12 files currently use arktype)
 - [ ] Maintain same file structure - don't create new files, just replace content
@@ -79,7 +79,7 @@
 ### 7. Testing
 - [ ] Add unit tests for all validation schemas
 - [ ] Add integration tests for SQLite storage provider
-- [ ] Add e2e tests comparing Neo4j and SQLite behavior
+- [ ] Add comprehensive integration tests for SQLite behavior
 - [ ] Add property-based testing for validation edge cases
 
 ## Low Priority
@@ -88,7 +88,7 @@
 - [ ] Document validation rules in user-facing docs
 - [ ] Add examples of valid/invalid entity names
 - [ ] Document error codes and their meanings
-- [ ] Create migration guide from Neo4j to SQLite
+- [ ] Create user migration guide for existing users
 
 ### 9. Code Quality
 - [ ] Remove all magic numbers (replace with named constants)

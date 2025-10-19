@@ -5,6 +5,45 @@ All notable changes to DevFlow MCP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-01-18
+
+### Added
+
+- **MAJOR**: Complete migration to SQLite-only architecture
+- Zod v4 compatibility with forked MCP SDK (@socotra/modelcontextprotocol-sdk)
+- Self-initializing database architecture with environment-aware configuration
+- Enhanced type safety throughout codebase (zero TypeScript errors)
+- Comprehensive test coverage with proper type guards
+- sqlite-vec integration for vector search capabilities
+- Environment-specific pragma configuration (development/testing/production)
+
+### Changed
+
+- **BREAKING**: Migrated from Neo4j to SQLite-only architecture
+- **BREAKING**: Simplified configuration - removed 9+ Neo4j environment variables
+- **BREAKING**: Updated SqliteDb constructor to be self-initializing
+- **BREAKING**: Removed Docker requirements for development
+- Enhanced vector search capabilities with sqlite-vec integration
+- Improved error handling with proper type safety
+- Streamlined CLI interface focused on SQLite operations
+- Updated all dependencies to latest versions
+
+### Removed
+
+- **BREAKING**: All Neo4j dependencies and implementation (~4,000 lines of code)
+- **BREAKING**: Docker Compose configuration for Neo4j
+- **BREAKING**: Neo4j CLI commands and utilities
+- Complex multi-backend abstraction layers
+- Unused configuration options and environment variables
+
+### Fixed
+
+- Zod v4 compatibility issues throughout codebase
+- TypeScript strict mode compliance (achieved zero errors)
+- Logger interface compatibility between application and sqlite-x
+- Test reliability and type safety in all test files
+- Linting configuration to focus on main application code
+
 ## [0.3.9] - 2025-05-08
 
 ### Changed
@@ -29,28 +68,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release
 - Knowledge graph memory system with entities and relations
-- Neo4j storage backend with unified graph and vector storage
+- SQLite storage backend with unified graph and vector storage
 - Semantic search using OpenAI embeddings
 - Temporal awareness with version history for all graph elements
 - Time-based confidence decay for relations
 - Rich metadata support for entities and relations
 - MCP tools for entity and relation management
 - Support for Claude Desktop, Cursor, and other MCP-compatible clients
-- Docker support for Neo4j setup
 - CLI utilities for database management
 - Comprehensive documentation and examples
 
 ### Changed
 
-- Migrated storage from SQLite + Chroma to unified Neo4j backend
-- Enhanced vector search capabilities with Neo4j's native vector indexing
+- Enhanced vector search capabilities with sqlite-vec integration
 - Improved performance for large knowledge graphs
 
 ## [0.3.0] - [Unreleased]
 
 ### Added
 
-- Initial beta version with Neo4j support
+- Initial beta version with SQLite support
 - Vector search integration
 - Basic MCP server functionality
 
@@ -58,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- SQLite and Chroma storage backends
+- SQLite storage backend
 - Core knowledge graph data structures
 - Basic entity and relation management
 

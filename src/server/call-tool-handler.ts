@@ -703,12 +703,13 @@ export async function handleCallToolRequest(
         const hasEmbeddingJobManager = !!embeddingJobManager
 
         // Get database info
-        const storageType = process.env.MEMORY_STORAGE_TYPE || "neo4j"
+        const storageType = "sqlite"
 
-        // Neo4j is not available in this SQLite-only version
-        const neo4jInfo = {
-          connectionStatus: "not-available",
-          vectorStoreStatus: "not-available",
+        // SQLite-only configuration
+        const sqliteInfo = {
+          location: process.env.DFM_SQLITE_LOCATION || ":memory:",
+          connectionStatus: "available",
+          vectorStoreStatus: "sqlite-vec enabled",
         }
 
         // Count entities with embeddings
@@ -749,13 +750,13 @@ export async function handleCallToolRequest(
           embedding_service_initialized: !!embeddingProviderInfo,
           embedding_service_info: embeddingServiceInfo,
           embedding_provider_info: embeddingProviderInfo,
-          neo4j_config: neo4jInfo,
+          sqlite_config: sqliteInfo,
           entities_with_embeddings: entitiesWithEmbeddings,
           pending_embedding_jobs: pendingJobs,
           environment_variables: {
             DEBUG: process.env.DEBUG === "true",
             DFM_ENV: process.env.DFM_ENV,
-            MEMORY_STORAGE_TYPE: process.env.MEMORY_STORAGE_TYPE || "neo4j",
+            MEMORY_STORAGE_TYPE: "sqlite",
           },
         }
 

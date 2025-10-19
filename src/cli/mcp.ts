@@ -56,10 +56,7 @@ export const mcpCommand = buildCommand({
       "  DFM_OPENAI_EMBEDDING_MODEL     Embedding model (default: text-embedding-3-small)\n" +
       "  DFM_EMBEDDING_RATE_LIMIT_TOKENS  Rate limit (default: 150000)\n" +
       "  DFM_EMBEDDING_RATE_LIMIT_INTERVAL Rate limit interval ms (default: 60000)\n" +
-      "  NEO4J_URI                      Neo4j connection URI\n" +
-      "  NEO4J_USERNAME                 Neo4j username\n" +
-      "  NEO4J_PASSWORD                 Neo4j password\n" +
-      "  NEO4J_DATABASE                 Neo4j database name\n" +
+      "  DFM_SQLITE_LOCATION            SQLite database location\n" +
       "  DFM_LOG_LEVEL                  Log level (error|warn|info|debug)",
   },
 })

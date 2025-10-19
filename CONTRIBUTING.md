@@ -19,7 +19,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/devflow-mcp.git`
 3. Add the upstream remote: `git remote add upstream https://github.com/Takin-Profit/devflow-mcp.git`
 4. Install dependencies: `npm install`
-5. Setup Neo4j: `docker-compose up -d neo4j && npm run neo4j:init`
+5. Run tests: `npm test`
 
 ### Development Process
 

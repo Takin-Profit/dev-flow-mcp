@@ -561,7 +561,7 @@ export function handleListToolsRequest(): {
     {
       name: "diagnose_vector_search",
       description:
-        "Diagnostic tool to directly query Neo4j database for entity embeddings, bypassing application abstractions",
+        "Diagnostic tool to directly query SQLite database for entity embeddings, bypassing application abstractions",
       inputSchema: {
         type: "object",
         properties: {

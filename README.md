@@ -13,12 +13,12 @@ DevFlow MCP is a significant fork of [Memento MCP](https://github.com/gannonh/me
 **Code Quality**: DevFlow MCP has undergone comprehensive refactoring:
 - ✅ **Zero `any` types** - Full TypeScript type safety throughout
 - ✅ **Dependency injection** - Testable, modular architecture
-- ✅ **Modern Neo4j APIs** - Updated to driver v5 best practices
+- ✅ **Modern SQLite APIs** - Updated to sqlite-x best practices
 - ✅ **Structured logging** - Winston + Consola for comprehensive observability
 - ✅ **Magic number elimination** - All constants properly named
 - ✅ **Reduced complexity** - Simpler, more maintainable code
 
-**Better CLI**: Enhanced command-line tools for Neo4j management, testing, and diagnostics.
+**Better CLI**: Enhanced command-line tools for SQLite management, testing, and diagnostics.
 
 **Honest Documentation**: README accurately reflects what the code actually does, not aspirational features.
 
@@ -29,7 +29,7 @@ DevFlow MCP is a significant fork of [Memento MCP](https://github.com/gannonh/me
 | Observation strength/confidence | Documented but not implemented | Removed (use relations for this) |
 | Type safety | Extensive use of `any` types | Strict TypeScript, zero `any` |
 | Code complexity | High cognitive complexity | Refactored for simplicity |
-| Neo4j driver | Mixed old/new APIs | Fully updated to v5 |
+| SQLite driver | Mixed old/new APIs | Fully updated to sqlite-x |
 | Logging | Inconsistent (stderr.write) | Structured (Winston/Consola) |
 | Testing | Basic coverage | Comprehensive with proper mocks |
 | CLI tools | Basic | Enhanced with better diagnostics |
@@ -225,151 +225,37 @@ Here's how prompts guide a complete development workflow:
 
 ## Storage Backend
 
-DevFlow MCP uses Neo4j as its storage backend, providing a unified solution for both graph storage and vector search capabilities.
+DevFlow MCP uses SQLite as its storage backend, providing a unified solution for both graph storage and vector search capabilities.
 
-### Why Neo4j?
+### Why SQLite?
 
-- **Unified Storage**: Consolidates both graph and vector storage into a single database
-- **Native Graph Operations**: Built specifically for graph traversal and queries
-- **Integrated Vector Search**: Vector similarity search for embeddings built directly into Neo4j
-- **Scalability**: Better performance with large knowledge graphs
-- **Simplified Architecture**: Clean design with a single database for all operations
+- **Unified Storage**: Consolidates both graph and vector storage into a single database file
+- **Zero Configuration**: No external services required - works out of the box
+- **High Performance**: Optimized for local development and production use
+- **Integrated Vector Search**: Vector similarity search via sqlite-vec extension
+- **Portable**: Single file database that's easy to backup and move
 
 ### Prerequisites
 
-- Neo4j 5.13+ (required for vector search capabilities)
+- Node.js 23+ (for native SQLite support)
+- sqlite-vec extension (automatically loaded)
 
-### Neo4j Desktop Setup (Recommended)
+### Quick Start
 
-The easiest way to get started with Neo4j is to use [Neo4j Desktop](https://neo4j.com/download/):
-
-1. Download and install Neo4j Desktop from <https://neo4j.com/download/>
-2. Create a new project
-3. Add a new database
-4. Set a secure password for your database
-5. Start the database
-
-The Neo4j database will be available at:
-
-- **Bolt URI**: `bolt://127.0.0.1:7687` (for driver connections)
-- **HTTP**: `http://127.0.0.1:7474` (for Neo4j Browser UI)
-- **Default credentials**: username: `neo4j`, password: (your configured password)
-
-### Neo4j Setup with Docker (Alternative)
-
-Alternatively, you can use Docker Compose to run Neo4j:
+DevFlow MCP works immediately without any setup:
 
 ```bash
-# Start Neo4j container
-docker-compose up -d neo4j
+# Install
+npm install -g devflow-mcp
 
-# Stop Neo4j container
-docker-compose stop neo4j
+# Run (uses in-memory database by default)
+dfm mcp
 
-# Remove Neo4j container (preserves data)
-docker-compose rm neo4j
+# Or specify a database file
+DFM_SQLITE_LOCATION=./knowledge.db dfm mcp
 ```
 
-When using Docker, the Neo4j database will be available at:
-
-- **Bolt URI**: `bolt://127.0.0.1:7687` (for driver connections)
-- **HTTP**: `http://127.0.0.1:7474` (for Neo4j Browser UI)
-- **Default credentials**: username: `neo4j`, password: `dfm_password`
-
-#### Data Persistence and Management
-
-Neo4j data persists across container restarts and even version upgrades due to the Docker volume configuration in the `docker-compose.yml` file:
-
-```yaml
-volumes:
-  - ./neo4j-data:/data
-  - ./neo4j-logs:/logs
-  - ./neo4j-import:/import
-```
-
-These mappings ensure that:
-
-- `/data` directory (contains all database files) persists on your host at `./neo4j-data`
-- `/logs` directory persists on your host at `./neo4j-logs`
-- `/import` directory (for importing data files) persists at `./neo4j-import`
-
-You can modify these paths in your `docker-compose.yml` file to store data in different locations if needed.
-
-##### Upgrading Neo4j Version
-
-You can change Neo4j editions and versions without losing data:
-
-1. Update the Neo4j image version in `docker-compose.yml`
-2. Restart the container with `docker-compose down && docker-compose up -d neo4j`
-3. Reinitialize the schema with `npm run neo4j:init`
-
-The data will persist through this process as long as the volume mappings remain the same.
-
-##### Complete Database Reset
-
-If you need to completely reset your Neo4j database:
-
-```bash
-# Stop the container
-docker-compose stop neo4j
-
-# Remove the container
-docker-compose rm -f neo4j
-
-# Delete the data directory contents
-rm -rf ./neo4j-data/*
-
-# Restart the container
-docker-compose up -d neo4j
-
-# Reinitialize the schema
-npm run neo4j:init
-```
-
-##### Backing Up Data
-
-To back up your Neo4j data, you can simply copy the data directory:
-
-```bash
-# Make a backup of the Neo4j data
-cp -r ./neo4j-data ./neo4j-data-backup-$(date +%Y%m%d)
-```
-
-### Neo4j CLI Utilities
-
-DevFlow MCP includes command-line utilities for managing Neo4j operations:
-
-#### Testing Connection
-
-Test the connection to your Neo4j database:
-
-```bash
-# Test with default settings
-npm run neo4j:test
-
-# Test with custom settings
-npm run neo4j:test -- --uri bolt://127.0.0.1:7687 --username myuser --password mypass --database neo4j
-```
-
-#### Initializing Schema
-
-For normal operation, Neo4j schema initialization happens automatically when DevFlow MCP connects to the database. You don't need to run any manual commands for regular usage.
-
-The following commands are only necessary for development, testing, or advanced customization scenarios:
-
-```bash
-# Initialize with default settings (only needed for development or troubleshooting)
-npm run neo4j:init
-
-# Initialize with custom vector dimensions
-npm run neo4j:init -- --dimensions 768 --similarity euclidean
-
-# Force recreation of all constraints and indexes
-npm run neo4j:init -- --recreate
-
-# Combine multiple options
-npm run neo4j:init -- --vector-index custom_index --dimensions 384 --recreate
-```
+That's it! No Docker, no external services needed.
 
 ## Advanced Features
 
@@ -575,19 +461,10 @@ The following tools are available to LLM client hosts through the Model Context 
 Configure DevFlow MCP with these environment variables:
 
 ```bash
-# Neo4j Connection Settings
-NEO4J_URI=bolt://127.0.0.1:7687
-NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=dfm_password
-NEO4J_DATABASE=neo4j
-
-# Vector Search Configuration
-NEO4J_VECTOR_INDEX=entity_embeddings
-NEO4J_VECTOR_DIMENSIONS=1536
-NEO4J_SIMILARITY_FUNCTION=cosine
+# SQLite Configuration
+DFM_SQLITE_LOCATION=./knowledge.db
 
 # Embedding Service Configuration
-MEMORY_STORAGE_TYPE=neo4j
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 
@@ -595,21 +472,6 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 DEBUG=true
 ```
 
-### Command Line Options
-
-The Neo4j CLI tools support the following options:
-
-```
---uri <uri>              Neo4j server URI (default: bolt://127.0.0.1:7687)
---username <username>    Neo4j username (default: neo4j)
---password <password>    Neo4j password (default: dfm_password)
---database <n>           Neo4j database name (default: neo4j)
---vector-index <n>       Vector index name (default: entity_embeddings)
---dimensions <number>    Vector dimensions (default: 1536)
---similarity <function>  Similarity function (cosine|euclidean) (default: cosine)
---recreate               Force recreation of constraints and indexes
---no-debug               Disable detailed output (debug is ON by default)
-```
 
 ### Embedding Models
 
@@ -648,14 +510,7 @@ For local development, add this to your `claude_desktop_config.json`:
       "command": "dfm",
       "args": ["mcp"],
       "env": {
-        "MEMORY_STORAGE_TYPE": "neo4j",
-        "NEO4J_URI": "bolt://127.0.0.1:7687",
-        "NEO4J_USERNAME": "neo4j",
-        "NEO4J_PASSWORD": "your_password",
-        "NEO4J_DATABASE": "neo4j",
-        "NEO4J_VECTOR_INDEX": "entity_embeddings",
-        "NEO4J_VECTOR_DIMENSIONS": "1536",
-        "NEO4J_SIMILARITY_FUNCTION": "cosine",
+        "DFM_SQLITE_LOCATION": "./knowledge.db",
         "OPENAI_API_KEY": "your-openai-api-key",
         "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
         "DEBUG": "true"
@@ -731,35 +586,23 @@ DevFlow MCP includes built-in diagnostic capabilities to help troubleshoot vecto
 
 Additional diagnostic tools become available when debug mode is enabled:
 
-- **diagnose_vector_search**: Information about the Neo4j vector index, embedding counts, and search functionality
+- **diagnose_vector_search**: Information about the SQLite vector index, embedding counts, and search functionality
 - **force_generate_embedding**: Forces the generation of an embedding for a specific entity
 - **debug_embedding_config**: Information about the current embedding service configuration
 
 ### Developer Reset
 
-To completely reset your Neo4j database during development:
+To completely reset your SQLite database during development:
 
 ```bash
-# Stop the container (if using Docker)
-docker-compose stop neo4j
+# Remove the database file
+rm -f ./knowledge.db
 
-# Remove the container (if using Docker)
-docker-compose rm -f neo4j
+# Or if using a custom location
+rm -f $DFM_SQLITE_LOCATION
 
-# Delete the data directory (if using Docker)
-rm -rf ./neo4j-data/*
-
-# For Neo4j Desktop, right-click your database and select "Drop database"
-
-# Restart the database
-# For Docker:
-docker-compose up -d neo4j
-
-# For Neo4j Desktop:
-# Click the "Start" button for your database
-
-# Reinitialize the schema
-npm run neo4j:init
+# Restart your application - schema will be recreated automatically
+dfm mcp
 ```
 
 ## Building and Development

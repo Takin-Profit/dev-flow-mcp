@@ -612,12 +612,12 @@ describe("KnowledgeGraphManager with VectorStore", () => {
 })
 
 /**
- * Neo4j Storage Provider Unit Tests
+ * SQLite Storage Provider Unit Tests
  *
- * These tests mock the Neo4j database to verify the same functionality
+ * These tests mock the SQLite database to verify the same functionality
  * as the integration tests without requiring a real database.
  */
-describe("Neo4j Storage Provider Unit Tests", () => {
+describe("SQLite Storage Provider Unit Tests", () => {
   describe("Relations with Strength and Confidence", () => {
     it("should create relation with strength and confidence through KnowledgeGraphManager", async (t) => {
       const timestamp = Date.now()

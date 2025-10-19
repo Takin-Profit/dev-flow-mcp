@@ -95,13 +95,10 @@ temp/
 *.swp
 coverage/
 
-# Memory MCP specific
+# DevFlow MCP specific
 .DS_Store
 .specstory/
 .cursor/
-neo4j-data/
-neo4j-import/
-neo4j-logs/
 memento-mcp.code-workspace
 copilot-instructions.md
 .github/copilot-instructions.md
