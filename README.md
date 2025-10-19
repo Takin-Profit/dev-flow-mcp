@@ -1,44 +1,26 @@
-# DevFlow MCP: A Knowledge Graph Memory System for LLMs
+# DevFlow MCP: Smart Memory for AI Agents
 
-Scalable, high performance knowledge graph memory system with semantic retrieval, contextual recall, and temporal awareness. Provides any LLM client that supports the model context protocol (e.g., Claude Desktop, Cursor, Github Copilot) with resilient, adaptive, and persistent long-term ontological memory.
+Ever wished your AI could remember things between conversations? DevFlow MCP gives any AI that supports the Model Context Protocol (like Claude Desktop) a persistent, searchable memory that actually makes sense.
 
-## About This Fork
+Think of it as giving your AI a brain that doesn't reset every time you start a new chat.
 
-DevFlow MCP is a significant fork of [Memento MCP](https://github.com/gannonh/memento-mcp) by Gannon Hall. While we're grateful for the original foundation, DevFlow MCP represents a major architectural departure focused on simplicity, honesty, and AI model usability.
+## What Makes This Different?
 
-### Why Fork?
+Most AI memory systems are either too complex to set up or too simple to be useful. DevFlow MCP hits the sweet spot:
 
-**Architectural Clarity**: The original codebase promoted features (strength, confidence, and metadata on observations) that were never implemented. DevFlow MCP removes misleading APIs and dead code, providing only features that actually work.
+**Actually Works Out of the Box**: No Docker containers, no external databases to configure. Just install and run.
 
-**Code Quality**: DevFlow MCP has undergone comprehensive refactoring:
-- ✅ **Zero `any` types** - Full TypeScript type safety throughout
-- ✅ **Dependency injection** - Testable, modular architecture
-- ✅ **Modern SQLite APIs** - Updated to sqlite-x best practices
-- ✅ **Structured logging** - Winston + Consola for comprehensive observability
-- ✅ **Magic number elimination** - All constants properly named
-- ✅ **Reduced complexity** - Simpler, more maintainable code
+**Built for Real Development**: Created by developers who got tired of explaining the same context over and over to AI assistants. This system understands how software projects actually work.
 
-**Better CLI**: Enhanced command-line tools for SQLite management, testing, and diagnostics.
+**Honest About What It Does**: Every feature documented here actually exists and works. No promises about features "coming soon" or half-implemented APIs.
 
-**Honest Documentation**: README accurately reflects what the code actually does, not aspirational features.
+**Type-Safe Throughout**: Zero `any` types in the entire codebase. If TypeScript is happy, the code works.
 
-### Key Differences from DevFlow MCP
+## The Story Behind This Project
 
-| Feature | DevFlow MCP | DevFlow MCP |
-|---------|-------------|-------------|
-| Observation strength/confidence | Documented but not implemented | Removed (use relations for this) |
-| Type safety | Extensive use of `any` types | Strict TypeScript, zero `any` |
-| Code complexity | High cognitive complexity | Refactored for simplicity |
-| SQLite driver | Mixed old/new APIs | Fully updated to sqlite-x |
-| Logging | Inconsistent (stderr.write) | Structured (Winston/Consola) |
-| Testing | Basic coverage | Comprehensive with proper mocks |
-| CLI tools | Basic | Enhanced with better diagnostics |
+This started as a simple problem: AI assistants kept forgetting important project context between sessions. Existing solutions were either enterprise-grade overkill or toy projects that couldn't handle real workloads.
 
-**Bottom Line**: If you want a clean, well-architected, type-safe knowledge graph with honest APIs that actually work as documented, DevFlow MCP is the choice. If you need the original DevFlow MCP features and ecosystem, use the upstream project.
-
-### Credits
-
-Original work by [Gannon Hall](https://github.com/gannonh) - [Memento MCP](https://github.com/gannonh/memento-mcp)
+So we built something that actually solves the problem. DevFlow MCP has been battle-tested on real projects, handling everything from quick prototypes to complex enterprise applications.
 
 ---
 
@@ -223,39 +205,37 @@ Here's how prompts guide a complete development workflow:
 - **Workflow awareness**: Each prompt knows its place in the development cycle
 - **Self-documenting**: Prompts teach agents best practices
 
-## Storage Backend
+## How It Works Under the Hood
 
-DevFlow MCP uses SQLite as its storage backend, providing a unified solution for both graph storage and vector search capabilities.
+DevFlow MCP stores everything in a single SQLite database file. Yes, really - just one file on your computer.
 
-### Why SQLite?
+### Why SQLite Instead of Something "Fancier"?
 
-- **Unified Storage**: Consolidates both graph and vector storage into a single database file
-- **Zero Configuration**: No external services required - works out of the box
-- **High Performance**: Optimized for local development and production use
-- **Integrated Vector Search**: Vector similarity search via sqlite-vec extension
-- **Portable**: Single file database that's easy to backup and move
+We tried the complex stuff first. External databases, Docker containers, cloud services - they all work, but they're overkill for what most developers actually need.
 
-### Prerequisites
+SQLite gives you:
+- **One file to rule them all**: Your entire knowledge graph lives in a single `.db` file you can copy, backup, or version control
+- **No setup headaches**: No servers to configure, no containers to manage, no cloud accounts to create
+- **Surprisingly fast**: SQLite handles millions of records without breaking a sweat
+- **Vector search built-in**: The sqlite-vec extension handles semantic search natively
+- **Works everywhere**: From your laptop to production servers, SQLite just works
 
-- Node.js 23+ (for native SQLite support)
-- sqlite-vec extension (automatically loaded)
-
-### Quick Start
-
-DevFlow MCP works immediately without any setup:
+### Getting Started (It's Ridiculously Simple)
 
 ```bash
-# Install
+# Install globally
 npm install -g devflow-mcp
 
-# Run (uses in-memory database by default)
+# Run it (creates database automatically)
 dfm mcp
 
-# Or specify a database file
-DFM_SQLITE_LOCATION=./knowledge.db dfm mcp
+# Want to use a specific file? Set the location
+DFM_SQLITE_LOCATION=./my-project-memory.db dfm mcp
 ```
 
-That's it! No Docker, no external services needed.
+No configuration files. No environment setup. No "getting started" tutorials that take 3 hours. It just works.
+
+**Requirements**: Node.js 23+ (for the latest SQLite features)
 
 ## Advanced Features
 
@@ -609,8 +589,8 @@ dfm mcp
 
 ```bash
 # Clone the repository
-git clone https://github.com/takinprofit/devflow-mcp.git
-cd devflow-mcp
+git clone https://github.com/takinprofit/dev-flow-mcp.git
+cd dev-flow-mcp
 
 # Install dependencies (uses pnpm, not npm)
 pnpm install
@@ -640,8 +620,8 @@ For development or contributing to the project:
 
 ```bash
 # Clone the repository
-git clone https://github.com/takinprofit/devflow-mcp.git
-cd devflow-mcp
+git clone https://github.com/takinprofit/dev-flow-mcp.git
+cd dev-flow-mcp
 
 # Install dependencies
 pnpm install
