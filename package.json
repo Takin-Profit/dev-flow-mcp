@@ -57,7 +57,7 @@
     "@commitlint/config-conventional": "^20.0.0",
     "@types/node": "^24.8.0",
     "@types/uuid": "^11.0.0",
-    "lefthook": "^1.13.6",
+    "lefthook": "^2.0.0",
     "tsdown": "^0.15.7",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
